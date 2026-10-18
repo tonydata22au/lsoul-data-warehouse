@@ -1,0 +1,16 @@
+# Core data / warehouse
+pandas>=2.0,<3.0
+google-cloud-bigquery>=3.0,<4.0
+db-dtypes>=1.0,<2.0
+
+# Environment configuration
+python-dotenv>=1.0,<2.0
+
+# Notebook / analysis
+jupyterlab>=4.0,<5.0
+matplotlib>=3.0,<4.0
+
+# Add only the libraries actually used by LSOUL below.
+# requests>=2.0,<3.0
+# numpy>=2.0,<3.0
+# seaborn>=0.13,<1.0

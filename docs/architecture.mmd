@@ -1,0 +1,31 @@
+flowchart LR
+    subgraph Sources[Source system APIs]
+        PK[Pancake POS]
+        DP[Dianplus]
+        JS[Jushuitan]
+        MG[Magento]
+        SF[Surfosm / ScaleUp]
+        TT[TikTok Ads]
+        MT[Meta Ads]
+    end
+    subgraph Ingestion[Python ingestion - src/]
+        CR[cloud_run services<br/>Flask + gunicorn on Cloud Run]
+        LR[local_run scripts]
+        CSV[csv_export scripts]
+    end
+    Sources --> CR
+    Sources --> LR
+    Sources --> CSV
+    CSV --> Files[CSV files]
+    Files -. manual load / schema --csv .-> RAW
+    CR -->|load_table_from_dataframe<br/>WRITE_APPEND| RAW
+    LR -->|WRITE_APPEND| RAW
+    subgraph BQ[BigQuery marine-cycle-484213-b4 - sql/]
+        RAW[raw_* tables<br/>ingestion-time partitioned]
+        STG[stg_* tables<br/>sql/staging]
+        CORE[core_* tables<br/>sql/procedures sp_*_insert]
+        FN[reportdb fn_*<br/>sql/functions]
+        DASH[dash_* tables / views<br/>sql/working_files]
+        RAW --> STG --> CORE --> FN --> DASH
+    end
+    DASH --> NB[Notebooks and dashboards]

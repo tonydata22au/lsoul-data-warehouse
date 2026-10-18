@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./credentials/**)"
+    ],
+    "ask": [
+      "Bash(gcloud *)",
+      "Bash(bq *)",
+      "Bash(docker push *)",
+      "Bash(git push *)",
+      "Bash(gunicorn *)",
+      "Bash(flask *)",
+      "Bash(python *src/*)",
+      "Bash(python3 *src/*)",
+      "Bash(*/python *src/*)",
+      "Bash(*/python3 *src/*)"
+    ]
+  }
+}

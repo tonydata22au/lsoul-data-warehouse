@@ -1,0 +1,9 @@
+import importlib.util
+from pathlib import Path
+
+module_path = Path(__file__).with_name("cr-tiktok-thai-reporting-basic-auction-ad.py")
+spec = importlib.util.spec_from_file_location("cr_tiktok_thai_reporting_basic_auction_ad", module_path)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+
+app = module.app

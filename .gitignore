@@ -1,0 +1,103 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+*.nbconvert.ipynb
+
+# =========================
+# Environment / secrets
+# =========================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+*-service-account*.json
+
+# Google Cloud / local credentials
+.gcloud/
+*.boto
+
+# =========================
+# Local configuration
+# =========================
+config.local.*
+settings.local.*
+
+# =========================
+# Data files
+# Keep raw/proprietary data out of Git.
+# =========================
+data/raw/*
+data/processed/*
+*.csv
+*.tsv
+*.parquet
+*.feather
+*.xlsx
+*.xls
+*.json
+!data/**/.gitkeep
+
+# =========================
+# OS / editor files
+# =========================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# Logs / temp
+# =========================
+*.log
+*.tmp
+*.temp
+
+# =========================
+# LSOUL-specific (added 2026-10-18)
+# =========================
+# Service-account keys and other local credentials
+credentials/
+# Source-system Excel exports used as seeds contain order data
+seeds/**/*.xlsx
+# Shared agent configuration (overrides the *.json rule above)
+!.claude/settings.json

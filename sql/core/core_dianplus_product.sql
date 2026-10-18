@@ -1,0 +1,41 @@
+--truncate table `marine-cycle-484213-b4.dianplus.core_dianplus_product`
+CREATE OR REPLACE TABLE `marine-cycle-484213-b4.dianplus.core_dianplus_product`
+AS
+SELECT
+proc_date,
+brandId,
+childBrandId,
+childBrandCode,
+childBrandName,
+skuId,
+spuId,
+status,
+lastModifyTime,
+spuMerchantCode,
+merchantCode,
+standardCode,
+title,
+catId,
+catCode,
+topCatName,
+colorPropName,
+colorCode,
+colorName,
+colorGroup,
+colorSort,
+sizePropName,
+sizeCode,
+sizeName,
+sizeSort,
+suggestPrice,
+year,
+bigCat,
+execStandard,
+securityType,
+mainFabric,
+is_multiTopCat,
+is_oneTimesTitle,
+is_oneTimesSgtPrice,
+is_oneTimesSalPrice
+FROM `marine-cycle-484213-b4.dianplus.stg_dianplus_product` 
+WHERE DATE(proc_date) = CURRENT_DATE()

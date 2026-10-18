@@ -1,0 +1,146 @@
+import os
+import requests
+import csv
+import json
+from datetime import datetime
+from pathlib import Path
+
+# Configuration
+ACCESS_TOKEN = os.getenv("META_ACCESS_TOKEN", "")  # Set META_ACCESS_TOKEN env var
+AD_ACCOUNT_ID = os.getenv("META_AD_ACCOUNT_ID", "act_785254401088992")
+API_VERSION = "v24.0"
+OUTPUT_PATH = Path("/Users/tony.pham/Library/CloudStorage/GoogleDrive-ops.data@lsoul.com/My Drive/03. CODE & DOCUMENTS/data_export_csv")
+
+# API Endpoint
+url = f"https://graph.facebook.com/{API_VERSION}/{AD_ACCOUNT_ID}/insights"
+
+params = {
+    'fields': 'date_start,date_stop,campaign_id,campaign_name,adset_name,ad_name,spend,reach,clicks,cpc,cpm,actions,cost_per_action_type',
+    'level': 'ad',
+    'time_increment': '1',
+    'limit': '5000',
+    'access_token': ACCESS_TOKEN
+    #'date_preset': 'yesterday'
+}
+
+
+def serialize(value):
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=True)
+    return value if value not in (None, '') else ''
+
+
+def aggregate_action_values(items):
+    result = {}
+    if not isinstance(items, list):
+        return result
+    for entry in items:
+        if not isinstance(entry, dict):
+            continue
+        action_type = entry.get('action_type')
+        if not action_type:
+            continue
+        val = entry.get('value')
+        # Try to coerce numeric; keep string if not numeric
+        if isinstance(val, str):
+            try:
+                val_num = float(val)
+                val = val_num
+            except ValueError:
+                pass
+        if isinstance(val, (int, float)):
+            prev = result.get(action_type)
+            if isinstance(prev, (int, float)):
+                result[action_type] = prev + val
+            else:
+                result[action_type] = val
+        elif val not in (None, ''):
+            result[action_type] = val
+    return result
+
+
+insights = []
+next_url = url
+next_params = params.copy()
+
+while next_url:
+    response = requests.get(next_url, params=next_params)
+    if response.status_code != 200:
+        print(f"❌ Error: {response.status_code}")
+        print(f"   {response.text}")
+        break
+    data = response.json()
+    batch = data.get('data', [])
+    insights.extend(batch)
+    paging = data.get('paging', {})
+    next_url = paging.get('next')
+    next_params = None  # paging.next already has all params encoded
+
+if insights:
+    # Collect all action types present to expand into columns
+    action_types = set()
+    cpat_types = set()
+    for item in insights:
+        for entry in item.get('actions', []) or []:
+            if isinstance(entry, dict) and entry.get('action_type'):
+                action_types.add(entry['action_type'])
+        for entry in item.get('cost_per_action_type', []) or []:
+            if isinstance(entry, dict) and entry.get('action_type'):
+                cpat_types.add(entry['action_type'])
+
+    action_cols = [f"actions_{t}" for t in sorted(action_types)]
+    cpat_cols = [f"cost_per_action_type_{t}" for t in sorted(cpat_types)]
+
+    headers = [
+        'date_start',
+        'date_stop',
+        'campaign_id',
+        'campaign_name',
+        'adset_name',
+        'ad_name',
+        'spend',
+        'reach',
+        'clicks',
+        'cpc',
+        'cpm',
+    ] + action_cols + cpat_cols
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"facebook_insights_detailed_{timestamp}.csv"
+    OUTPUT_PATH.mkdir(parents=True, exist_ok=True)
+    output_file = OUTPUT_PATH / filename
+
+    with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=headers)
+        writer.writeheader()
+
+        for item in insights:
+            actions_map = aggregate_action_values(item.get('actions', []))
+            cpat_map = aggregate_action_values(item.get('cost_per_action_type', []))
+
+            row = {
+                'date_start': serialize(item.get('date_start', '')),
+                'date_stop': serialize(item.get('date_stop', '')),
+                'campaign_id': serialize(item.get('campaign_id', '')),
+                'campaign_name': serialize(item.get('campaign_name', '')),
+                'adset_name': serialize(item.get('adset_name', '')),
+                'ad_name': serialize(item.get('ad_name', '')),
+                'spend': serialize(item.get('spend', '')),
+                'reach': serialize(item.get('reach', '')),
+                'clicks': serialize(item.get('clicks', '')),
+                'cpc': serialize(item.get('cpc', '')),
+                'cpm': serialize(item.get('cpm', ''))
+            }
+            for col in action_cols:
+                key = col.replace('actions_', '', 1)
+                row[col] = serialize(actions_map.get(key, ''))
+            for col in cpat_cols:
+                key = col.replace('cost_per_action_type_', '', 1)
+                row[col] = serialize(cpat_map.get(key, ''))
+            writer.writerow(row)
+
+    print(f"✅ Success! Enhanced data saved to: {output_file}")
+    print(f"📊 Total records: {len(insights)}")
+else:
+    print(f"❌ Error: {response.status_code}")
+    print(f"   {response.text}")
