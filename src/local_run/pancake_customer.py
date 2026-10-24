@@ -7,6 +7,9 @@ Usage:
     python3 local-run/pancake/data_export_customer.py               # Get yesterday's customer data from T00:00:00 to T23:59:59 in Vietnam time (UTC+7)
     python3 local-run/pancake/data_export_customer.py --start_date 2026-05-01T00:00:00 --end_date 2026-05-09T23:59:59
     python3 local-run/pancake/data_export_customer.py --All           # Get all customer data with no date filter (use with caution)
+    python3 src/local_run/pancake_customer.py                      # Get yesterday's customer data (Vietnam time)
+    python3 src/local_run/pancake_customer.py --start-date 2026-05-01T00:00:00 --end-date 2026-05-09T23:59:59
+    python3 src/local_run/pancake_customer.py --All                # Get all customer data with no date filter (use with caution)
 """
 import argparse
 import os
@@ -29,9 +32,10 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 COLUMN_RENAME_MAP = {

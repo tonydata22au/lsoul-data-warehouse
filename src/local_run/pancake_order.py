@@ -7,6 +7,9 @@ Usage:
     python3 local-run/pancake/data_export_order.py               # Get yesterday's order data from T00:00:00 to T23:59:59 in Vietnam time (UTC+7)
     python local-run/pancake/data_export_order.py --start-date 2026-07-14T00:00:00 --end-date 2026-07-14T23:59:59
     python3 local-run/pancake/data_export_order.py --All           # Get all order data with up to yesterday's date (Vietnam time)
+    python3 src/local_run/pancake_order.py --All                    # Get all order data with up to yesterday's date (Vietnam time)
+    python3 src/local_run/pancake_order.py                          # Get yesterday's order data from T00:00:00 to T23:59:59 in Vietnam time (UTC+7)
+    python3 src/local_run/pancake_order.py --30days                 # Get order data from 30 days ago (T00:00:00) to yesterday (T23:59:59) in Vietnam time (UTC+7)
 """
 import argparse
 import os
@@ -29,9 +32,10 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 
@@ -301,6 +305,7 @@ def load_data(start_date=None, end_date=None):
                 'api_key': api_key,
                 'page': page,
                 'page_size': page_size,
+                'updateStatus': 'updated_at' # Use 'updated_at' to filter orders based on their last update time
             }
             # Only add date parameters if they were provided
             if start_datetime:
@@ -513,14 +518,19 @@ def main():
     parser = argparse.ArgumentParser(description="Export Pancake POS entry data to BigQuery")
     parser.add_argument("--project-id", default=None, help="Google Cloud project ID (optional, uses default if not specified)")
     parser.add_argument("--All", action="store_true", help="Fetch all data without date filters")
+    parser.add_argument("--30days", dest="last_30_days", action="store_true", help="Fetch from 30 days ago 00:00:00 to yesterday 23:59:59 (Vietnam time)")
     parser.add_argument("--start-date", default=None, help="Start date in format YYYY-MM-DDTHH:MM:SS (e.g., 2024-01-01T00:00:00)")
     parser.add_argument("--end-date", default=None, help="End date in format YYYY-MM-DDTHH:MM:SS (e.g., 2024-12-31T23:59:59)")
     args = parser.parse_args()
+
+    if args.last_30_days and (args.All or args.start_date or args.end_date):
+        parser.error("--30days cannot be combined with --All, --start-date or --end-date")
     
-     # Determine date range based on three options:
+    # Determine date range based on four options:
     # 1. --All flag: No date filters
     # 2. Manual dates: Use provided --start-date and --end-date
-    # 3. Default: Yesterday 00:00:00 to 23:59:59
+    # 3. --30days flag: 30 days ago 00:00:00 to yesterday 23:59:59
+    # 4. Default: Yesterday 00:00:00 to 23:59:59
     vietnam_tz = pytz.timezone('Asia/Ho_Chi_Minh')
     if args.All:
         # Cap at yesterday 23:59:59 (Vietnam time) when requesting "all" to avoid partial current-day data
@@ -531,13 +541,18 @@ def main():
     elif args.start_date or args.end_date:
         start_date_arg = args.start_date
         end_date_arg = args.end_date
-    else:
-        # Default: 30 days ago to yesterday (Vietnam time)
+    elif args.last_30_days:
+        # 30 days ago 00:00:00 to yesterday 23:59:59 (Vietnam time)
         now_vn = datetime.now(vietnam_tz)
+        start_vn = (now_vn - timedelta(days=30)).replace(hour=0, minute=0, second=0, microsecond=0)
         end_vn = (now_vn - timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=0)
-        start_vn = end_vn - timedelta(days=30)
         start_date_arg = start_vn.strftime("%Y-%m-%dT%H:%M:%S")
         end_date_arg = end_vn.strftime("%Y-%m-%dT%H:%M:%S")
+    else:
+        # Default: yesterday only (Vietnam time)
+        yesterday_vn = datetime.now(vietnam_tz) - timedelta(days=1)
+        start_date_arg = yesterday_vn.strftime("%Y-%m-%dT00:00:00")
+        end_date_arg = yesterday_vn.strftime("%Y-%m-%dT23:59:59")
 
     orders_raw = load_data(start_date=start_date_arg, end_date=end_date_arg)
     

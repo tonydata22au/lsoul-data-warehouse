@@ -7,6 +7,8 @@ Usage:
     python3 local-run/dianplus.cn/dianplus-order.py               # Get yesterday's orders from T00:00:00 to T23:59:59 in shanghai time
     python3 local-run/dianplus.cn/dianplus-order.py --start_date 2026-07-23T00:00:00 --end_date 2026-07-26T23:59:59
     python3 local-run/dianplus.cn/dianplus-order.py --ALL           # Get all orders with no date filter (use with caution)
+    python3 src/local_run/dianplus_order.py                        # Get yesterday's orders
+    python3 src/local_run/dianplus_order.py --start_date 2026-07-23T00:00:00 --end_date 2026-07-26T23:59:59
 """
 import json
 import os
@@ -28,8 +30,6 @@ load_dotenv()  # local runs read credentials from the repo-root .env; deployed s
 
 warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-
 # API Configuration
 MERCHANT_CODE = "13939"
 APP_KEY = os.environ["DIANPLUS_APP_KEY"]
@@ -42,9 +42,10 @@ API_URL = "https://open.dianplus.cn:443/api/vpc/rs/isv/order/getOrder"
 _cached_token = None
 _token_expiry = None
 
-# BigQuery config
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 

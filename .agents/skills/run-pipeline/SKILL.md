@@ -15,7 +15,8 @@ and read-only checks first.
 - **Explicit authorization** naming the pipeline, the date range and whether loading to BigQuery is
   allowed. A "dry run" still calls the source API, so it needs authorization too.
 - Setup from [docs/setup.md](../../../docs/setup.md): `.venv`, `.env` with the credentials the
-  pipeline reads, `GOOGLE_APPLICATION_CREDENTIALS` (local scripts) or Application Default Credentials.
+  pipeline reads, the service-account key at `credentials/google-credentials.json` (`src/local_run/`
+  scripts) or Application Default Credentials.
 
 ## Relevant files
 
@@ -47,10 +48,12 @@ and read-only checks first.
 
 1. Read the traceback; match it in `docs/troubleshooting.md`.
 2. `KeyError: '<NAME>'` → credential not set (local `.env`, or Cloud Run service env/secret).
-3. `FileNotFoundError …/src/credentials/…` → set `GOOGLE_APPLICATION_CREDENTIALS`.
+3. `FileNotFoundError …/credentials/google-credentials.json` from a `local_run/` script → put the key
+   at `credentials/google-credentials.json` in the repo root. `…/src/credentials/…` from `schema/` or
+   `csv_export/` → set `GOOGLE_APPLICATION_CREDENTIALS`.
 4. 401/403 → expired token (TikTok/Meta): the user must issue a new one; never ask them to paste it in chat.
    Ask them to update `.env` or the secret themselves.
-5. HTTP 500 `cannot unpack non-iterable NoneType` → empty window in one of the 11 affected services.
+5. HTTP 500 `cannot unpack non-iterable NoneType` → empty window in one of the 10 affected services.
 6. Schema errors → compare the table schema with `COLUMN_RENAME_MAP` and the `src/schema/` script.
 7. Core not updated → staging partition date vs today (Vietnam time); `sysdb.data_insert_log`.
 8. `cloud-run-tiktok-thai-ads` won't start → known issue (`app_runner.py` filename).

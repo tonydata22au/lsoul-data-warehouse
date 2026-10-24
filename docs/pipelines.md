@@ -7,7 +7,7 @@ Verified by reading the code on 2026-10-18 (nothing was executed against APIs or
 - **Project:** the client's default project unless noted. The warehouse SQL uses `marine-cycle-484213-b4`.
 - **WA:** `load_table_from_dataframe` with `WRITE_APPEND`, `ALLOW_FIELD_ADDITION`/`RELAXATION`, every column cast to STRING. Raw tables are ingestion-time partitioned.
 - **VN yesterday:** 00:00:00–23:59:59 yesterday in `Asia/Ho_Chi_Minh`.
-- **Schedule:** **unknown for every pipeline.** No Cloud Scheduler, cron, CI or service URLs are in the repo. The SQL implies a daily run (see [architecture.md](architecture.md#runtime-and-deployment)).
+- **Schedule:** **unknown for every pipeline** except `cloud-run-pancake-order`: Cloud Scheduler job `pancake-insert-raw_order` sends `GET /` daily at 07:20 ICT (details in its docstring). No Cloud Scheduler, cron, CI or service URLs are in the repo. The SQL implies a daily run (see [architecture.md](architecture.md#runtime-and-deployment)).
 - **Dry run** (where it exists) **still calls the source API**; it only skips the BigQuery load.
 
 ## Cloud Run services: `src/cloud_run/<service>/`
@@ -28,8 +28,8 @@ with the default window below. The CLI is `python cr-<name>.py [flags]` in the s
 | cloud-run-pancake-customer | Pancake `/customers` | VN yesterday | `--project-id --All --start-date --end-date --max-pages --dry-run` | `raw_pancake.raw_customer` | WA |
 | cloud-run-pancake-ecom-product | Pancake `/marketplace/products` | VN yesterday | same Pancake flags | `raw_pancake.raw_ecom_product` | WA |
 | cloud-run-pancake-inventory_histories | Pancake `/inventory_histories` | VN yesterday | Pancake flags + `--yesterday` (no effect) | `raw_pancake.raw_inventory_histories` | WA |
-| cloud-run-pancake-order | Pancake `/orders` | **Last 30 days** to VN yesterday | Pancake flags | `raw_pancake.raw_order` | WA |
-| cloud-run-pancake-order_returned | **Same code as pancake-order** (`/orders`) ⚠ | Last 30 days | Pancake flags | **`raw_pancake.raw_order`** ⚠ (see [known issues](troubleshooting.md#known-issues)) | WA |
+| cloud-run-pancake-order | Pancake `/orders` (`updateStatus=updated_at`: orders **updated** in the window) | VN yesterday; GET or POST; `?start_date&end_date` (VN time) re-runs a window | Pancake flags + `--30days` (30 days ago to VN yesterday) | `raw_pancake.raw_order` | WA |
+| cloud-run-pancake-order_returned | **Older copy of pancake-order's code** (`/orders`; no `updateStatus`, old column set) ⚠ | Last 30 days | Pancake flags | **`raw_pancake.raw_order`** ⚠ (see [known issues](troubleshooting.md#known-issues)) | WA |
 | cloud-run-pancake-product | Pancake `/products` | VN yesterday | Pancake flags | `raw_pancake.raw_product` | WA |
 | cloud-run-pancake-product_variations | Pancake `/products/variations` | VN yesterday | Pancake flags + `--yesterday` (ignored) | `raw_pancake.raw_product_variations` | WA |
 | cloud-run-pancake-stats_inventory_product | Pancake `/inventory_analytics/inventory_by_product` | VN yesterday | Pancake flags | `raw_pancake.raw_stats_inventory_product` | WA |
@@ -51,14 +51,17 @@ with the default window below. The CLI is `python cr-<name>.py [flags]` in the s
 Credentials (env vars): Pancake `PANCAKE_API_KEY`; Dianplus `DIANPLUS_APP_KEY`, `DIANPLUS_APP_SECRET`;
 Jushuitan `JUSHUITAN_APP_KEY`, `JUSHUITAN_APP_SECRET`; Magento `MAGENTO_USERNAME`, `MAGENTO_PASSWORD`;
 Surfosm `SURFOSM_API_KEY`; Meta `META_ACCESS_TOKEN`; TikTok VN `TIKTOK_VN_ACCESS_TOKEN`, Thai `TIKTOK_TH_ACCESS_TOKEN`.
-BigQuery auth: Application Default Credentials (the Cloud Run service identity).
+BigQuery auth: Application Default Credentials (the Cloud Run service identity). `cloud-run-pancake-order`
+also uses `credentials/google-credentials.json` from the repo root when that file exists (local runs only;
+the file isn't in the image, so the deployed service uses the service identity).
 
 ## Local runners: `src/local_run/`
 
 Run as `python src/local_run/<file> [flags]`. All load with **WA** to the same tables as their Cloud
 Run counterparts unless noted. There's **no dry-run flag**; `--list` (TikTok scripts and
 `pancake_orders_returned.py`) fetches, prints columns and exits before loading. Every script reads the
-service-account key at import (`GOOGLE_APPLICATION_CREDENTIALS`, default `src/credentials/google-credentials.json`).
+service-account key at import from `credentials/google-credentials.json` in the repo root
+(`GOOGLE_APPLICATION_CREDENTIALS` is ignored), and its docstring lists example manual-run commands.
 
 | File | Source | Default window | Flags | Destination |
 |---|---|---|---|---|
@@ -75,7 +78,7 @@ service-account key at import (`GOOGLE_APPLICATION_CREDENTIALS`, default `src/cr
 | meta_ads_my.py | Meta insights | same | same | `raw_meta.raw_ads_reporting_my` (local only) |
 | pancake_customer.py | Pancake customers | VN yesterday | `--project-id --All --start-date --end-date` | `raw_pancake.raw_customer` |
 | pancake_inventory_histories.py | Pancake inventory histories | VN yesterday | `--project-id --All --start-date --end-date --yesterday` | `raw_pancake.raw_inventory_histories` |
-| pancake_order.py | Pancake orders | Last 30 days | `--project-id --All --start-date --end-date` | `raw_pancake.raw_order` |
+| pancake_order.py | Pancake orders | VN yesterday; `--30days` = 30 days ago to VN yesterday | `--project-id --All --30days --start-date --end-date` | `raw_pancake.raw_order` |
 | pancake_orders_returned.py | Pancake `/orders_returned` | Last 30 days | `--list --project-id --All --start-date --end-date` | `raw_pancake.raw_orders_returned` |
 | pancake_product_variations.py | Pancake product variations | VN yesterday | `--project-id --All --start-date --end-date --yesterday` | `raw_pancake.raw_product_variations` |
 | pancake_stats_inventory_variations.py | Pancake inventory analytics | VN yesterday | `--project-id --All --start-date --end-date` | `raw_pancake.raw_stats_inventory_variations` |

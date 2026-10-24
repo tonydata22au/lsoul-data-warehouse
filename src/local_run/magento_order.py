@@ -15,6 +15,12 @@ Usage:
         # Dates in Vietnam time — converted to UTC automatically
     python3 local-run/magento/magento-data_export_order.py --ALL
         # Fetch all orders with no date filter (use with caution)
+    python3 src/local_run/magento_order.py
+        # Interactive prompt; press Enter to use yesterday (Vietnam date)
+    python3 src/local_run/magento_order.py --start_date 2025-01-01T00:00:00 --end_date 2026-07-03T23:59:59
+        # Dates in Vietnam time — converted to UTC automatically
+    python3 src/local_run/magento_order.py --ALL
+        # Fetch all orders with no date filter (use with caution)
 """
 
 import sys
@@ -51,10 +57,10 @@ OUTPUT_DIR = Path(
     "My Drive/03. CODE & DOCUMENTS/data_export_csv"
 )
 
-# BigQuery config
-BASE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 

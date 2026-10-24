@@ -1,3 +1,12 @@
+"""
+Script to load ad group data from TikTok API (VN account), flatten nested structures, and load it to BigQuery.
+Default: Get all ad groups (full snapshot); --start-date/--end-date filter by creation time in Vietnam time (UTC+7)
+
+Usage:
+    python3 src/local_run/tiktok_vn_ad_group.py                    # Get all ad groups (full snapshot)
+    python3 src/local_run/tiktok_vn_ad_group.py --start-date 2026-01-01T00:00:00 --end-date 2026-04-09T23:59:59
+    python3 src/local_run/tiktok_vn_ad_group.py --list             # Fetch and print the columns, then exit (no BigQuery load)
+"""
 import argparse
 import json
 import os
@@ -13,16 +22,16 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 
 # Load .env that sits next to this script
-BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
 ACCESS_TOKEN_FROM_ENV = os.environ.get("TIKTOK_ACCESS_TOKEN")
 ADVERTISER_ID = "7161770060200050689"
 API_URL = "https://business-api.tiktok.com/open_api/v1.3/adgroup/get/"
 
-# BigQuery config
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 # Ordered mapping: API column name -> output column name.

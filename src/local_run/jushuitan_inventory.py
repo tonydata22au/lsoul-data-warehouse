@@ -7,6 +7,9 @@ Usage:
     python3 local-run/jushuitan/jushuitan-data_export_inventory.py               # Get yesterday's inventory from T00:00:00 to T23:59:59 in shanghai time
     python3 local-run/jushuitan/jushuitan-data_export_inventory.py --start_date 2026-01-01T00:00:00 --end_date 2026-05-26T23:59:59
     python3 local-run/jushuitan/jushuitan-data_export_inventory.py --ALL           # Get all inventory with no date filter (use with caution)
+    python3 src/local_run/jushuitan_inventory.py                   # Prompts for the date range; press Enter to use yesterday
+    python3 src/local_run/jushuitan_inventory.py --start_date 2026-01-01T00:00:00 --end_date 2026-05-26T23:59:59
+    python3 src/local_run/jushuitan_inventory.py --ALL             # Get all inventory with no date filter (use with caution)
 """
 
 import json
@@ -37,10 +40,10 @@ CHARSET = "utf-8"
 AUTH_URL = "https://openapi.jushuitan.com/openWeb/auth/getInitToken"
 API_URL = "https://openapi.jushuitan.com/open/inventory/query"
 
-# BigQuery config
-BASE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(DEFAULT_SERVICE_ACCOUNT_FILE)
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 # Global variable to cache the token

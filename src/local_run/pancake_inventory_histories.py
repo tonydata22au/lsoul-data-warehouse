@@ -7,6 +7,9 @@ Usage:
     python3 local-run/pancake/data_export_inventory_histories.py               # Get yesterday's inventory_histories from T00:00:00 to T23:59:59 in Vietnam time (UTC+7)
     python3 local-run/pancake/data_export_inventory_histories.py --start_date 2025-12-25T00:00:00 --end_date 2026-06-1T23:59:59
     python3 local-run/pancake/data_export_inventory_histories.py --All           # Get all inventory_histories with no date filter (use with caution)
+    python3 src/local_run/pancake_inventory_histories.py           # Get yesterday's inventory_histories (Vietnam time)
+    python3 src/local_run/pancake_inventory_histories.py --start-date 2025-12-25T00:00:00 --end-date 2026-06-01T23:59:59
+    python3 src/local_run/pancake_inventory_histories.py --All     # Get all inventory_histories with no date filter (use with caution)
 """
 import argparse
 import os
@@ -30,9 +33,10 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 

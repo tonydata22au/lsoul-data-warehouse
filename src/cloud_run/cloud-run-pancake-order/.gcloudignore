@@ -1,0 +1,8 @@
+# Not uploaded by `gcloud run deploy --source`; the Dockerfile copies everything else into the image.
+.gcloudignore
+ruff.toml
+__pycache__/
+*.pyc
+.DS_Store
+.env
+credentials/

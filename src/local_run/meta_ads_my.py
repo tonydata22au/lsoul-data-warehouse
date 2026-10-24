@@ -4,6 +4,11 @@ Fetch Meta ads insights and load into BigQuery.
 - Pulls ad-level insights with actions and cost_per_action_type.
 - Flattens dynamic action fields (dots -> underscores) into columns.
 - Loads into BigQuery using the same service-account flow as data_export_customer.py.
+
+Usage:
+    python3 src/local_run/meta_ads_my.py                           # Get yesterday's ad insights (date_preset=yesterday)
+    python3 src/local_run/meta_ads_my.py --date-preset last_7d     # Use another Meta date_preset
+    python3 src/local_run/meta_ads_my.py --all                     # Get all data (omit date_preset)
 """
 import argparse
 import json
@@ -46,9 +51,10 @@ DATASET_ID = "raw_meta"
 TABLE_ID = "raw_ads_reporting_my"
 LOCATION = "asia-southeast1"
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 # ---------------------------------------------------------------------------

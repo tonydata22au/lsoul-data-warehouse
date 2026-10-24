@@ -34,12 +34,14 @@ Details per pipeline: [pipelines.md](pipelines.md). Details per SQL layer: [../s
 ## Runtime and deployment
 
 - **Cloud Run services** (`src/cloud_run/<service>/`): each folder is a Docker build context
-  (`python:3.11-slim`, `gunicorn app_runner:app`). `app_runner.py` loads the hyphenated `cr-*.py`
+  (`python:3.11-slim`, or `python:3.13-slim` for `cloud-run-pancake-order`; `gunicorn app_runner:app`). `app_runner.py` loads the hyphenated `cr-*.py`
   module by file path and exposes its Flask `app`. A request to `/` runs the export with the
   script's default date window. `cloud-run-surfosm-inventory` also has a Cloud Functions entry
   point (`main.py`).
 - **Authentication to BigQuery:** Cloud Run services use Application Default Credentials (the
-  service's identity). Local scripts use a service-account key file (`GOOGLE_APPLICATION_CREDENTIALS`).
+  service's identity). Local scripts use a service-account key file: `src/local_run/` reads
+  `credentials/google-credentials.json` in the repo root; `src/schema/` and `src/csv_export/` read
+  `GOOGLE_APPLICATION_CREDENTIALS`.
 - **Source credentials:** environment variables (see [../.env.example](../.env.example)). Locally
   they come from the gitignored `.env` via `load_dotenv()`; on Cloud Run they must be set as service
   env vars or Secret Manager references.

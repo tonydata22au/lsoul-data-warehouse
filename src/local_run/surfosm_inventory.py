@@ -7,6 +7,9 @@ Usage:
     python3 local-run/surfosm/surfosm_data_export_inventory.py                                        # Default: yesterday
     python  local-run/surfosm/surfosm_data_export_inventory.py --date 2026-07-16                       # Single date
     python  local-run/surfosm/surfosm_data_export_inventory.py --start_date 2025-12-28 --end_date 2026-07-16
+    python3 src/local_run/surfosm_inventory.py                     # Default: yesterday
+    python3 src/local_run/surfosm_inventory.py --date 2026-07-16   # Single date
+    python3 src/local_run/surfosm_inventory.py --start_date 2025-12-28 --end_date 2026-07-16
 """
 import os
 import argparse
@@ -25,15 +28,14 @@ load_dotenv()  # local runs read credentials from the repo-root .env; deployed s
 warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-
 # API Configuration
 API_KEY = os.environ["SURFOSM_API_KEY"]
 API_URL = "https://api-app.scaleup-fulfilment.com/openapi/inventory"
 
-# BigQuery config
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 

@@ -7,6 +7,9 @@ Usage:
     python3 local-run/dianplus.cn/dianplus-inventory.py               # Get yesterday's inventory from T00:00:00 to T23:59:59 in shanghai time
     python3 local-run/dianplus.cn/dianplus-inventory.py --start_date 2026-01-01T00:00:00 --end_date 2026-05-26T23:59:59
     python3 local-run/dianplus.cn/dianplus-inventory.py --ALL           # Get all inventory with no date filter (use with caution)
+    python3 src/local_run/dianplus_inventory.py                    # Get yesterday's inventory
+    python3 src/local_run/dianplus_inventory.py --start_date 2026-01-01T00:00:00 --end_date 2026-05-26T23:59:59
+    python3 src/local_run/dianplus_inventory.py --ALL              # Get all inventory with no date filter (use with caution)
 """
 import json
 import os
@@ -28,8 +31,6 @@ load_dotenv()  # local runs read credentials from the repo-root .env; deployed s
 
 warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-
 # API Configuration
 MERCHANT_CODE = "13939"
 APP_KEY = os.environ["DIANPLUS_APP_KEY"]
@@ -42,9 +43,10 @@ API_URL = "https://open.dianplus.cn:443/api/vpc/rs/isv/inventory/getInvs"
 _cached_token = None
 _token_expiry = None
 
-# BigQuery config
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 

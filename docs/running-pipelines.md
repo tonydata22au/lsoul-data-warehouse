@@ -9,8 +9,10 @@ Look up the exact flags, default window and destination in [pipelines.md](pipeli
 
 ## Before any run
 
-1. Setup done ([setup.md](setup.md)): virtualenv, `.env` with the needed credentials, and
-   `GOOGLE_APPLICATION_CREDENTIALS` for local BigQuery access.
+1. Setup done ([setup.md](setup.md)): virtualenv, `.env` with the needed credentials, and a
+   Google credential for BigQuery: the key at `credentials/google-credentials.json` for
+   `src/local_run/`, or Application Default Credentials / `GOOGLE_APPLICATION_CREDENTIALS` for
+   Cloud Run scripts run locally.
 2. Know the side effects:
    - Loads are **append-only** (`WRITE_APPEND`). Re-running a date range adds duplicate rows to
      raw tables; core procedures deduplicate only for the current day's partition.
@@ -31,7 +33,8 @@ cd src/cloud_run/cloud-run-pancake-order
   but skips the BigQuery load. It **does call the API**.
 - Without `--dry-run`, the script appends to the destination table using your local Google
   credentials (Application Default Credentials: `gcloud auth application-default login`, or
-  `GOOGLE_APPLICATION_CREDENTIALS`).
+  `GOOGLE_APPLICATION_CREDENTIALS`). `cr-pancake-order.py` instead uses
+  `credentials/google-credentials.json` in the repo root when that file exists.
 - `cr-magento-order.py` has no CLI; running it starts a Flask server.
 
 ## Local runner
@@ -40,6 +43,10 @@ cd src/cloud_run/cloud-run-pancake-order
 set -a; source .env; set +a
 .venv/bin/python src/local_run/pancake_order.py --start-date 2026-10-01T00:00:00 --end-date 2026-10-01T23:59:59
 ```
+
+Every `local_run/` script reads the service-account key from `credentials/google-credentials.json`
+in the repo root, and its module docstring lists example commands for running it manually
+(`python3 src/local_run/<file>.py …`).
 
 No `local_run/` script has a dry-run flag. TikTok scripts and `pancake_orders_returned.py` support
 `--list`, which fetches, prints the columns and exits before loading. Jushuitan and Magento local
@@ -61,8 +68,10 @@ console (project `marine-cycle-484213-b4`, region `asia-southeast1` per the docs
 There is no deploy script or CI. Some scripts' docstrings contain `gcloud run deploy` examples,
 but their `--source` paths point to folders outside this repo, and the one in
 `cloud-run-tiktok-thai-gmv-max-report` deploys under the **VN** service name. Treat them as
-unverified. A deploy from this repo would look like the following (unverified; confirm the service
-name, account, and env vars first):
+unverified. The exception is `cloud-run-pancake-order`: it was deployed from this repo on 2026-10-24,
+and the README has the [verified setup](../README.md#deploy-and-schedule-a-cloud-run-service) (secret,
+deploy, schedule, smoke test). For any other service, a deploy would look like the following
+(unverified; confirm the service name, account, and env vars first):
 
 ```bash
 gcloud run deploy <service-name> --source src/cloud_run/<service-folder> \

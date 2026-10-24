@@ -1,4 +1,13 @@
 #!/Users/tony.pham/Library/CloudStorage/GoogleDrive-ops.data@lsoul.com/My Drive/03. CODE & DOCUMENTS/lsoul_document/.venv/bin/python3
+"""
+Script to load inventory analytics data (by variation) from Pancake API, flatten nested structures, and load it to BigQuery.
+Default: Get yesterday's data from T00:00:00 to T23:59:59 in Vietnam time (UTC+7)
+
+Usage:
+    python3 src/local_run/pancake_stats_inventory_variations.py    # Get yesterday's inventory analytics by variation (Vietnam time)
+    python3 src/local_run/pancake_stats_inventory_variations.py --start-date 2026-05-01T00:00:00 --end-date 2026-05-09T23:59:59
+    python3 src/local_run/pancake_stats_inventory_variations.py --All   # Get all data with no date filter (use with caution)
+"""
 import argparse
 import os
 import warnings
@@ -20,9 +29,10 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 

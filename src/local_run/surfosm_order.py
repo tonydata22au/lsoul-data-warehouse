@@ -7,6 +7,9 @@ Usage:
     python3 local-run/surfosm/surfosm_data_export_order.py               # Get yesterday's orders from T00:00:00 to T23:59:59 in vietnam time
     python3 local-run/surfosm/surfosm_data_export_order.py --start_date 2025-07-01 --end_date 2026-08-21
     python3 local-run/surfosm/surfosm_data_export_order.py --ALL           # Get all orders with no date filter (use with caution)
+    python3 src/local_run/surfosm_order.py                         # Default: yesterday and the 30 days before it
+    python3 src/local_run/surfosm_order.py --start_date 2025-07-01 --end_date 2026-08-21
+    python3 src/local_run/surfosm_order.py --ALL                   # Get all orders with no date filter (use with caution)
 """
 import os
 import json
@@ -27,16 +30,15 @@ load_dotenv()  # local runs read credentials from the repo-root .env; deployed s
 warnings.filterwarnings('ignore', category=pd.errors.PerformanceWarning)
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-
 # API Configuration
 API_KEY = os.environ["SURFOSM_API_KEY"]
 API_URL_ORDER = "https://api-app.scaleup-fulfilment.com/openapi/orders/list"
 API_URL_ORDER_DETAIL = "https://api-app.scaleup-fulfilment.com/openapi/order/{order_number}/price-details"
 
-# BigQuery config
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 

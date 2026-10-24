@@ -7,6 +7,9 @@ Usage:
     python3 local-run/tiktok_thai/tiktok_thai_data_export_reporting_basic_auction_ad.py               # Get yesterday's reporting basic auction ad data from T00:00:00 to T23:59:59 in Vietnam time (UTC+7)
     python3 local-run/tiktok_thai/tiktok_thai_data_export_reporting_basic_auction_ad.py --start-date 2025-05-01 --end-date 2026-09-04
     python3 local-run/tiktok_thai/tiktok_thai_data_export_reporting_basic_auction_ad.py --All           # Get all reporting basic auction ad data with no date filter (use with caution)
+    python3 src/local_run/tiktok_thai_reporting_basic_auction_ad.py                # Get yesterday's reporting basic auction ad data (Vietnam time)
+    python3 src/local_run/tiktok_thai_reporting_basic_auction_ad.py --start-date 2025-05-01 --end-date 2026-09-04
+    python3 src/local_run/tiktok_thai_reporting_basic_auction_ad.py --list         # Fetch and print the columns, then exit (no BigQuery load)
 """
 import argparse
 import json
@@ -23,16 +26,16 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 
 # Load .env that sits next to this script
-BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env")
 
 ACCESS_TOKEN_FROM_ENV = os.environ.get("TIKTOK_ACCESS_TOKEN")
 ADVERTISER_ID = "7412469132660228097"
 API_URL = "https://business-api.tiktok.com/open_api/v1.3/report/integrated/get/"
 
-# BigQuery config
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 DIMENSIONS = ["ad_id", "country_code", "stat_time_day"]

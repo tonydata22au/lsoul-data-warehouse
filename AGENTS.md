@@ -132,7 +132,8 @@ surprise you:
 
 - `cloud-run-tiktok-thai-ads` can't start: its `app_runner.py` loads a file that doesn't exist.
 - `cloud-run-pancake-order_returned` is a copy of `cloud-run-pancake-order` and also appends to `raw_pancake.raw_order`.
-- `local_run/` and `schema/` default to `src/credentials/google-credentials.json`, not the repo-root
-  `credentials/` folder, so set `GOOGLE_APPLICATION_CREDENTIALS`.
+- `local_run/` reads the key from the repo-root `credentials/google-credentials.json` and ignores
+  `GOOGLE_APPLICATION_CREDENTIALS`. `schema/` and `csv_export/` still default to
+  `src/credentials/google-credentials.json`, so set `GOOGLE_APPLICATION_CREDENTIALS` for them.
 - Deploy commands in script docstrings point to folders outside this repo, and one targets the wrong
   service name. Don't copy them.
