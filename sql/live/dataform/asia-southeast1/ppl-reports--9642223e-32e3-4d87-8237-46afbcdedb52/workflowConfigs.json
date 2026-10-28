@@ -1,0 +1,12 @@
+[
+  {
+    "name": "projects/marine-cycle-484213-b4/locations/asia-southeast1/repositories/9642223e-32e3-4d87-8237-46afbcdedb52/workflowConfigs/ppl-reports",
+    "releaseConfig": "projects/marine-cycle-484213-b4/locations/asia-southeast1/repositories/9642223e-32e3-4d87-8237-46afbcdedb52/releaseConfigs/default",
+    "invocationConfig": {
+      "queryPriority": "INTERACTIVE",
+      "executionMode": "DEFAULT"
+    },
+    "cronSchedule": "40 8 * * *",
+    "timeZone": "Asia/Saigon"
+  }
+]

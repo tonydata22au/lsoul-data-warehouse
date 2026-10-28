@@ -1,0 +1,1 @@
+CALL `marine-cycle-484213-b4.core_pancake.sp_pancake_core_variations_insert`();

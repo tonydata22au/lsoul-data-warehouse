@@ -1,0 +1,68 @@
+config {
+  type:"table",
+  name:"v_dash_report",
+  dependencyTargets:[{
+    name:"ai_exec_run"
+  }, {
+    name:"dash_page_summary"
+  }, {
+    name:"v_dash_ai_facts"
+  }, {
+    name:"dash_material_points"
+  }],
+}
+/* -----------------------------------------------------------------------------
+   4. v_dash_report   -- what the dashboard binds to
+   -----------------------------------------------------------------------------
+   House pattern (as in fn_stats_product_comments_ai_generated): AI text where
+   present, deterministic rule-built text as fallback, narrative_source saying
+   which you are looking at. The fallback is bilingual too, so a model outage
+   degrades the prose but never drops the Vietnamese version.
+   ----------------------------------------------------------------------------- */
+WITH rule_text AS (
+  SELECT page,
+    STRING_AGG(FORMAT('**%s -** %s / %s NMV %s %s%% (%s mVND) [%s]',
+        IF(item_type='HIGHLIGHT','Highlight','Lowlight'), country, level_2,
+        IF(delta_nmv >= 0,'rose','fell'), FORMAT('%.0f', ABS(IFNULL(pct_nmv,0))*100),
+        FORMAT('%.0f', delta_nmv/1e6), point_id),
+      '\n' ORDER BY point_id) AS rule_narrative_en,
+    STRING_AGG(FORMAT('**%s -** %s / %s NMV %s %s%% (%s mVND) [%s]',
+        IF(item_type='HIGHLIGHT','Highlight','Lowlight'),
+        CASE country WHEN 'VIETNAM' THEN 'Việt Nam' WHEN 'THAILAND' THEN 'Thái Lan'
+                     WHEN 'CHINA' THEN 'Trung Quốc' ELSE country END,
+        level_2, IF(delta_nmv >= 0,'tăng','giảm'),
+        FORMAT('%.0f', ABS(IFNULL(pct_nmv,0))*100), FORMAT('%.0f', delta_nmv/1e6), point_id),
+      '\n' ORDER BY point_id) AS rule_narrative_vi
+  FROM ${ref("dash_material_points")}
+  CROSS JOIN (SELECT 'PAGE1_WOW' AS page UNION ALL SELECT 'PAGE2_MTD')
+  GROUP BY page
+),
+rule_actions AS (
+  SELECT pg.page, STRING_AGG(a.action_item, '\n' ORDER BY a.section, a.action_no) AS action_block
+  FROM (SELECT 'PAGE1_WOW' AS page UNION ALL SELECT 'PAGE2_MTD') pg
+  JOIN ${ref("dash_action_items")} a
+    ON a.page = pg.page OR a.page = 'BOTH'
+  GROUP BY pg.page
+)
+SELECT
+   s.page, s.period_label
+  ,s.headline_actual, s.headline_reference, s.headline_pct
+  ,s.excluded_target, s.pct_including_excluded, s.bills, s.basket
+  ,s.data_as_of_note, s.headline_note
+  ,n.exec_summary_en
+  ,n.exec_summary_vi
+  ,COALESCE(n.narrative_en, CONCAT(r.rule_narrative_en, '\n\nACTIONS:\n', IFNULL(ra.action_block,''))) AS narrative_en
+  ,COALESCE(n.narrative_vi, CONCAT(r.rule_narrative_vi, '\n\nACTIONS:\n', IFNULL(ra.action_block,''))) AS narrative_vi
+  ,r.rule_narrative_en, r.rule_narrative_vi
+  ,ra.action_block AS action_block_en
+  ,CASE WHEN n.narrative_en IS NULL THEN 'RULE'
+        WHEN n.facts_hash IS DISTINCT FROM f.facts_hash THEN 'AI_STALE'
+        WHEN TIMESTAMP_DIFF(CURRENT_TIMESTAMP(), n.generated_at, DAY) > 7 THEN 'AI_STALE'
+        ELSE 'AI' END AS narrative_source
+  ,n.generated_at AS ai_generated_at, n.model_endpoint
+FROM ${ref("dash_page_summary")} s
+LEFT JOIN rule_text    r  ON r.page  = s.page
+LEFT JOIN rule_actions ra ON ra.page = s.page
+LEFT JOIN ${ref("v_dash_ai_facts")} f ON f.page = s.page
+LEFT JOIN `marine-cycle-484213-b4.reportdb.dash_ai_narrative` n
+       ON n.page = s.page AND n.period_key = f.period_key

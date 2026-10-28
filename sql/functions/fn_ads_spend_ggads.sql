@@ -1,13 +1,5 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_ads_spend_ggads`(
-  i_number_year_back INT64
-) 
-AS (
-/*
-Author: Toan Pham
-Date: 14/07/2026
-
-TESTING: SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_ads_spend_ggads`(0)
-*/
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_ads_spend_ggads(i_number_year_back INT64)
+AS
 WITH combined_ad_level_data AS (
   -- ==========================================
   -- ACCOUNT 1: 4435779462 (Campaign Level Only)
@@ -96,5 +88,4 @@ GROUP BY
   1, 2, 3, 4 , 5
 ORDER BY
   day DESC, 
-  total_spend DESC
-)
+  total_spend DESC;

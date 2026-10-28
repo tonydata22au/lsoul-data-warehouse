@@ -1,0 +1,9 @@
+config {
+  type:"table",
+  name:"report_performancce_snapshot",
+}
+ --SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_performance_snapshot`(0,1) ORDER BY 1 DESC 
+
+SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_performance_snapshot_v2`(0, 0,null, CURRENT_DATE())  
+
+ 

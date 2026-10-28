@@ -1,10 +1,5 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_sale_website`(
-  number_year_back INT64 -- number of years back from current year
-)
-AS 
-(
---SALE WEBSITE
--- SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_sale_website`(0) ORDER BY 1 DESC
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_sale_website(number_year_back INT64)
+AS
 WITH CTE AS (
 SELECT
       o.increment_id AS order_id,
@@ -61,7 +56,4 @@ SUM(qty_ordered) AS units_sold
 FROM CTE
 WHERE remove_duplicate = 0
 GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12,13,14
-order by 1 desc, 3 desc
-)
-    
-   
+order by 1 desc, 3 desc;

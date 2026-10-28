@@ -1,17 +1,5 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_sale_ecom_vn_v2`(
-  i_number_year_back INT64 -- number of years back from current year
-  , i_type  INT64 --0: Base order by datetime
-)
-AS 
-(
-/********
-SELECT * EXCEPT(variation_code,product_code,product_name,product_launch_date, variation_attributes,retail_price,warehouse_id,warehouse_name)  FROM `marine-cycle-484213-b4.reportdb.fn_sale_ecom_vn_v2`(0,0) ORDER BY 1 DESC
-SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_sale_ecom_vn_v2`(0,1) ORDER BY variation_code ASC
-
-SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_sale_ecom_vn_v2`(0,3) ORDER BY variation_code ASC
-****/
---SALE ECOMMERCE VN
- 
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_sale_ecom_vn_v2(i_number_year_back INT64, i_type INT64)
+AS
 WITH stage AS (
   SELECT
       order_date,
@@ -138,7 +126,7 @@ WITH stage AS (
       --AND DATE_TRUNC(order_date, YEAR) >='2026-01-01' 
       --AND DATE_TRUNC(order_date, day) between '2025-11-01' and '2025-11-30'
       --AND DATE(order_date) = '2026-07-11'
-      --AND order_id = '43593'
+      --AND order_id = 'REDACTED_EXAMPLE'
   GROUP BY 1, 2, 3, 4, 5, 6, 7,8,9
   HAVING revenue <> 0
 
@@ -165,7 +153,7 @@ WITH stage AS (
       --AND DATE_TRUNC(order_date, YEAR) >='2026-01-01' 
       --AND DATE_TRUNC(order_date, day) between '2025-11-01' and '2025-11-30'
       --AND DATE(order_date) = '2026-07-11'
-      --AND order_id = '43593'
+      --AND order_id = 'REDACTED_EXAMPLE'
   GROUP BY 1, 2, 3, 4, 5, 6, 7,8,9,10
   HAVING revenue <> 0
 
@@ -192,11 +180,8 @@ WITH stage AS (
       --AND DATE_TRUNC(order_date, YEAR) >='2026-01-01' 
       --AND DATE_TRUNC(order_date, day) between '2025-11-01' and '2025-11-30'
       --AND DATE(order_date) = '2026-07-11'
-      --AND order_id = '43593'
+      --AND order_id = 'REDACTED_EXAMPLE'
   GROUP BY 1, 2, 3, 4, 5, 6, 7,8,9,10,11,12,13,14,15,16,17
   HAVING revenue <> 0
 
-  ORDER BY 1 DESC, 2 
-)
-    
-   
+  ORDER BY 1 DESC, 2;

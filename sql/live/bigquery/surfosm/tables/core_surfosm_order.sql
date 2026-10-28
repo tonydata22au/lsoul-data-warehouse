@@ -1,0 +1,35 @@
+CREATE TABLE `marine-cycle-484213-b4.surfosm.core_surfosm_order`
+(
+  parameter_date DATE,
+  inserted_at DATETIME,
+  order_number STRING,
+  external_order_id STRING,
+  channel STRING,
+  shipping STRING,
+  status STRING,
+  status_code INT64,
+  customer_name STRING,
+  customer_address STRING,
+  customer_district STRING,
+  customer_province STRING,
+  customer_postal_code STRING,
+  customer_phone_no STRING,
+  customer_email STRING,
+  payment_paid_at INT64,
+  payment_shipping_fee_original FLOAT64,
+  payment_shipping_fee_discount_platform FLOAT64,
+  payment_shipping_fee_discount_seller FLOAT64,
+  payment_shipping_fee FLOAT64,
+  payment_discount_platform_voucher FLOAT64,
+  payment_discount_platform_payment_promotion FLOAT64,
+  payment_discount_platform_order FLOAT64,
+  payment_discount_platform_total FLOAT64,
+  payment_coupon_seller FLOAT64,
+  payment_discount_seller FLOAT64,
+  payment_discount_seller_total FLOAT64,
+  payment_subtotal FLOAT64,
+  payment_discount FLOAT64,
+  payment_total FLOAT64
+)
+PARTITION BY DATE(inserted_at)
+CLUSTER BY parameter_date, order_number, channel, status;

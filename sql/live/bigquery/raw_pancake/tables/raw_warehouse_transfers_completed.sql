@@ -1,0 +1,45 @@
+CREATE TABLE `marine-cycle-484213-b4.raw_pancake.raw_warehouse_transfers_completed`
+(
+  inserted_at STRING,
+  warehouse_transfer_id STRING,
+  warehouse_transfer_display_id STRING,
+  status STRING,
+  updated_status_at STRING,
+  from_warehouse_id STRING,
+  from_warehouse_name STRING,
+  to_warehouse_id STRING,
+  to_warehouse_name STRING,
+  creator_name STRING,
+  shipping_fee STRING,
+  total_quantity STRING,
+  items_display_id STRING,
+  items_id STRING,
+  items_product_display_id STRING,
+  items_product_name STRING,
+  items_quantity STRING,
+  items_variation_display_id STRING,
+  items_variation_id STRING,
+  items_variation_fields STRING,
+  items_variation_images STRING,
+  items_variation_inserted_at STRING,
+  items_variation_is_hidden STRING,
+  items_variation_is_locked STRING,
+  items_variation_is_removed STRING,
+  items_variation_is_sell_negative_variation STRING,
+  items_variation_last_imported_price STRING,
+  items_variation_price_at_counter STRING,
+  items_variation_product_id STRING,
+  items_variation_retail_price STRING,
+  items_variation_retail_price_after_discount STRING,
+  items_variation_wholesale_price STRING,
+  items_variation_product_display_id STRING,
+  items_variation_product_inserted_at STRING,
+  items_variation_product_name STRING,
+  items_variation_product_attributes STRING,
+  items_variation_product_supplier_product_ids STRING,
+  items_variation_is_sell_negatisve_variation STRING
+)
+PARTITION BY DATE(_PARTITIONTIME)
+OPTIONS(
+  require_partition_filter=true
+);

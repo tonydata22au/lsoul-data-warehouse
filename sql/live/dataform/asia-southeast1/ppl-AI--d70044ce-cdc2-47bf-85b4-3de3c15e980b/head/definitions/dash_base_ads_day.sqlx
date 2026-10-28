@@ -1,0 +1,214 @@
+config { type: "table", schema: "reportdb", name: "dash_base_ads_day" }
+
+/* =============================================================================
+   dash_base_ads_day   -- REWRITTEN 2026-09-06
+   -----------------------------------------------------------------------------
+   Media only. Revenue from LSOUL's own order database is still deliberately NOT
+   taken from the ads source: it is joined downstream from dash_base_order_day,
+   which is netted, cut off and QA'd. What IS new is that the platforms' OWN
+   attributed figures are now carried, in their own clearly-named columns, never
+   summed with each other and never summed with LSOUL NMV.
+
+   country is derived from the level_2 prefix (VN / TL / TQ), which is how the
+   order hierarchy is keyed. fn_ads_media_daily exposes no market column despite
+   what claude/fn-ads-media-daily-reference.md says - the deployed function has
+   seven dimensions, not eight. Raised as a doc/deployment mismatch.
+
+   ---------------------------------------------------------------------------
+   FOUR THINGS THAT CHANGED, AND WHY EACH MATTERS
+   ---------------------------------------------------------------------------
+
+   1. GRAIN IS FINER: buying_type and is_sale_campaign join the key.
+
+      TikTok GMV Max reports spend and orders but NO impressions and NO clicks.
+      Rolled into the same row as auction delivery, every rate below is wrong -
+      measured on the old build, Tiktok Thailand CPM read 867,717 VND against a
+      true auction CPM of 33,221. Splitting the key is the only way CPM, CPC and
+      CTR mean anything.
+
+      Consumers roll this table up with SUM, so a finer grain is additive-safe.
+      But any consumer computing a DELIVERY rate must filter
+      buying_type = 'Auction' first.
+
+   2. is_sale_campaign IS CARRIED, NOT FILTERED.
+
+      The rewritten fn_ads_media_daily surfaces Meta recruitment advertising
+      (TUYEN DUNG) that the old campaign_type IS NOT NULL filter silently
+      dropped - 68.7 mVND YTD. Dropping it here would hide it again; including
+      it unlabelled would pollute marketing. It is carried with the flag, and
+      dash_trend_marketing_weekly filters WHERE is_sale_campaign to reproduce
+      the old marketing semantics exactly.
+
+      ANY new consumer of this table MUST decide explicitly. Finance wants the
+      total; marketing wants is_sale_campaign only.
+
+   3. TIKTOK THAILAND NOW EXISTS. The old function read neither Thai feed, so
+      the marketing report showed no TikTok Thailand at all - 17.4% of LSOUL's
+      ad investment. Spend in this table will step up accordingly. That is a
+      correction, not a trading change, and week-on-week comparisons that span
+      the deploy date will read as a spike. Note it before anyone reacts to it.
+
+   4. PLATFORM ATTRIBUTION IS CARRIED, IN TWO SEPARATE COLUMN FAMILIES.
+
+      | family      | source                | covers            |
+      |-------------|-----------------------|-------------------|
+      | platform_*  | TikTok Shop GMV Max   | 64% of YTD spend  |
+      | conversion_*| Google Ads tracking   |  0.7% of YTD spend|
+      | neither     | Meta, TikTok auction  | 36% of YTD spend  |
+
+      These are DIFFERENT ATTRIBUTION BASES. Never add platform_gross_revenue_vnd
+      to conversion_value_vnd, and never compare either to fn_order_revenue_summary.
+      Meta reports no conversions or revenue at all, so any ROAS built on this
+      family is NULL for a third of spend - which is why the decomposition in
+      dash_marketing_drivers runs on LSOUL NMV and carries these alongside.
+
+   WINDOW: 8 weeks before cur_wk_start, or the start of the prior calendar month,
+   whichever is earlier - so both the WTD and the MTD same-period comparisons in
+   dash_marketing_drivers are always fully covered. YTD is NOT covered by this
+   window; a YTD decomposition must read fn_ads_media_daily directly.
+   ========================================================================== */
+
+WITH p AS (SELECT * FROM `marine-cycle-484213-b4.reportdb.dash_run_params`),
+
+w AS (
+  SELECT
+     p.report_date
+    ,LEAST(
+       DATE_SUB(p.cur_wk_start, INTERVAL 8 WEEK),
+       DATE_SUB(DATE_TRUNC(p.report_date, MONTH), INTERVAL 1 MONTH)
+     ) AS window_start
+  FROM p
+),
+
+a AS (
+  SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_ads_media_daily`(0)
+)
+
+SELECT
+   /* ---------- existing columns, unchanged names, types and meaning -------- */
+   a.period_date
+  ,CASE WHEN STARTS_WITH(a.level_2, 'VN') THEN 'VIETNAM'
+        WHEN STARTS_WITH(a.level_2, 'TL') THEN 'THAILAND'
+        WHEN STARTS_WITH(a.level_2, 'TQ') THEN 'CHINA'
+        ELSE 'OTHER' END                       AS country
+  ,a.ads_channel
+  ,a.level_1
+  ,a.level_2
+  ,IFNULL(a.level_3, '(unattributed)')         AS level_3
+  ,SUM(a.spend)                                AS spend
+  ,SUM(a.reach)                                AS reach          -- see note below
+  ,SUM(a.impressions)                          AS impressions
+  ,SUM(a.clicks)                               AS clicks
+  ,SUM(a.engagements)                          AS engagements    -- Meta page engagement only
+  ,SUM(a.video_views)                          AS video_views
+
+   /* ---------- NEW: key extensions ---------------------------------------- */
+  ,a.buying_type                                                 -- 'Auction' | 'GMV Max'
+  ,a.is_sale_campaign
+  ,LOGICAL_OR(IFNULL(a.impressions_is_derived, FALSE))           AS impressions_is_derived
+
+   /* ---------- NEW: investment ------------------------------------------- */
+  ,SUM(a.campaigns)                            AS campaigns
+  ,SUM(a.active_ads)                           AS active_ads
+
+   /* ---------- NEW: delivery and traffic --------------------------------- */
+  ,SUM(a.landing_page_views)                   AS landing_page_views
+
+   /* ---------- NEW: creative --------------------------------------------- */
+  ,SUM(a.video_play_actions)                   AS video_play_actions
+  ,SUM(a.video_watched_2s)                     AS video_watched_2s
+  ,SUM(a.video_watched_6s)                     AS video_watched_6s
+  ,SUM(a.video_views_p25)                      AS video_views_p25
+  ,SUM(a.video_views_p50)                      AS video_views_p50
+  ,SUM(a.video_views_p75)                      AS video_views_p75
+  ,SUM(a.video_views_p100)                     AS video_views_p100
+
+   /* ---------- NEW: social ----------------------------------------------- */
+  ,SUM(a.likes)                                AS likes
+  ,SUM(a.comments)                             AS comments
+  ,SUM(a.shares)                               AS shares
+  ,SUM(a.follows)                              AS follows
+  ,SUM(a.profile_visits)                       AS profile_visits
+  ,SUM(a.social_actions)                       AS social_actions
+  ,SUM(a.total_engagements)                    AS total_engagements
+
+   /* ---------- NEW: leads and platform results ---------------------------- */
+  ,SUM(a.messaging_conversations_7d)           AS messaging_conversations_7d
+  ,SUM(a.results)                              AS results
+
+   /* ---------- NEW: attribution family A - Google Ads conversion tracking -- */
+  ,SUM(a.conversions)                          AS conversions
+  ,SUM(a.conversion_value_vnd)                 AS conversion_value_vnd
+
+   /* ---------- NEW: attribution family B - TikTok Shop platform-reported --- */
+  ,SUM(a.platform_orders)                      AS platform_orders
+  ,SUM(a.platform_gross_revenue_vnd)           AS platform_gross_revenue_vnd
+  ,SUM(a.live_views)                           AS live_views
+  ,SUM(a.live_10s_views)                       AS live_10s_views
+  ,SUM(a.live_follows)                         AS live_follows
+
+   /* =======================================================================
+      NEW: rates, ALL recomputed from components at THIS grain.
+
+      Never AVG-then-SUM: the platforms' own stored averages are per-row and
+      re-averaging them is a category error. Measured on Meta VN, the stored
+      AVG(cpc) is 3,763 VND against a true blended 849 - a 4.4x overstatement.
+
+      Every denominator is wrapped in NULLIF(x, 0) inside SAFE_DIVIDE, so a zero
+      denominator yields NULL rather than an error or a misleading 0. NULL here
+      means "not measurable at this grain", never "zero".
+      ==================================================================== */
+
+   -- delivery. Meaningless unless buying_type = 'Auction'; GMV Max returns NULL
+   -- naturally because it reports no impressions or clicks.
+  ,SAFE_DIVIDE(SUM(a.clicks),      NULLIF(SUM(a.impressions), 0))            AS ctr
+  ,SAFE_DIVIDE(SUM(a.spend),       NULLIF(SUM(a.clicks), 0))                 AS cpc_vnd
+  ,SAFE_DIVIDE(SUM(a.spend) * 1000, NULLIF(SUM(a.impressions), 0))           AS cpm_vnd
+  ,SAFE_DIVIDE(SUM(a.spend) * 1000, NULLIF(SUM(a.reach), 0))                 AS cost_per_1k_reach_vnd
+  ,SAFE_DIVIDE(SUM(a.impressions), NULLIF(SUM(a.reach), 0))                  AS frequency
+  ,SAFE_DIVIDE(SUM(a.landing_page_views), NULLIF(SUM(a.clicks), 0))          AS landing_page_view_rate
+  ,SAFE_DIVIDE(SUM(a.spend),       NULLIF(SUM(a.landing_page_views), 0))     AS cost_per_landing_page_view_vnd
+
+   -- creative diagnostics. hook = did it stop the scroll, hold = did it keep them.
+  ,SAFE_DIVIDE(SUM(a.video_watched_2s), NULLIF(SUM(a.impressions), 0))       AS hook_rate
+  ,SAFE_DIVIDE(SUM(a.video_watched_6s), NULLIF(SUM(a.video_watched_2s), 0))  AS hold_rate
+  ,SAFE_DIVIDE(SUM(a.video_views_p100), NULLIF(SUM(a.video_play_actions), 0)) AS video_completion_rate
+  ,SAFE_DIVIDE(SUM(a.spend),       NULLIF(SUM(a.video_views), 0))            AS cost_per_video_view_vnd
+
+   -- social
+  ,SAFE_DIVIDE(SUM(a.total_engagements), NULLIF(SUM(a.impressions), 0))      AS engagement_rate
+  ,SAFE_DIVIDE(SUM(a.spend),       NULLIF(SUM(a.total_engagements), 0))      AS cost_per_engagement_vnd
+  ,SAFE_DIVIDE(SUM(a.spend),       NULLIF(SUM(a.follows), 0))                AS cost_per_follower_vnd
+  ,SAFE_DIVIDE(SUM(a.profile_visits), NULLIF(SUM(a.impressions), 0))         AS profile_visit_rate
+
+   -- leads
+  ,SAFE_DIVIDE(SUM(a.spend),       NULLIF(SUM(a.messaging_conversations_7d), 0)) AS cost_per_messaging_conversation_vnd
+  ,SAFE_DIVIDE(SUM(a.results),     NULLIF(SUM(a.impressions), 0))            AS result_rate
+  ,SAFE_DIVIDE(SUM(a.spend),       NULLIF(SUM(a.results), 0))                AS cost_per_result_vnd
+
+   -- attribution family A: Google Ads. cvr is orders per CLICK, so it exists
+   -- only where clicks do.
+  ,SAFE_DIVIDE(SUM(a.conversions), NULLIF(SUM(a.clicks), 0))                 AS cvr_conversion
+  ,SAFE_DIVIDE(SUM(a.conversion_value_vnd), NULLIF(SUM(a.conversions), 0))   AS aov_conversion_vnd
+  ,SAFE_DIVIDE(SUM(a.conversion_value_vnd), NULLIF(SUM(a.spend), 0))         AS roas_conversion
+  ,SAFE_DIVIDE(SUM(a.spend),       NULLIF(SUM(a.conversions), 0))            AS cost_per_conversion_vnd
+
+   -- attribution family B: TikTok Shop. cvr_platform is NULL for GMV Max by
+   -- construction (no clicks) - that is the whole reason dash_marketing_drivers
+   -- uses a different Level 2 identity for GMV Max rows.
+  ,SAFE_DIVIDE(SUM(a.platform_orders), NULLIF(SUM(a.clicks), 0))             AS cvr_platform
+  ,SAFE_DIVIDE(SUM(a.platform_gross_revenue_vnd), NULLIF(SUM(a.platform_orders), 0)) AS aov_platform_vnd
+  ,SAFE_DIVIDE(SUM(a.platform_gross_revenue_vnd), NULLIF(SUM(a.spend), 0))   AS roas_platform
+  ,SAFE_DIVIDE(SUM(a.spend),       NULLIF(SUM(a.platform_orders), 0))        AS cost_per_order_vnd
+  ,SAFE_DIVIDE(SUM(a.spend),       NULLIF(SUM(a.live_views), 0))             AS cost_per_live_view_vnd
+
+FROM a CROSS JOIN w
+WHERE a.period_date >= w.window_start
+  AND a.period_date <= w.report_date
+GROUP BY period_date, country, ads_channel, level_1, level_2, level_3,
+         buying_type, is_sale_campaign
+
+/* NOTE ON reach: reach is de-duplicated per ad per day, so SUM overstates unique
+   audience across days and campaigns. It is summed here only so frequency and
+   cost_per_1k_reach are computable at a single day/level. Do not publish a
+   summed reach as a unique-audience number. */

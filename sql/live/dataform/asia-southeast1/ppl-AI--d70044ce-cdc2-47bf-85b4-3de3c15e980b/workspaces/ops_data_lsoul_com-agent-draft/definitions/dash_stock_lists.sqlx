@@ -1,0 +1,98 @@
+config {
+  type:"table",
+  name:"dash_stock_lists",
+  dependencyTargets:[{
+    name:"dash_run_params"
+  }, {
+    name:"dash_base_sku_day"
+  }],
+}
+/* -----------------------------------------------------------------------------
+   6. dash_stock_lists   -- SECTION 3
+   -----------------------------------------------------------------------------
+   fn_stats_product_v2(i_type=1, i_days_range=90) with a 90-DAY WINDOW.
+   The window MUST be >= i_days_range: the rolling velocity window is truncated
+   by the date filter, so a short window understates velocity and overstates
+   cover (measured 2.6x on a 7-day window vs 28-day range).
+
+   Approved thresholds: X=20 units, Y=26wk (182d), Z=4wk (28d), W=80%.
+   NOTE ON W: cover <= Z mathematically forces sell-through >= D/(D+Z). At D=90,
+   Z=28 that floor is ~76%, so anything at or below 76% would never bind. W=80%
+   sits just above it and does filter (94 candidates -> 74).
+
+   List 4 (discontinued) is an addition: 1,402 SKUs are tagged SYS_01_SALE_END
+   and are excluded from every score by the function, yet still hold ~29bn VND
+   (41% of total stock value). Without this list the overstock picture is
+   understated by that much.
+   ----------------------------------------------------------------------------- */
+WITH p AS (SELECT * FROM ${ref("dash_run_params")}),
+s AS (
+  -- Window is exactly 60 days ending T-1, matching i_days_range=90.
+  SELECT * EXCEPT(updated_date,sort_desc,is_latest) FROM `marine-cycle-484213-b4.reportdb.report_stats_product`
+),
+trend AS (
+  SELECT k.variation_code,
+         SUM(IF(k.period_date BETWEEN p.cur_wk_start AND p.cur_wk_end, k.units_sold, 0)) AS units_cur,
+         SUM(IF(k.period_date BETWEEN p.prv_wk_start AND p.prv_wk_end, k.units_sold, 0)) AS units_prv
+  FROM ${ref("dash_base_sku_day")} k 
+  CROSS JOIN p
+  WHERE k.period_date BETWEEN p.prv_wk_start AND p.cur_wk_end
+  GROUP BY k.variation_code
+),
+
+l1 AS (  -- OVERSTOCK / SLOW-MOVING
+  SELECT 'OVERSTOCK' AS list_name, s.variation_code, s.product_name,
+         CAST(s.sl_ton_kho AS FLOAT64) AS units_on_hand,
+         CAST(s.DOH AS FLOAT64) AS cover_days,
+         ROUND(SAFE_DIVIDE(s.DOH,7),1) AS cover_weeks,
+         CAST(s.sell_through_rate AS FLOAT64) AS sell_through_rate,
+         CAST(s.sale_velocity AS FLOAT64) AS sale_velocity,
+         CAST(s.excess_value AS FLOAT64) AS rank_value,
+         'Tied-up excess value (VND)' AS rank_metric,
+         s.colour_bucket, s.alert_code,
+         CAST(NULL AS FLOAT64) AS units_cur, CAST(NULL AS FLOAT64) AS units_prv
+  FROM s WHERE s.is_inactive = 0
+    AND s.sl_ton_kho >= 20
+    AND (s.DOH >= 182 OR s.doh_is_infinite = 1)
+),
+l2 AS (  -- UNDERSTOCK / FAST-MOVING
+  SELECT 'UNDERSTOCK', s.variation_code, s.product_name,
+         CAST(s.sl_ton_kho AS FLOAT64), CAST(s.DOH AS FLOAT64), ROUND(SAFE_DIVIDE(s.DOH,7),1),
+         CAST(s.sell_through_rate AS FLOAT64), CAST(s.sale_velocity AS FLOAT64),
+         CAST(s.sale_velocity * s.retail_price * 28 AS FLOAT64),
+         'Lost-sales risk: 4wk demand at current velocity (VND)',
+         s.colour_bucket, s.alert_code, CAST(NULL AS FLOAT64), CAST(NULL AS FLOAT64)
+  FROM s WHERE s.is_inactive = 0
+    AND s.sale_velocity > 0
+    AND s.doh_is_infinite = 0
+    AND s.DOH <= 28
+    AND s.sell_through_rate >= 0.80
+),
+l3 AS (  -- TOP TRENDING (WoW unit growth, min 5-unit prior base)
+  SELECT 'TRENDING', t.variation_code, s.product_name,
+         CAST(s.sl_ton_kho AS FLOAT64), CAST(s.DOH AS FLOAT64), ROUND(SAFE_DIVIDE(s.DOH,7),1),
+         CAST(s.sell_through_rate AS FLOAT64), CAST(s.sale_velocity AS FLOAT64),
+         CAST(t.units_cur - t.units_prv AS FLOAT64),
+         'Absolute WoW unit gain (base >= 5 units)',
+         s.colour_bucket, s.alert_code,
+         CAST(t.units_cur AS FLOAT64), CAST(t.units_prv AS FLOAT64)
+  FROM trend t
+  LEFT JOIN s ON s.variation_code = t.variation_code
+  WHERE t.units_prv >= 5 AND t.units_cur > t.units_prv
+),
+l4 AS (  -- DISCONTINUED STOCK TO LIQUIDATE
+  SELECT 'DISCONTINUED', s.variation_code, s.product_name,
+         CAST(s.sl_ton_kho AS FLOAT64), CAST(s.DOH AS FLOAT64), ROUND(SAFE_DIVIDE(s.DOH,7),1),
+         CAST(s.sell_through_rate AS FLOAT64), CAST(s.sale_velocity AS FLOAT64),
+         CAST(s.tong_gia_tri_hang_ton_kho_theo_gia_ban AS FLOAT64),
+         'Stock value at retail (VND)',
+         s.colour_bucket, s.alert_code, CAST(NULL AS FLOAT64), CAST(NULL AS FLOAT64)
+  FROM s WHERE s.is_sale_end = 1 AND s.sl_ton_kho >= 20
+)
+SELECT * EXCEPT(rn), rn AS rank_in_list
+FROM (
+  SELECT x.*, ROW_NUMBER() OVER (PARTITION BY list_name ORDER BY rank_value DESC) AS rn
+  FROM (SELECT * FROM l1 UNION ALL SELECT * FROM l2
+        UNION ALL SELECT * FROM l3 UNION ALL SELECT * FROM l4) x
+)
+WHERE rn <= 10

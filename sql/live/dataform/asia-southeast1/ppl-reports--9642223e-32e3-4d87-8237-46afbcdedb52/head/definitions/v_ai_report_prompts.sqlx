@@ -1,0 +1,12 @@
+config {
+  type:"view",
+  name:"v_ai_report_prompts",
+  dependencyTargets:[{
+    name:"v_mtd_prompt"
+  }, {
+    name:"v_wow_prompt"
+  }],
+}
+SELECT * FROM ${ref("v_mtd_prompt")}
+UNION ALL
+SELECT * FROM ${ref("v_wow_prompt")}

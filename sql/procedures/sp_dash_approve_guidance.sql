@@ -1,5 +1,6 @@
-CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4.reportdb.sp_dash_approve_guidance`(i_feedback_id STRING, i_reviewed_by STRING, i_approve BOOL)
-OPTIONS (description="Approves or rejects a PROPOSED feedback line. Approval activates it as guidance under a new version number.")
+CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4`.reportdb.sp_dash_approve_guidance(i_feedback_id STRING, i_reviewed_by STRING, i_approve BOOL)
+OPTIONS(
+  description="Approves or rejects a PROPOSED feedback line. Approval activates it as guidance under a new version number.")
 BEGIN
   DECLARE v_text STRING;
   DECLARE v_page STRING;

@@ -1,0 +1,29 @@
+config {
+  type:"table",
+  name:"performance_snapshot_v2_base",
+}
+SELECT DISTINCT
+    period_date, week_start, month_start, country, level_1, level_2, level_3,
+
+    -- Weekly
+    weekly_revenue, prev_weekly_revenue,
+    weekly_revenue_by_country_level_3, prev_weekly_revenue_country_level_3,
+    weekly_revenue_by_level_1, prev_weekly_revenue_level_1,
+    weekly_revenue_by_level_2, prev_weekly_revenue_level_2,
+    target_revenue_weekly, pct_achievement_weekly_revenue AS pct_achievement_weekly, wow_growth_pct,
+    aov_weekly, aov_weekly_country_level_3,
+
+    -- Monthly
+    monthly_revenue, prev_monthly_revenue,
+    monthly_revenue_by_country_level_3, prev_monthly_revenue_country_level_3,
+    target_revenue_monthly, pct_achievement_monthly_revenue AS pct_achievement_monthly, mom_growth_pct,
+
+    -- Daily target (only used to build a full MTD target sum where needed)
+    target_revenue_daily_country
+
+  FROM `marine-cycle-484213-b4.reportdb.fn_performance_snapshot_v2`(
+    0,                                           -- i_type: unused
+    1,                                            -- i_number_year_back: 1, safely covers a Dec -> Jan week boundary
+    DATE_SUB(CURRENT_DATE(), INTERVAL 45 DAY),   -- i_date_from: covers current MTD + last 2 weeks with margin
+    DATE_SUB(CURRENT_DATE(),INTERVAL 1 DAY)                              -- i_date_to
+  )

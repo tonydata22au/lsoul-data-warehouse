@@ -1,0 +1,69 @@
+config {
+  type:"table",
+  schema:"reportdb",
+  name:"dash_base_traffic_day",
+  description:"Daily LSOUL website traffic from GA4 via fn_marketing_website_traffic_analysis(), mapped onto the reporting hierarchy. Grain: period_date x country x level_1/2/3 x traffic_type x user_type."
+}
+
+/* =============================================================================
+   dash_base_traffic_day
+   -----------------------------------------------------------------------------
+   The website is a single property that sells to the world, so GA4 geo.country
+   carries 216 values while the business reports on three markets. Vietnam and
+   Thailand map to their markets; everything else is kept as OTHER rather than
+   dropped, because it is real traffic against a real storefront (US-targeted
+   Meta and Google campaigns both point at VN Online / Website) and silently
+   discarding it would make sessions irreconcilable with GA4.
+
+   TWO LIMITS TO READ BEFORE USING THIS TABLE
+
+   1. GA4 history starts 2026-04-17. The 9-week window this table covers is
+      inside that, so the weekly trend is safe; a 6-month monthly view is not.
+      is_ga4_history_complete marks the boundary.
+
+   2. `users` is a daily distinct count and DOES NOT SUM ACROSS DAYS - the same
+      visitor returning on Tuesday and Thursday counts twice in a weekly total.
+      Downstream it is therefore surfaced as user_days, never as "users".
+      sessions is the additive headline.
+
+   COST: fn_marketing_website_traffic_analysis() carries no date filter and reads
+   `events_*` in full - about 1.0 GB per call, and an outer date predicate cannot
+   prune a wildcard scan through a table function. That is why this materialises
+   once per run instead of being read live by the trend layer. If the scan
+   becomes a problem, the fix is a _TABLE_SUFFIX bound inside the function.
+   ========================================================================== */
+
+WITH p AS (SELECT * FROM ${ref("dash_run_params")}),
+
+src AS (
+  SELECT *
+  FROM `marine-cycle-484213-b4.reportdb.fn_marketing_website_traffic_analysis`()
+)
+
+SELECT
+   DATE(s.event_timestamp)                       AS period_date
+  ,CASE WHEN s.country = 'Vietnam'  THEN 'VIETNAM'
+        WHEN s.country = 'Thailand' THEN 'THAILAND'
+        ELSE 'OTHER' END                         AS country
+  ,'Sale Online'                                 AS level_1
+  ,'VN Online'                                   AS level_2
+  ,'Website'                                     AS level_3
+  ,IFNULL(NULLIF(s.traffic_type,''), 'Unassigned') AS traffic_type
+  ,IFNULL(NULLIF(s.user_type,''),    'Unknown')    AS user_type
+  ,STARTS_WITH(IFNULL(s.traffic_type,''), 'Paid')  AS is_paid_traffic
+  ,SUM(s.sessions)                               AS sessions
+  ,COUNT(DISTINCT s.user_pseudo_id)              AS users          -- daily distinct; see note 2
+  ,SUM(s.page_view)                              AS page_views
+  ,SUM(s.click)                                  AS clicks
+  ,SUM(s.scroll)                                 AS scrolls
+  ,SUM(s.user_engagement)                        AS engagements
+  ,SUM(s.view_search_results)                    AS searches
+  ,SUM(s.first_visit)                            AS first_visits
+  ,SUM(s.form_start)                             AS form_starts
+  ,SUM(s.form_submit)                            AS form_submits
+  ,DATE(s.event_timestamp) >= DATE '2026-04-17'  AS is_ga4_history_complete
+FROM src s
+CROSS JOIN p
+WHERE DATE(s.event_timestamp) >= DATE_SUB(p.cur_wk_start, INTERVAL 8 WEEK)
+  AND DATE(s.event_timestamp) <= p.report_date
+GROUP BY 1,2,3,4,5,6,7,8,19

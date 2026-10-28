@@ -1,0 +1,8 @@
+config {
+  type:"declaration",
+  name:"raw_jushuitan_order",
+}
+SELECT
+*
+FROM ${ref("raw_jushuitan_order")}
+WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP(CURRENT_DATE("Asia/Ho_Chi_Minh"))

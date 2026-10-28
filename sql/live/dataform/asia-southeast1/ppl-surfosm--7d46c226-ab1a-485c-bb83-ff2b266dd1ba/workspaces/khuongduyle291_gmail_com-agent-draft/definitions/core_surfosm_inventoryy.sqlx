@@ -1,0 +1,23 @@
+config {
+  type:"incremental",
+  name:"core_surfosm_inventory",
+  dependencyTargets:[{
+    name:"stg_surfosm_inventory"
+  }],
+}
+SELECT
+parameter_date,
+sku, 
+barcode, 
+product_name, 
+warehouse_name, 
+warehouse_code,
+stock_on_hand,
+stock_normal, 
+stock_defect, 
+stock_quarantine, 
+stock_expired, 
+stock_shelf_life_hold, 
+stock_pending_destruction
+FROM ${ref("stg_surfosm_inventory")}
+WHERE DATE(proc_date) = CURRENT_DATE("Asia/Ho_Chi_Minh")

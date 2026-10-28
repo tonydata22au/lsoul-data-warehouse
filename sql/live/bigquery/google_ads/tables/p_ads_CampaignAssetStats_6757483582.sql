@@ -1,0 +1,32 @@
+CREATE TABLE `marine-cycle-484213-b4.google_ads.p_ads_CampaignAssetStats_6757483582`
+(
+  campaign_asset_asset STRING OPTIONS(description="The asset which is linked to the campaign."),
+  campaign_asset_campaign STRING OPTIONS(description="The campaign to which the asset is linked."),
+  campaign_asset_field_type STRING OPTIONS(description="Role that the asset takes under the linked campaign."),
+  campaign_asset_resource_name STRING OPTIONS(description="The resource name of the campaign asset. CampaignAsset resource names have the form: customers/{customer_id}/campaignAssets/{campaign_id}~{asset_id}~{field_type}"),
+  campaign_asset_source STRING OPTIONS(description="Source of the campaign asset link."),
+  campaign_asset_status STRING OPTIONS(description="Status of the campaign asset."),
+  metrics_average_cpc FLOAT64 OPTIONS(description="The total cost of all clicks divided by the total number of clicks received."),
+  metrics_average_cpe FLOAT64 OPTIONS(description="The average amount that you've been charged for an ad engagement. This amount is the total cost of all ad engagements divided by the total number of ad engagements."),
+  metrics_average_cpm FLOAT64 OPTIONS(description="Average cost-per-thousand impressions (CPM)."),
+  metrics_clicks INT64 OPTIONS(description="The number of clicks."),
+  metrics_conversions FLOAT64 OPTIONS(description="The number of conversions. This only includes conversion actions which include_in_conversions_metric attribute is set to true. If you use conversion-based bidding, your bid strategies will optimize for these conversions."),
+  metrics_conversions_from_interactions_rate FLOAT64 OPTIONS(description="Conversions from interactions divided by the number of ad interactions (such as clicks for text ads or views for video ads). This only includes conversion actions which include_in_conversions_metric attribute is set to true. If you use conversion-based bidding, your bid strategies will optimize for these conversions."),
+  metrics_conversions_value FLOAT64 OPTIONS(description="The value of conversions. This only includes conversion actions which include_in_conversions_metric attribute is set to true. If you use conversion-based bidding, your bid strategies will optimize for these conversions."),
+  metrics_cost_micros INT64 OPTIONS(description="The sum of your cost-per-click (CPC) and cost-per-thousand impressions (CPM) costs during this period."),
+  metrics_cost_per_conversion FLOAT64 OPTIONS(description="The cost of ad interactions divided by conversions. This only includes conversion actions which include_in_conversions_metric attribute is set to true. If you use conversion-based bidding, your bid strategies will optimize for these conversions."),
+  metrics_ctr FLOAT64 OPTIONS(description="The number of clicks your ad receives (Clicks) divided by the number of times your ad is shown (Impressions)."),
+  metrics_impressions INT64 OPTIONS(description="Count of how often your ad has appeared on a search results page or website on the Google Network."),
+  metrics_interactions INT64 OPTIONS(description="The number of interactions. An interaction is the main user action associated with an ad format-clicks for text and shopping ads, views for video ads, and so on."),
+  metrics_top_impression_percentage FLOAT64 OPTIONS(description="The percent of your ad impressions that are shown as the very first ad above the organic search results."),
+  metrics_trueview_average_cpv FLOAT64 OPTIONS(description="The average amount you pay each time someone views your ad. The average CPV is defined by the total cost of all ad views divided by the number of TrueView views."),
+  segments_ad_network_type STRING OPTIONS(description="Ad network type."),
+  segments_date DATE OPTIONS(description="Date to which metrics apply. yyyy-MM-dd format, e.g., 2018-04-17."),
+  segments_day_of_week STRING OPTIONS(description="Day of the week, for example, MONDAY."),
+  segments_device STRING OPTIONS(description="Device to which metrics apply."),
+  segments_month DATE OPTIONS(description="Month as represented by the date of the first day of a month. Formatted as yyyy-MM-dd."),
+  segments_quarter DATE OPTIONS(description="Quarter as represented by the date of the first day of a quarter. Uses the calendar year for quarters, for example, the second quarter of 2018 starts on 2018-04-01. Formatted as yyyy-MM-dd."),
+  segments_week DATE OPTIONS(description="Week as defined as Monday through Sunday, and represented by the date of Monday. Formatted as yyyy-MM-dd."),
+  segments_year INT64 OPTIONS(description="Year, formatted as yyyy.")
+)
+PARTITION BY DATE(_PARTITIONTIME);

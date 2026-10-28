@@ -1,0 +1,24 @@
+config {
+  type:"incremental",
+  name:"stg_surfosm_inventory",
+  dependencyTargets:[{
+    name:"raw_surfosm_inventory"
+  }],
+}
+SELECT
+TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) AS proc_date,
+SAFE_CAST(as_of_date AS DATE) AS parameter_date,
+sku, 
+barcode, 
+product_name, 
+warehouse_name, 
+warehouse_code,
+SAFE_CAST(stock_on_hand AS INT64) AS stock_on_hand,
+SAFE_CAST(stock_normal AS INT64) AS stock_normal, 
+SAFE_CAST(stock_defect AS INT64) AS stock_defect, 
+SAFE_CAST(stock_quarantine AS INT64) AS stock_quarantine, 
+SAFE_CAST(stock_expired AS INT64) AS stock_expired, 
+SAFE_CAST(stock_shelf_life_hold AS INT64) AS stock_shelf_life_hold, 
+SAFE_CAST(stock_pending_destruction AS INT64) AS stock_pending_destruction
+FROM ${ref("raw_surfosm_inventory")}
+WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP(CURRENT_DATE("Asia/Ho_Chi_Minh"))

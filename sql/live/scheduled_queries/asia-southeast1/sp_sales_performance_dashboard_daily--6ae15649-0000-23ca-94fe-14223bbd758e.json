@@ -1,0 +1,17 @@
+{
+  "name": "projects/266174294882/locations/asia-southeast1/transferConfigs/6ae15649-0000-23ca-94fe-14223bbd758e",
+  "displayName": "sp_sales_performance_dashboard_daily",
+  "dataSourceId": "scheduled_query",
+  "destinationDatasetId": "",
+  "schedule": "every day 02:00",
+  "scheduleOptions": {
+    "startTime": "2026-10-27T02:00:00Z"
+  },
+  "scheduleOptionsV2": {
+    "timeBasedSchedule": {
+      "schedule": "every day 02:00",
+      "startTime": "2026-10-27T02:00:00Z"
+    }
+  },
+  "query_parameters": {}
+}

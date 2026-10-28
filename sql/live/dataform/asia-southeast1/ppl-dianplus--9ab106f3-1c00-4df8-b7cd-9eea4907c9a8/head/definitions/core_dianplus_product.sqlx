@@ -1,0 +1,45 @@
+config {
+  type:"table",
+  name:"core_dianplus_product",
+  dependencyTargets:[{
+    name:"stg_dianplus_product"
+  }],
+}
+SELECT
+proc_date,
+brandId,
+childBrandId,
+childBrandCode,
+childBrandName,
+skuId,
+spuId,
+status,
+lastModifyTime,
+spuMerchantCode,
+merchantCode,
+standardCode,
+title,
+catId,
+catCode,
+topCatName,
+colorPropName,
+colorCode,
+colorName,
+colorGroup,
+colorSort,
+sizePropName,
+sizeCode,
+sizeName,
+sizeSort,
+suggestPrice,
+year,
+bigCat,
+execStandard,
+securityType,
+mainFabric,
+is_multiTopCat,
+is_oneTimesTitle,
+is_oneTimesSgtPrice,
+is_oneTimesSalPrice
+FROM ${ref("stg_dianplus_product")}
+WHERE DATE(proc_date) = CURRENT_DATE("Asia/Ho_Chi_Minh")

@@ -1,0 +1,9 @@
+[
+  {
+    "name": "projects/marine-cycle-484213-b4/locations/asia-southeast1/repositories/6cfb946f-2e1e-4e87-a596-4eabbd6e75fe/releaseConfigs/default",
+    "gitCommitish": "main",
+    "codeCompilationConfig": {
+      "defaultNotebookRuntimeOptions": {}
+    }
+  }
+]

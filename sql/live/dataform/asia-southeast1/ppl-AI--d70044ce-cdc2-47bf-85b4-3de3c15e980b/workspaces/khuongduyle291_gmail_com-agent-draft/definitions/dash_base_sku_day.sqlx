@@ -1,0 +1,6 @@
+config {
+  type:"table",
+  name:"dash_base_sku_day"
+}
+SELECT * EXCEPT(level_1,level_3)
+FROM `marine-cycle-484213-b4.reportdb.fn_order_sku_master`(0,2)

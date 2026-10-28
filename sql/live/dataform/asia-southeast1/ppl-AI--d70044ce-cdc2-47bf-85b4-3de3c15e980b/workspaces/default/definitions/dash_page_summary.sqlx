@@ -1,0 +1,70 @@
+config {
+  type:"table",
+  name:"dash_page_summary",
+  dependencyTargets:[{
+    name:"dash_run_params"
+  }, {
+    name:"dash_page1_wow"
+  }, {
+    name:"dash_page2_mtd"
+  }, {
+    name:"dash_dq_platform_day"
+  }],
+}
+WITH p AS (SELECT * FROM ${ref("dash_run_params")}), 
+p1 AS (
+  SELECT SUM(nmv_cur) AS cur_nmv, SUM(nmv_prv) AS prv_nmv,
+         SUM(gmv_cur) AS cur_gmv, SUM(gmv_prv) AS prv_gmv,
+         SUM(bills_cur) AS cur_bills, SUM(bills_prv) AS prv_bills
+  FROM ${ref("dash_page1_wow")}
+),
+p2 AS (
+  SELECT SUM(mtd_actual_nmv)                        AS actual_nmv,
+         SUM(IF(is_unmapped_channel, 0, mtd_target)) AS target_mapped,
+         SUM(mtd_target)                            AS target_all,
+         SUM(IF(is_unmapped_channel, mtd_target, 0)) AS target_unmapped,
+         SUM(mtd_bills)                             AS bills
+  FROM ${ref("dash_page2_mtd")}
+),
+asof AS (
+  SELECT STRING_AGG(DISTINCT FORMAT('%s to %t', level_2, data_complete_through), '; '
+         ORDER BY FORMAT('%s to %t', level_2, data_complete_through)) AS lagging
+  FROM ${ref("dash_dq_platform_day")}
+  WHERE is_weekly_load
+)
+SELECT 'PAGE1_WOW' AS page,
+       FORMAT('%t to %t vs %t to %t', p.cur_wk_start, p.cur_wk_end, p.prv_wk_start, p.prv_wk_end) AS period_label,
+       p1.cur_nmv        AS headline_actual,
+       p1.prv_nmv        AS headline_reference,
+       SAFE_DIVIDE(p1.cur_nmv, NULLIF(p1.prv_nmv,0)) - 1 AS headline_pct,
+       p1.cur_gmv, p1.prv_gmv,
+       SAFE_DIVIDE(p1.cur_gmv, NULLIF(p1.prv_gmv,0)) - 1 AS gmv_pct,
+       p1.cur_bills      AS bills,
+       SAFE_DIVIDE(p1.cur_nmv, NULLIF(p1.cur_bills,0))   AS basket,
+       CAST(NULL AS FLOAT64) AS excluded_target,
+       CAST(NULL AS FLOAT64) AS pct_including_excluded,
+       'Both weeks are complete for every platform, including the weekly Tmall/Taobao upload.' AS data_as_of_note,
+       'NMV basis. China NMV is modelled from GMV for periods under 30 days old.' AS headline_note
+FROM p1 CROSS JOIN p
+
+UNION ALL
+
+SELECT 'PAGE2_MTD',
+       FORMAT('%t to %t (day %d of %d)', p.month_start, p.report_date, p.mtd_days_elapsed, p.month_total_days),
+       p2.actual_nmv,
+       p2.target_mapped,
+       SAFE_DIVIDE(p2.actual_nmv, NULLIF(p2.target_mapped,0)),
+       CAST(NULL AS FLOAT64), CAST(NULL AS FLOAT64), CAST(NULL AS FLOAT64),
+       p2.bills,
+       SAFE_DIVIDE(p2.actual_nmv, NULLIF(p2.bills,0)),
+       p2.target_unmapped,
+       SAFE_DIVIDE(p2.actual_nmv, NULLIF(p2.target_all,0)),
+       CONCAT('Weekly-load channels complete to: ', IFNULL(asof.lagging,'none'),
+              '. All other channels complete to ', FORMAT('%t', p.report_date), '.'),
+       FORMAT(
+         'Attainment %.0f%% EXCLUDES %.0fm VND of TL Pop-up / TQ Pop-up target, which carry plan but have no actuals channel. Including them, attainment is %.0f%%. Month is incomplete: day %d of %d.',
+         SAFE_DIVIDE(p2.actual_nmv, NULLIF(p2.target_mapped,0))*100,
+         p2.target_unmapped/1e6,
+         SAFE_DIVIDE(p2.actual_nmv, NULLIF(p2.target_all,0))*100,
+         p.mtd_days_elapsed, p.month_total_days)
+FROM p2 CROSS JOIN p CROSS JOIN asof

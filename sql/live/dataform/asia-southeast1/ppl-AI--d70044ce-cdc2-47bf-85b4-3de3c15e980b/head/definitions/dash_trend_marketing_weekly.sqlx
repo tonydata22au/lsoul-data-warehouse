@@ -1,0 +1,502 @@
+config { type: "table", schema: "reportdb", name: "dash_trend_marketing_weekly" }
+
+/* =============================================================================
+   dash_trend_marketing_weekly   -- REWRITTEN 2026-09-06
+   -----------------------------------------------------------------------------
+   Marketing rows only: a channel appears here if it had spend or traffic in the
+   window. Revenue is joined in from dash_trend_weekly so every efficiency ratio
+   is measured against the pipeline's own NMV rather than the ads platforms'
+   self-reported conversions.
+
+   All 63 existing columns keep their names, types and positions. Two of them
+   change VALUE, deliberately - see (1). Everything else is additive.
+
+   ---------------------------------------------------------------------------
+   THE ORIGINAL THREE WARNINGS, STILL TRUE
+   ---------------------------------------------------------------------------
+
+   1. roas_channel is NMV over spend for the channel. It is an efficiency ratio,
+      NOT incrementality: the ads sources attribute by channel and day, so this
+      says "we earned X per VND spent in this channel", never "the spend caused
+      it". Named roas_channel, not ROAS, so nobody quotes it as the latter.
+
+   2. Delivery is not one metric. Meta and TikTok report REACH (unique people);
+      Google reports IMPRESSIONS (total serves). They are kept in separate
+      columns and `delivery` is the explicit COALESCE used for click_rate.
+
+   3. Website traffic is not country-split the way spend is. GA4 geo puts the
+      site's visitors in VIETNAM, THAILAND and OTHER, while spend on
+      VN Online / Website is keyed VIETNAM by the level_2 prefix. Ratios that
+      divide spend by sessions therefore use sessions_channel - every country's
+      sessions for that channel-week - while `sessions` stays the country's own.
+
+   ---------------------------------------------------------------------------
+   AND FOUR NEW ONES
+   ---------------------------------------------------------------------------
+
+   1. cpc AND cost_per_mille CHANGE VALUE. They were wrong.
+
+      They divided TOTAL channel spend by AUCTION-ONLY clicks and impressions,
+      because TikTok GMV Max contributes spend but reports neither. Measured on
+      the old build, Tiktok Thailand CPM read 867,717 VND against a true auction
+      CPM of 33,221 - a 26x overstatement, and the same error inflated every
+      TikTok CPC. Both now use spend_auction as the numerator.
+
+      `spend` itself is unchanged: it is still total channel spend, which is what
+      cost_of_sale and roas_channel need. spend_auction and spend_gmv_max are new
+      and additive to it.
+
+      ANY dashboard quoting the old CPM/CPC will move. That is the fix landing,
+      not a trading change.
+
+   2. RECRUITMENT IS EXCLUDED HERE. dash_base_ads_day now carries Meta's
+      TUYEN DUNG recruitment advertising with is_sale_campaign = FALSE. This
+      table filters WHERE is_sale_campaign, which reproduces the old marketing
+      semantics exactly. Finance totals must read dash_base_ads_day directly.
+
+   3. TIKTOK THAILAND IS NEW. Neither Thai feed was ingested before, so this
+      table showed no TikTok Thailand at all - 17.4% of ad investment. Weeks
+      spanning the deploy date will show a step change in TL Ecommerce spend.
+
+   4. COMPARISONS ARE DAY-CAPPED. Every week in this table is a COMPLETE
+      Monday-Sunday week - the window ends at cur_wk_end, never at report_date -
+      so a partial in-flight week never appears. The capping that matters here is
+      therefore not calendar but FEED COVERAGE: if a channel loaded 5 days this
+      week and 7 last week, the raw WoW is a reporting artefact.
+
+      `*_prev_wk_capped` restricts the prior week to the same leading days the
+      current week actually carries; `wow_compare_days` says how many; and
+      `wow_window_capped` is TRUE where that bit and the full week differ. The
+      uncapped `*_prev_wk` columns are unchanged so nothing downstream breaks.
+
+      WTD and MTD live in dash_marketing_drivers, which applies the same rule to
+      the calendar instead. YTD is out of range of this table's 9-week window.
+   ========================================================================== */
+
+WITH p AS (SELECT * FROM ${ref("dash_run_params")}), 
+
+/* daily ads, sale campaigns only, with the day's position inside its week so the
+   prior week can be truncated to the same leading days */
+ads_d AS (
+  SELECT
+     DATE_TRUNC(b.period_date, WEEK(MONDAY))                       AS week_start
+    ,DATE_DIFF(b.period_date, DATE_TRUNC(b.period_date, WEEK(MONDAY)), DAY) AS dow_ix
+    ,b.period_date, b.country, b.level_1, b.level_2, b.level_3
+    ,b.ads_channel, b.buying_type
+    ,b.spend, b.reach, b.impressions, b.clicks, b.engagements, b.video_views
+    ,b.landing_page_views, b.video_watched_2s, b.video_watched_6s, b.video_views_p100
+    ,b.video_play_actions, b.follows, b.total_engagements
+    ,b.messaging_conversations_7d
+    ,b.conversions, b.conversion_value_vnd
+    ,b.platform_orders, b.platform_gross_revenue_vnd
+    ,IF(b.buying_type = 'Auction',  b.spend, 0)                    AS spend_auction
+    ,IF(b.buying_type = 'GMV Max',  b.spend, 0)                    AS spend_gmv_max
+  FROM ${ref("dash_base_ads_day")} b
+  CROSS JOIN p
+  WHERE b.is_sale_campaign
+    AND b.period_date >= DATE_SUB(p.cur_wk_start, INTERVAL 8 WEEK)
+    AND b.period_date <= p.cur_wk_end
+),
+
+ads AS (
+  SELECT
+     week_start, country, level_1, level_2, level_3
+    ,STRING_AGG(DISTINCT ads_channel, '+' ORDER BY ads_channel) AS ads_channels
+    ,COUNT(DISTINCT ads_channel)          AS n_ads_channels
+    ,STRING_AGG(DISTINCT buying_type, '+' ORDER BY buying_type)  AS buying_types
+    ,SUM(spend)                           AS spend
+    ,SUM(spend_auction)                   AS spend_auction
+    ,SUM(spend_gmv_max)                   AS spend_gmv_max
+    ,SUM(reach)                           AS reach
+    ,SUM(impressions)                     AS impressions
+    ,SUM(clicks)                          AS clicks
+    ,SUM(engagements)                     AS engagements
+    ,SUM(video_views)                     AS video_views
+    ,SUM(landing_page_views)              AS landing_page_views
+    ,SUM(video_watched_2s)                AS video_watched_2s
+    ,SUM(video_watched_6s)                AS video_watched_6s
+    ,SUM(video_views_p100)                AS video_views_p100
+    ,SUM(video_play_actions)              AS video_play_actions
+    ,SUM(follows)                         AS follows
+    ,SUM(total_engagements)               AS total_engagements
+    ,SUM(messaging_conversations_7d)      AS messaging_conversations_7d
+    ,SUM(conversions)                     AS conversions
+    ,SUM(conversion_value_vnd)            AS conversion_value_vnd
+    ,SUM(platform_orders)                 AS platform_orders
+    ,SUM(platform_gross_revenue_vnd)      AS platform_gross_revenue_vnd
+    ,COUNT(DISTINCT period_date)          AS ads_days_with_data
+    ,MAX(dow_ix) + 1                      AS ads_span_days
+  FROM ads_d
+  GROUP BY 1,2,3,4,5
+),
+
+/* prior week truncated to the leading days the CURRENT week actually carries */
+ads_prev_capped AS (
+  SELECT
+     c.week_start, c.country, c.level_1, c.level_2, c.level_3
+    ,SUM(pv.spend)                        AS spend_prev_wk_capped
+    ,SUM(pv.spend_auction)                AS spend_auction_prev_wk_capped
+    ,SUM(pv.clicks)                       AS clicks_prev_wk_capped
+    ,SUM(pv.impressions)                  AS impressions_prev_wk_capped
+    ,SUM(pv.platform_orders)              AS platform_orders_prev_wk_capped
+    ,SUM(pv.platform_gross_revenue_vnd)   AS platform_revenue_prev_wk_capped
+    ,SUM(pv.conversions)                  AS conversions_prev_wk_capped
+    ,SUM(pv.conversion_value_vnd)         AS conversion_value_prev_wk_capped
+    ,COUNT(DISTINCT pv.period_date)       AS prev_days_in_capped_window
+  FROM ads c
+  JOIN ads_d pv
+    ON  pv.country = c.country AND pv.level_2 = c.level_2 AND pv.level_3 = c.level_3
+    AND pv.week_start = DATE_SUB(c.week_start, INTERVAL 7 DAY)
+    AND pv.dow_ix < c.ads_span_days
+  GROUP BY 1,2,3,4,5
+),
+
+trf_d AS (
+  SELECT
+     DATE_TRUNC(t.period_date, WEEK(MONDAY))                       AS week_start
+    ,DATE_DIFF(t.period_date, DATE_TRUNC(t.period_date, WEEK(MONDAY)), DAY) AS dow_ix
+    ,t.period_date, t.country, t.level_1, t.level_2, t.level_3
+    ,t.sessions, t.users, t.page_views, t.engagements, t.first_visits, t.form_submits
+    ,t.is_paid_traffic, t.user_type, t.is_ga4_history_complete
+  FROM ${ref("dash_base_traffic_day")} t
+  CROSS JOIN p
+  WHERE t.period_date >= DATE_SUB(p.cur_wk_start, INTERVAL 8 WEEK)
+    AND t.period_date <= p.cur_wk_end
+),
+
+trf AS (
+  SELECT
+     week_start, country, level_1, level_2, level_3
+    ,SUM(sessions)                                       AS sessions
+    ,SUM(users)                                          AS user_days   -- NOT distinct people
+    ,SUM(page_views)                                     AS page_views
+    ,SUM(engagements)                                    AS site_engagements
+    ,SUM(first_visits)                                   AS first_visits
+    ,SUM(form_submits)                                   AS form_submits
+    ,SUM(IF(is_paid_traffic, sessions, 0))               AS paid_sessions
+    ,SUM(IF(NOT is_paid_traffic, sessions, 0))           AS organic_sessions
+    ,SUM(IF(user_type = 'New', sessions, 0))             AS new_visitor_sessions
+    ,LOGICAL_AND(is_ga4_history_complete)                AS ga4_complete
+    ,COUNT(DISTINCT period_date)                         AS traffic_days_with_data
+    ,MAX(dow_ix) + 1                                     AS trf_span_days
+  FROM trf_d
+  GROUP BY 1,2,3,4,5
+),
+
+trf_prev_capped AS (
+  SELECT
+     c.week_start, c.country, c.level_1, c.level_2, c.level_3
+    ,SUM(pv.sessions)                     AS sessions_prev_wk_capped
+    ,SUM(IF(pv.is_paid_traffic, pv.sessions, 0)) AS paid_sessions_prev_wk_capped
+  FROM trf c
+  JOIN trf_d pv
+    ON  pv.country = c.country AND pv.level_2 = c.level_2 AND pv.level_3 = c.level_3
+    AND pv.week_start = DATE_SUB(c.week_start, INTERVAL 7 DAY)
+    AND pv.dow_ix < c.trf_span_days
+  GROUP BY 1,2,3,4,5
+),
+
+j AS (
+  SELECT
+     COALESCE(a.week_start, t.week_start) AS week_start
+    ,COALESCE(a.country,    t.country)    AS country
+    ,COALESCE(a.level_1,    t.level_1)    AS level_1
+    ,COALESCE(a.level_2,    t.level_2)    AS level_2
+    ,COALESCE(a.level_3,    t.level_3)    AS level_3
+    ,a.ads_channels
+    ,IFNULL(a.n_ads_channels, 0)          AS n_ads_channels
+    ,a.buying_types
+    ,IFNULL(a.spend, 0)                   AS spend
+    ,IFNULL(a.spend_auction, 0)           AS spend_auction
+    ,IFNULL(a.spend_gmv_max, 0)           AS spend_gmv_max
+    ,a.reach, a.impressions
+    ,IFNULL(a.clicks, 0)                  AS clicks
+    ,a.engagements, a.video_views
+    ,a.landing_page_views, a.video_watched_2s, a.video_watched_6s
+    ,a.video_views_p100, a.video_play_actions, a.follows, a.total_engagements
+    ,a.messaging_conversations_7d
+    ,a.conversions, a.conversion_value_vnd
+    ,a.platform_orders, a.platform_gross_revenue_vnd
+    ,IFNULL(a.ads_days_with_data, 0)      AS ads_days_with_data
+    ,IFNULL(a.ads_span_days, 0)           AS ads_span_days
+    ,IFNULL(t.sessions, 0)                AS sessions
+    ,IFNULL(t.user_days, 0)               AS user_days
+    ,IFNULL(t.page_views, 0)              AS page_views
+    ,IFNULL(t.site_engagements, 0)        AS site_engagements
+    ,IFNULL(t.first_visits, 0)            AS first_visits
+    ,IFNULL(t.form_submits, 0)            AS form_submits
+    ,IFNULL(t.paid_sessions, 0)           AS paid_sessions
+    ,IFNULL(t.organic_sessions, 0)        AS organic_sessions
+    ,IFNULL(t.new_visitor_sessions, 0)    AS new_visitor_sessions
+    ,IFNULL(t.traffic_days_with_data, 0)  AS traffic_days_with_data
+    ,IFNULL(t.ga4_complete, TRUE)         AS ga4_complete
+    ,a.week_start IS NOT NULL             AS has_ads
+    ,t.week_start IS NOT NULL             AS has_traffic
+    ,ac.spend_prev_wk_capped, ac.spend_auction_prev_wk_capped
+    ,ac.clicks_prev_wk_capped, ac.impressions_prev_wk_capped
+    ,ac.platform_orders_prev_wk_capped, ac.platform_revenue_prev_wk_capped
+    ,ac.conversions_prev_wk_capped, ac.conversion_value_prev_wk_capped
+    ,ac.prev_days_in_capped_window
+    ,tc.sessions_prev_wk_capped, tc.paid_sessions_prev_wk_capped
+  FROM ads a
+  FULL OUTER JOIN trf t
+    ON  a.week_start = t.week_start AND a.country = t.country
+    AND a.level_2    = t.level_2    AND a.level_3 = t.level_3
+  LEFT JOIN ads_prev_capped ac
+    ON  ac.week_start = a.week_start AND ac.country = a.country
+    AND ac.level_2    = a.level_2    AND ac.level_3 = a.level_3
+  LEFT JOIN trf_prev_capped tc
+    ON  tc.week_start = t.week_start AND tc.country = t.country
+    AND tc.level_2    = t.level_2    AND tc.level_3 = t.level_3
+),
+
+-- NMV and bills from the order trend, rolled to this grain
+rev AS (
+  SELECT week_start, country, level_2, level_3,
+         SUM(nmv) AS nmv, SUM(bills) AS bills, SUM(units) AS units
+  FROM ${ref("dash_trend_weekly")}
+  GROUP BY 1,2,3,4
+),
+
+m AS (
+  SELECT
+     j.*
+    ,IFNULL(r.nmv, 0)   AS nmv
+    ,IFNULL(r.bills, 0) AS bills
+    ,IFNULL(r.units, 0) AS units
+    ,COALESCE(j.impressions, j.reach) AS delivery
+    -- spend is not country-split for the website, so per-session ratios use the
+    -- channel's total sessions across countries
+    ,SUM(j.sessions) OVER (PARTITION BY j.week_start, j.level_2, j.level_3) AS sessions_channel
+  FROM j
+  LEFT JOIN rev r
+    ON  r.week_start = j.week_start AND r.country = j.country
+    AND r.level_2    = j.level_2    AND r.level_3 = j.level_3
+),
+
+w AS (
+  SELECT
+     m.*
+    ,MAX(m.spend)          OVER wprev AS spend_prev_wk
+    ,MAX(m.spend_auction)  OVER wprev AS spend_auction_prev_wk
+    ,MAX(m.nmv)            OVER wprev AS nmv_prev_wk
+    ,MAX(m.bills)          OVER wprev AS bills_prev_wk
+    ,MAX(m.sessions)       OVER wprev AS sessions_prev_wk
+    ,MAX(m.clicks)         OVER wprev AS clicks_prev_wk
+    ,MAX(m.impressions)    OVER wprev AS impressions_prev_wk
+    ,MAX(m.platform_orders) OVER wprev AS platform_orders_prev_wk
+    ,MAX(m.platform_gross_revenue_vnd) OVER wprev AS platform_revenue_prev_wk
+    ,MAX(m.conversions)    OVER wprev AS conversions_prev_wk
+    ,MAX(m.conversion_value_vnd) OVER wprev AS conversion_value_prev_wk
+    ,MAX(m.messaging_conversations_7d) OVER wprev AS messages_prev_wk
+    ,MAX(m.total_engagements) OVER wprev AS total_engagements_prev_wk
+    ,MIN(m.spend)    OVER w8    AS spend_min_8wk
+    ,MAX(m.spend)    OVER w8    AS spend_max_8wk
+    ,AVG(m.spend)    OVER w8    AS spend_avg_8wk
+    ,AVG(m.sessions) OVER w8    AS sessions_avg_8wk
+    ,AVG(SAFE_DIVIDE(m.nmv, NULLIF(m.spend,0))) OVER w8 AS roas_avg_8wk
+    ,COUNT(*)        OVER w8    AS hist_weeks_available
+    ,SUM(m.spend)    OVER (PARTITION BY m.week_start) AS spend_group
+  FROM m
+  WINDOW
+     w8    AS (PARTITION BY m.country, m.level_2, m.level_3
+               ORDER BY UNIX_DATE(m.week_start) RANGE BETWEEN 56 PRECEDING AND 7 PRECEDING)
+    ,wprev AS (PARTITION BY m.country, m.level_2, m.level_3
+               ORDER BY UNIX_DATE(m.week_start) RANGE BETWEEN  7 PRECEDING AND 7 PRECEDING)
+)
+
+SELECT
+   w.week_start
+  ,w.country
+  ,w.level_1
+  ,w.level_2
+  ,w.level_3
+  ,p.cur_wk_start
+  ,w.week_start = p.cur_wk_start                AS is_current_week
+
+   -- ---------- paid media delivery ------------------------------------------
+  ,w.ads_channels
+  ,w.n_ads_channels
+  ,w.spend
+  ,w.reach                                       -- Meta + TikTok: unique people
+  ,w.impressions                                 -- Google Ads: total serves
+  ,w.delivery                                    -- COALESCE(impressions, reach)
+  ,w.clicks
+  ,w.engagements
+  ,w.video_views
+  ,w.ads_days_with_data
+
+   -- ---------- website traffic ----------------------------------------------
+  ,w.sessions
+  ,w.sessions_channel
+  ,w.user_days
+  ,w.page_views
+  ,w.site_engagements
+  ,w.first_visits
+  ,w.form_submits
+  ,w.paid_sessions
+  ,w.organic_sessions
+  ,w.new_visitor_sessions
+  ,SAFE_DIVIDE(w.paid_sessions,         NULLIF(w.sessions,0)) AS paid_session_share
+  ,SAFE_DIVIDE(w.new_visitor_sessions,  NULLIF(w.sessions,0)) AS new_visitor_share
+  ,SAFE_DIVIDE(w.page_views,            NULLIF(w.sessions,0)) AS pages_per_session
+  ,w.traffic_days_with_data
+  ,w.ga4_complete
+
+   -- ---------- trade ---------------------------------------------------------
+  ,w.nmv
+  ,w.bills
+  ,w.units
+
+   /* ---------- efficiency ---------------------------------------------------
+      cpc and cost_per_mille now divide AUCTION spend by auction delivery.
+      Dividing total spend (which includes GMV Max, reporting no clicks and no
+      impressions) by auction-only denominators was a 26x overstatement on
+      TikTok Thailand. cost_of_sale and roas_channel keep TOTAL spend, which is
+      correct for them - every VND spent bears on channel revenue. */
+  ,SAFE_DIVIDE(w.spend_auction,  NULLIF(w.clicks,0))          AS cpc
+  ,SAFE_DIVIDE(w.spend_auction * 1000, NULLIF(w.delivery,0))  AS cost_per_mille
+  ,SAFE_DIVIDE(w.clicks, NULLIF(w.delivery,0))                AS click_rate
+  ,SAFE_DIVIDE(w.spend,  NULLIF(w.sessions_channel,0))        AS cost_per_session
+  ,SAFE_DIVIDE(w.spend,  NULLIF(w.bills,0))                   AS cost_per_bill
+  ,SAFE_DIVIDE(w.nmv,    NULLIF(w.spend,0))                   AS roas_channel
+  ,SAFE_DIVIDE(w.spend,  NULLIF(w.nmv,0))                     AS cost_of_sale
+  ,SAFE_DIVIDE(w.bills,  NULLIF(w.sessions_channel,0))        AS session_conversion_rate
+  ,SAFE_DIVIDE(w.spend,  NULLIF(w.spend_group,0))             AS spend_share_of_group
+
+   -- ---------- momentum ------------------------------------------------------
+  ,w.spend_prev_wk
+  ,w.nmv_prev_wk
+  ,w.sessions_prev_wk
+  ,w.clicks_prev_wk
+  ,w.spend - w.spend_prev_wk                                       AS spend_wow_abs
+  ,SAFE_DIVIDE(w.spend,    NULLIF(w.spend_prev_wk,0))    - 1       AS spend_wow_pct
+  ,SAFE_DIVIDE(w.sessions, NULLIF(w.sessions_prev_wk,0)) - 1       AS sessions_wow_pct
+  ,SAFE_DIVIDE(w.clicks,   NULLIF(w.clicks_prev_wk,0))   - 1       AS clicks_wow_pct
+  ,SAFE_DIVIDE(SAFE_DIVIDE(w.nmv, NULLIF(w.spend,0)),
+               NULLIF(SAFE_DIVIDE(w.nmv_prev_wk, NULLIF(w.spend_prev_wk,0)),0)) - 1
+                                                                   AS roas_wow_pct
+
+   -- ---------- trailing shape ------------------------------------------------
+  ,w.spend_min_8wk
+  ,w.spend_max_8wk
+  ,w.spend_avg_8wk
+  ,w.sessions_avg_8wk
+  ,w.roas_avg_8wk
+  ,w.hist_weeks_available
+  ,SAFE_DIVIDE(w.spend, NULLIF(w.spend_avg_8wk,0))                 AS spend_index_vs_8wk_avg
+  ,SAFE_DIVIDE(SAFE_DIVIDE(w.nmv, NULLIF(w.spend,0)),
+               NULLIF(w.roas_avg_8wk,0))                           AS roas_index_vs_8wk_avg
+
+   -- ---------- flags ---------------------------------------------------------
+  ,w.has_ads
+  ,w.has_traffic
+
+   /* ======================= NEW FROM HERE ================================= */
+
+   -- ---------- buying-type split (why cpc/cpm changed) -----------------------
+  ,w.buying_types
+  ,w.spend_auction
+  ,w.spend_gmv_max
+  ,SAFE_DIVIDE(w.spend_gmv_max, NULLIF(w.spend,0))                 AS gmv_max_spend_share
+
+   -- ---------- additional media volume ---------------------------------------
+  ,w.landing_page_views
+  ,w.video_play_actions
+  ,w.video_watched_2s
+  ,w.video_watched_6s
+  ,w.video_views_p100
+  ,w.follows
+  ,w.total_engagements
+  ,w.messaging_conversations_7d
+
+   -- ---------- platform-attributed, family A: Google Ads ---------------------
+  ,w.conversions
+  ,w.conversion_value_vnd
+  ,SAFE_DIVIDE(w.conversion_value_vnd, NULLIF(w.spend_auction,0))  AS roas_conversion
+  ,SAFE_DIVIDE(w.spend_auction, NULLIF(w.conversions,0))           AS cost_per_conversion_vnd
+
+   -- ---------- platform-attributed, family B: TikTok Shop --------------------
+   -- NEVER add these two families together, and never compare either to nmv.
+  ,w.platform_orders
+  ,w.platform_gross_revenue_vnd
+  ,SAFE_DIVIDE(w.platform_gross_revenue_vnd, NULLIF(w.spend_gmv_max,0)) AS roas_platform
+  ,SAFE_DIVIDE(w.spend_gmv_max, NULLIF(w.platform_orders,0))       AS cost_per_order_vnd
+  ,SAFE_DIVIDE(w.platform_gross_revenue_vnd, NULLIF(w.platform_orders,0)) AS aov_platform_vnd
+
+   -- ---------- creative and engagement rates ---------------------------------
+  ,SAFE_DIVIDE(w.video_watched_2s, NULLIF(w.impressions,0))        AS hook_rate
+  ,SAFE_DIVIDE(w.video_watched_6s, NULLIF(w.video_watched_2s,0))   AS hold_rate
+  ,SAFE_DIVIDE(w.video_views_p100, NULLIF(w.video_play_actions,0)) AS video_completion_rate
+  ,SAFE_DIVIDE(w.total_engagements, NULLIF(w.impressions,0))       AS engagement_rate
+  ,SAFE_DIVIDE(w.landing_page_views, NULLIF(w.clicks,0))           AS landing_page_view_rate
+  ,SAFE_DIVIDE(w.spend_auction, NULLIF(w.messaging_conversations_7d,0)) AS cost_per_message_vnd
+
+   /* ---------- day-capped prior period --------------------------------------
+      Every week here is a complete Monday-Sunday week, so this caps for FEED
+      COVERAGE, not the calendar: a channel that loaded 5 days this week is
+      compared against the same 5 leading days last week. wow_window_capped is
+      TRUE only where that actually differs from the full prior week. */
+  ,IFNULL(w.ads_span_days, 0)                                      AS wow_compare_days
+  ,w.spend_prev_wk_capped
+  ,w.spend_auction_prev_wk_capped
+  ,w.clicks_prev_wk_capped
+  ,w.impressions_prev_wk_capped
+  ,w.sessions_prev_wk_capped
+  ,w.paid_sessions_prev_wk_capped
+  ,w.platform_orders_prev_wk_capped
+  ,w.platform_revenue_prev_wk_capped
+  ,w.conversions_prev_wk_capped
+  ,w.conversion_value_prev_wk_capped
+  ,w.prev_days_in_capped_window
+   -- only meaningful where there IS ads data; a traffic-only row is not "capped"
+  ,w.has_ads
+     AND (IFNULL(w.ads_span_days, 7) < 7
+          OR IFNULL(w.spend_prev_wk_capped, -1) <> IFNULL(w.spend_prev_wk, -1)) AS wow_window_capped
+  ,SAFE_DIVIDE(w.spend,    NULLIF(w.spend_prev_wk_capped,0))    - 1 AS spend_wow_pct_capped
+  ,SAFE_DIVIDE(w.clicks,   NULLIF(w.clicks_prev_wk_capped,0))   - 1 AS clicks_wow_pct_capped
+  ,SAFE_DIVIDE(w.sessions, NULLIF(w.sessions_prev_wk_capped,0)) - 1 AS sessions_wow_pct_capped
+
+   /* ---------- every metric's prior value and delta, in one column -----------
+      Flat columns above cover the decision-relevant set. This array covers the
+      rest without a 200-column table: one entry per metric, with the prior
+      week, the day-capped prior week where one exists, the absolute delta and
+      the percent. Query it with UNNEST(metric_deltas). */
+  ,ARRAY(
+     SELECT AS STRUCT
+        metric, cur, prv, prv_capped
+       ,cur - prv                                   AS delta
+       ,SAFE_DIVIDE(cur, NULLIF(prv, 0)) - 1        AS pct
+       ,cur - prv_capped                            AS delta_capped
+       ,SAFE_DIVIDE(cur, NULLIF(prv_capped, 0)) - 1 AS pct_capped
+     FROM UNNEST([
+        STRUCT('spend'              AS metric, CAST(w.spend AS FLOAT64) AS cur,
+               CAST(w.spend_prev_wk AS FLOAT64) AS prv,
+               CAST(w.spend_prev_wk_capped AS FLOAT64) AS prv_capped)
+       ,STRUCT('spend_auction', CAST(w.spend_auction AS FLOAT64),
+               CAST(w.spend_auction_prev_wk AS FLOAT64), CAST(w.spend_auction_prev_wk_capped AS FLOAT64))
+       ,STRUCT('clicks', CAST(w.clicks AS FLOAT64),
+               CAST(w.clicks_prev_wk AS FLOAT64), CAST(w.clicks_prev_wk_capped AS FLOAT64))
+       ,STRUCT('impressions', CAST(w.impressions AS FLOAT64),
+               CAST(w.impressions_prev_wk AS FLOAT64), CAST(w.impressions_prev_wk_capped AS FLOAT64))
+       ,STRUCT('sessions', CAST(w.sessions AS FLOAT64),
+               CAST(w.sessions_prev_wk AS FLOAT64), CAST(w.sessions_prev_wk_capped AS FLOAT64))
+       ,STRUCT('nmv', CAST(w.nmv AS FLOAT64), CAST(w.nmv_prev_wk AS FLOAT64), CAST(NULL AS FLOAT64))
+       ,STRUCT('bills', CAST(w.bills AS FLOAT64), CAST(w.bills_prev_wk AS FLOAT64), CAST(NULL AS FLOAT64))
+       ,STRUCT('platform_orders', CAST(w.platform_orders AS FLOAT64),
+               CAST(w.platform_orders_prev_wk AS FLOAT64), CAST(w.platform_orders_prev_wk_capped AS FLOAT64))
+       ,STRUCT('platform_gross_revenue_vnd', CAST(w.platform_gross_revenue_vnd AS FLOAT64),
+               CAST(w.platform_revenue_prev_wk AS FLOAT64), CAST(w.platform_revenue_prev_wk_capped AS FLOAT64))
+       ,STRUCT('conversions', CAST(w.conversions AS FLOAT64),
+               CAST(w.conversions_prev_wk AS FLOAT64), CAST(w.conversions_prev_wk_capped AS FLOAT64))
+       ,STRUCT('conversion_value_vnd', CAST(w.conversion_value_vnd AS FLOAT64),
+               CAST(w.conversion_value_prev_wk AS FLOAT64), CAST(w.conversion_value_prev_wk_capped AS FLOAT64))
+       ,STRUCT('messaging_conversations_7d', CAST(w.messaging_conversations_7d AS FLOAT64),
+               CAST(w.messages_prev_wk AS FLOAT64), CAST(NULL AS FLOAT64))
+       ,STRUCT('total_engagements', CAST(w.total_engagements AS FLOAT64),
+               CAST(w.total_engagements_prev_wk AS FLOAT64), CAST(NULL AS FLOAT64))
+     ])
+   )                                                               AS metric_deltas
+
+FROM w
+CROSS JOIN p

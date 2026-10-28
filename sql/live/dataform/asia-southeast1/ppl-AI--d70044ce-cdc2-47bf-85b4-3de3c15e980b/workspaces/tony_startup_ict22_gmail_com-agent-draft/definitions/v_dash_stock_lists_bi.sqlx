@@ -1,0 +1,27 @@
+config {
+  type:"view",
+  name:"v_dash_stock_lists_bi",
+  dependencyTargets:[{
+    name:"dash_stock_lists"
+  }],
+}
+SELECT
+   s.list_name
+  ,CASE s.list_name
+     WHEN 'OVERSTOCK'    THEN 'Tồn kho cao / luân chuyển chậm'
+     WHEN 'UNDERSTOCK'   THEN 'Thiếu hàng / bán chạy'
+     WHEN 'TRENDING'     THEN 'Sản phẩm tăng trưởng nổi bật'
+     WHEN 'DISCONTINUED' THEN 'Hàng ngừng kinh doanh còn tồn'
+     ELSE s.list_name END AS list_name_vi
+  ,s.rank_in_list, s.variation_code, s.product_name
+  ,s.units_on_hand, s.cover_days, s.cover_weeks
+  ,s.sell_through_rate, s.sale_velocity
+  ,s.rank_value, s.rank_metric
+  ,CASE s.rank_metric
+     WHEN 'Tied-up excess value (VND)' THEN 'Giá trị tồn dư đang bị giam (VND)'
+     WHEN 'Lost-sales risk: 4wk demand at current velocity (VND)' THEN 'Rủi ro mất doanh thu: nhu cầu 4 tuần theo tốc độ bán hiện tại (VND)'
+     WHEN 'Absolute WoW unit gain (base >= 5 units)' THEN 'Mức tăng tuyệt đối số lượng bán theo tuần (nền >= 5 sản phẩm)'
+     WHEN 'Stock value at retail (VND)' THEN 'Giá trị tồn kho theo giá bán lẻ (VND)'
+     ELSE s.rank_metric END AS rank_metric_vi
+  ,s.colour_bucket, s.alert_code, s.units_cur, s.units_prv
+FROM ${ref("dash_stock_lists")} s

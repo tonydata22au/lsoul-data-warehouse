@@ -1,17 +1,5 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_product_variations_warehouse_summary`(
-  i_type INT64 -- 0: group by product, 1: group by variations, 2: current stock by variations only
-  ,i_number_year_back INT64 --0: current year
-  ,i_country STRING --'',VIETNAM, THAILAND, CHINA
-)
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_product_variations_warehouse_summary(i_type INT64, i_number_year_back INT64, i_country STRING)
 AS
-/*
-Author: Toan Pham
-Date: 29/05/2026
-Comment: get inventory of each variation/product in each warehouses
-call:
-    SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_product_variations_warehouse_summary`(1,0,'')  order by 1 desc
-*/
-(
 WITH stock_in_by_warehouse AS (
 SELECT
 inserted_at
@@ -183,7 +171,4 @@ SELECT * FROM master_stats_variations WHERE i_type = 2
   PARTITION BY product_code, variation_code, warehouse_id
   ORDER BY inserted_at desc
   ) = 1 
-ORDER BY 1 DESC,3, 7
-)
-
-
+ORDER BY 1 DESC,3, 7;

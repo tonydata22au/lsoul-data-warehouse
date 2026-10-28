@@ -1,0 +1,31 @@
+config {
+  type:"incremental",
+  name:"core_jushuitan_inventory",
+  dependencyTargets:[{
+    name:"stg_jushuitan_inventory"
+  }],
+}
+SELECT
+  proc_date,
+  modified,
+  vn_modified,
+  ts, 
+  REGEXP_EXTRACT(sku_id, r'^([^-]+)') AS product_code,
+      DATE(
+        SAFE_CAST(SUBSTR(REGEXP_EXTRACT(sku_id, r'\d{6}'), 1, 2) AS INT64) + 2000,
+        SAFE_CAST(SUBSTR(REGEXP_EXTRACT(sku_id, r'\d{6}'), 3, 2) AS INT64),
+        01
+        ) product_launch_date, 
+  item_id,
+  sku_id, 
+  name, 
+  qty, 
+  in_qty, 
+  return_qty, 
+  defective_qty,
+  purchase_qty, 
+  allocate_qty, 
+  virtual_qty
+  FROM ${ref("stg_jushuitan_inventory")}
+  WHERE DATE(proc_date) >= DATE(CURRENT_DATE("Asia/Ho_Chi_Minh"))
+  AND item_id is not null AND UPPER(item_id) NOT LIKE '%TEST%'

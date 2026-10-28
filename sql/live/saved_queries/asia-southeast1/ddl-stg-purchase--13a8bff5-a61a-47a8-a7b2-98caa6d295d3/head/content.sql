@@ -1,0 +1,61 @@
+CREATE OR REPLACE TABLE `marine-cycle-484213-b4.stg_pancake.stg_purchase`
+PARTITION BY DATE(inserted_at)
+CLUSTER BY display_id, items_display_id, items_variation_display_id
+OPTIONS (
+  require_partition_filter=true
+) AS
+SELECT
+TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) AS proc_date,
+DATETIME(PARSE_TIMESTAMP('%Y%m%d%H%M%S', inserted_at))  AS inserted_at,
+purchase_id,
+display_id,
+note,
+SAFE_CAST(is_lock AS INT64) AS is_lock,
+SAFE_CAST(total_quantity AS INT64) AS total_quantity,
+status,
+SAFE_CAST(total_price AS FLOAT64) AS total_price,
+updated_at,
+warehouse_id,
+warehouse_name,
+SAFE_CAST(not_create_transaction AS INT64) AS not_create_transaction,
+user_id,
+user_name,
+SAFE_CAST(total_remain_quantity AS INT64) AS total_remain_quantity,
+supplier_products_id,
+created_type,
+type_of_transaction,
+SAFE_CAST(is_transfer AS INT64) AS is_transfer,
+SAFE_CAST(discount AS FLOAT64) AS discount,
+SAFE_CAST(total_remain_price AS FLOAT64) AS total_remain_price,
+items_id,
+items_display_id,
+items_product_name,
+items_inserted_at,
+SAFE_CAST(items_estimated_quantity AS INT64) AS items_estimated_quantity,
+SAFE_CAST(items_quantity AS INT64) AS items_quantity,
+SAFE_CAST(items_gross_price AS FLOAT64) AS items_gross_price,
+SAFE_CAST(items_discount AS FLOAT64) AS items_discount,
+SAFE_CAST(items_remain_quantity AS INT64) AS items_remain_quantity,
+items_selling_status,
+SAFE_CAST(items_tax_rate AS FLOAT64) AS items_tax_rate,
+items_variation_id,
+items_variation_display_id,
+items_variation_fields,
+items_variation_images,
+items_variation_inserted_at,
+SAFE_CAST(items_variation_is_hidden AS INT64) AS items_variation_is_hidden,
+SAFE_CAST(items_variation_is_locked AS INT64) AS items_variation_is_locked,
+SAFE_CAST(items_variation_is_removed AS INT64) AS items_variation_is_removed,
+SAFE_CAST(items_variation_is_sell_negative_variation AS INT64) AS items_variation_is_sell_negative_variation,
+SAFE_CAST(items_variation_last_imported_price AS FLOAT64) AS items_variation_last_imported_price,
+SAFE_CAST(items_variation_price_at_counter AS FLOAT64) AS items_variation_price_at_counter,
+SAFE_CAST(items_variation_remain_quantity AS INT64) AS items_variation_remain_quantity,
+SAFE_CAST(items_variation_retail_price AS FLOAT64) AS items_variation_retail_price,
+SAFE_CAST(items_variation_retail_price_after_discount AS FLOAT64) AS items_variation_retail_price_after_discount,
+items_variation_product_id,
+items_variation_product_display_id,
+items_variation_product_name,
+items_variation_product_image
+
+FROM `marine-cycle-484213-b4.raw_pancake.raw_purchase`
+WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-01-01")

@@ -1,54 +1,7 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_product_inventory_summary_v2`(
-   i_type              INT64   -- 0 = daily grain per (SKU x warehouse x period_date); 1 = latest snapshot per SKU (warehouses collapsed)
-  ,i_number_year_back  INT64   -- 0 = current year
-  ,i_days_range        INT64   -- rolling sales window, e.g. 30 / 90
-  ,i_FromDate          DATE    -- NULL = no lower bound
-  ,i_ToDate            DATE    -- NULL = no upper bound
-)
-OPTIONS (
-  description = """Product / SKU inventory + sales fact table.
-i_type = 0 -> one row per (period_date, variation_code, warehouse_id).
-i_type = 1 -> one row per variation_code at its latest period_date, stock summed across warehouses,
-              sales accumulated to lifetime totals."""
-)
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_product_inventory_summary_v2(i_type INT64, i_number_year_back INT64, i_days_range INT64, i_FromDate DATE, i_ToDate DATE)
+OPTIONS(
+  description="Product / SKU inventory + sales fact table.\ni_type = 0 -> one row per (period_date, variation_code, warehouse_id).\ni_type = 1 -> one row per variation_code at its latest period_date, stock summed across warehouses,\n              sales accumulated to lifetime totals.")
 AS
-/*
-Author        : Toan Pham
-Refactored    : 2026-08-09
-Original      : reportdb.fn_product_inventory_summary
-
-WHAT CHANGED VS V1 (summary - full detail in CODE_REVIEW.md)
-  [BUG]  cte_01 fanned out one row per warehouse and was then joined as a SKU-level
-         dimension, multiplying every fact row. The SELECT DISTINCT in v1's cte_04/cte_05
-         was masking that fan-out. Split into dim_variation (1 row/SKU) + dim_variation_wh.
-  [BUG]  units_sold_day_range was partitioned by the stock segment (seg_id), not by the
-         day range, so it never respected i_days_range. Now a true rolling window; the old
-         behaviour is preserved under the honest name units_sold_since_restock.
-  [BUG]  period_date mixed DATE and TIMESTAMP across the four UNION ALL branches. All
-         branches now CAST(... AS DATE).
-  [BUG]  Stock fallback used the SKU-level alias (v) in one CASE branch and the
-         warehouse-level alias (vw) in another. Now consistently warehouse-level.
-  [PERF] The delta -> running-SUM round trip on sl_ton_kho (2 window passes over full
-         history, per source) is replaced by a single LAST_VALUE(... IGNORE NULLS)
-         forward fill, applied AFTER aggregation instead of before.
-  [PERF] Removed 4 ORDER BY clauses inside CTEs and the trailing ORDER BY in the function
-         body. Ordering is not preserved through a TVF and forced a full global sort.
-  [PERF] Removed SELECT DISTINCT over ~20 columns (full shuffle) - no longer needed once
-         the join fan-out is fixed.
-  [MAINT] The near-duplicate *_type_1 CTE chain is gone. Grain is selected once via
-         grain_key; the rest of the pipeline is written once.
-  [MAINT] Hard-coded warehouse UUIDs and cutover dates are centralised in `const`.
-
-TESTING
-  SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_product_inventory_summary_v2`(0,0,60,NULL,NULL)  ORDER BY 1 DESC, variation_code, warehouse_name ;
-  SELECT * EXCEPT (sort_desc,is_latest,warehouse_id, warehouse_name, order_sources_name, sale_channel, sale_channel_details, order_year)
-  FROM `marine-cycle-484213-b4.reportdb.fn_product_inventory_summary_v2`(1,0,90,NULL,NULL)  ORDER BY 3;
-
-  SELECT * EXCEPT (sort_desc, days_range,order_sources_name,sale_channel_details,order_year,sales_revenue,units_sold)  FROM `marine-cycle-484213-b4.reportdb.fn_product_inventory_summary_v2`(0,0,60,NULL,NULL)  ORDER BY 1 DESC, variation_code, warehouse_name ;
-
-*/
-(
-
 WITH
 -------------------------------------------------------------------------------
 -- 0. Constants. One place to edit warehouse IDs and cutover dates.
@@ -92,7 +45,7 @@ const AS (
 -------------------------------------------------------------------------------
 ,variation_wh AS (
     SELECT
-     variation_display_id
+     variation_display_id         
     ,DATE(vw.updated_at)          AS updated_at
     ,vw.warehouse_id
     ,w.warehouse_name
@@ -151,8 +104,10 @@ const AS (
     ,0                            AS sales_revenue
     ,0                            AS revenue
     ,0                            AS units_sold
-  FROM `marine-cycle-484213-b4.reportdb.fn_product_variations_warehouse_summary`(1, 0, '') i
-  WHERE (i.warehouse_type NOT IN ('NONE','M') or  i.warehouse_type IS NULL)
+  FROM `marine-cycle-484213-b4.reportdb.fn_product_variations_warehouse_summary`(1, 0, '') i 
+  WHERE (i.warehouse_type NOT IN ('NONE','M') or  i.warehouse_type IS NULL 
+  -- OR i.warehouse_id = '1a21d42d-d648-4fdd-9095-932fceb08a2d' --Thêm Kho hàng lỗi
+  )
 
   UNION ALL
 
@@ -168,7 +123,7 @@ const AS (
     ,country
     ,0
     ,i.sl_nhap_kho
-    ,CASE
+    ,CASE 
         WHEN LAG(sl_ton_kho) OVER (PARTITION BY variation_code ORDER BY DATE(i.updated_at))  <> sl_ton_kho
         THEN sl_ton_kho - LAG(sl_ton_kho) OVER (PARTITION BY variation_code ORDER BY DATE(i.updated_at))
         WHEN LAG(sl_ton_kho) OVER (PARTITION BY variation_code ORDER BY DATE(i.updated_at))  IS NULL
@@ -192,7 +147,7 @@ const AS (
     ,country
     ,0
     ,i.sl_nhap_kho
-    ,CASE
+    ,CASE 
       WHEN LAG(stock_on_hand) OVER (PARTITION BY sku ORDER BY DATE(updated_at))  <> stock_on_hand
       THEN stock_on_hand - LAG(stock_on_hand) OVER (PARTITION BY sku ORDER BY DATE(updated_at))
       WHEN LAG(stock_on_hand) OVER (PARTITION BY sku ORDER BY DATE(updated_at))  IS NULL
@@ -376,9 +331,9 @@ const AS (
     ,ANY_VALUE(product_code)            AS product_code
     ,ANY_VALUE(product_name)            AS product_name
     ,ANY_VALUE(variation_attributes)    AS variation_attributes
-    ,ANY_VALUE(category)                AS category
-    ,ANY_VALUE(sub_category)            AS sub_category
-    ,ANY_VALUE(collection_bst)          AS collection_bst
+    ,ANY_VALUE(category)                AS category 
+    ,ANY_VALUE(sub_category)            AS sub_category 
+    ,ANY_VALUE(collection_bst)          AS collection_bst 
     ,ANY_VALUE(product_days_since_launch) AS product_days_since_launch
     ,ANY_VALUE(days_range)              AS days_range
     ,ANY_VALUE(is_sale_end)             AS is_sale_end
@@ -588,5 +543,4 @@ SELECT
   ,IF(i_type = 1, 0, sl_ton_kho_diff) AS sl_ton_kho_diff
 FROM metrics
 WHERE i_type = 0
-   OR (i_type = 1 AND is_latest = 1)
-);
+   OR (i_type = 1 AND is_latest = 1);

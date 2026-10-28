@@ -1,0 +1,106 @@
+config {
+  type:"table",
+  name:"dash_page2_mtd",
+  dependencyTargets:[{
+    name:"dash_run_params"
+  }, {
+    name:"dash_dq_platform_day"
+  }, {
+    name:"dash_base_order_day"
+  }, {
+    name:"dash_target_day"
+  }],
+}
+/* -----------------------------------------------------------------------------
+   4. dash_page2_mtd   -- PAGE 2, SECTION 2 (MTD vs target)
+   -----------------------------------------------------------------------------
+   PER-CHANNEL CUTOFF. Tmall and Taobao upload manually once a week (Mon AM) and
+   are complete only through the most recent Sunday; everything else is complete
+   to T-1. A channel's cutoff is the EARLIEST cutoff among its platforms, so
+   TQ Ecommerce is measured to last Sunday. The target is pro-rated to that SAME
+   date, so every channel is compared like-for-like instead of against a target
+   that assumes days it has no data for.
+
+   SUPPRESSION. attainment is NULL when the full-month target < 500m VND
+   (is_low_target) or <= 0 (is_target_invalid). VN Wholesales would otherwise
+   print 633%. The threshold keys on FULL-MONTH target, not MTD, because MTD
+   target grows through the month. Verified: across all 10 channels x 12 months
+   of FY2026 this flags only VN Wholesales and the two Pop-ups, never a real
+   trading channel.
+
+   UNMAPPED. TL Pop-up / TQ Pop-up carry target but have no actuals channel and a
+   NULL sale_channel_type. They are retained as a fifth 'Unmapped' group so the
+   plan denominator stays whole.
+   ----------------------------------------------------------------------------- */
+WITH p AS (SELECT * FROM ${ref("dash_run_params")}),
+cut AS (
+  SELECT level_2, MIN(data_complete_through) AS cutoff
+  FROM ${ref("dash_dq_platform_day")}
+  GROUP BY level_2
+),
+act AS (
+  SELECT b.country, b.level_1, b.level_2,
+         SUM(b.nmv) AS mtd_nmv,
+         SUM(b.gmv) AS mtd_gmv,
+         COUNT(DISTINCT b.order_id) AS mtd_bills
+  FROM ${ref("dash_base_order_day")} b
+  JOIN cut c USING (level_2)
+  CROSS JOIN p
+  WHERE b.period_date BETWEEN p.month_start AND c.cutoff
+  GROUP BY 1,2,3
+),
+tgt AS (
+  -- LEFT JOIN to cut (not inner) so target-only channels are not dropped
+  SELECT t.level_2,
+         ANY_VALUE(t.country)              AS country,
+         ANY_VALUE(t.level_1)              AS level_1,
+         SUM(t.month_target_revenue)       AS mtd_target,
+         ANY_VALUE(t.month_target_revenue) AS month_target,
+         LOGICAL_OR(t.is_low_target)       AS is_low_target,
+         LOGICAL_OR(t.is_target_invalid)   AS is_target_invalid,
+         LOGICAL_OR(t.is_unmapped_channel) AS is_unmapped_channel,
+         LOGICAL_OR(t.is_multi_country_target) AS is_multi_country_target
+  FROM ${ref("dash_target_day")} t 
+  LEFT JOIN cut c USING (level_2)
+  CROSS JOIN p
+  WHERE t.sale_date BETWEEN p.month_start AND IFNULL(c.cutoff, p.report_date)
+  GROUP BY t.level_2
+)
+SELECT
+   p.month_start
+  ,IFNULL(c.cutoff, p.report_date)                       AS data_as_of
+  ,p.mtd_days_elapsed
+  ,p.month_total_days
+  ,COALESCE(a.country, t.country)                        AS country
+  ,COALESCE(a.level_1, t.level_1)                        AS level_1
+  ,COALESCE(a.level_2, t.level_2)                        AS level_2
+  ,IFNULL(a.mtd_nmv, 0)                                  AS mtd_actual_nmv
+  ,IFNULL(a.mtd_gmv, 0)                                  AS mtd_actual_gmv
+  ,IFNULL(a.mtd_bills, 0)                                AS mtd_bills
+  ,SAFE_DIVIDE(a.mtd_nmv, a.mtd_bills)                   AS mtd_basket
+  ,IFNULL(t.mtd_target, 0)                               AS mtd_target
+  ,t.month_target                                        AS full_month_target
+  ,IFNULL(a.mtd_nmv,0) - IFNULL(t.mtd_target,0)          AS gap_to_target
+  -- attainment suppressed where the denominator is too small or invalid
+  ,IF(t.is_low_target OR t.is_target_invalid, NULL,
+      SAFE_DIVIDE(a.mtd_nmv, NULLIF(t.mtd_target,0)))    AS attainment_pct
+  ,CASE WHEN t.is_target_invalid THEN 'Target <= 0 - attainment not meaningful'
+        WHEN t.is_low_target     THEN 'Full-month target < 500m VND - attainment suppressed'
+        WHEN t.level_2 IS NULL   THEN 'No target set for this channel'
+        WHEN a.level_2 IS NULL   THEN 'Target exists but no actuals channel maps to it'
+        ELSE NULL END                                    AS attainment_note
+  ,CASE WHEN t.is_low_target OR t.is_target_invalid THEN NULL
+        WHEN IFNULL(a.mtd_nmv,0) >= IFNULL(t.mtd_target,0) THEN 'HIT'
+        ELSE 'MISS' END                                  AS target_status
+  ,IFNULL(t.is_low_target, FALSE)                        AS is_low_target
+  ,IFNULL(t.is_target_invalid, FALSE)                    AS is_target_invalid
+  ,IFNULL(t.is_unmapped_channel, FALSE)                  AS is_unmapped_channel
+  ,IFNULL(t.is_multi_country_target, FALSE)              AS is_multi_country_target
+  -- period is incomplete by construction; say so rather than reading it as a decline
+  ,ROUND(SAFE_DIVIDE(p.mtd_days_elapsed, p.month_total_days), 3) AS month_elapsed_share
+  ,CONCAT('Day ', CAST(p.mtd_days_elapsed AS STRING), ' of ',
+          CAST(p.month_total_days AS STRING), ' - month incomplete') AS period_note
+FROM act a
+FULL OUTER JOIN tgt t ON a.level_2 = t.level_2
+LEFT JOIN cut c ON c.level_2 = COALESCE(a.level_2, t.level_2)
+CROSS JOIN p

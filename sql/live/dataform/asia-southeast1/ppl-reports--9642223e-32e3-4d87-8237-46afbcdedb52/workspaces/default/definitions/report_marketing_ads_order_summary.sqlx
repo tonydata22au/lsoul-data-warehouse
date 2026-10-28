@@ -1,0 +1,5 @@
+config {
+  type:"table",
+  name:"report_marketing_ads_order_summary",
+}
+SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_ads_spend_summary`(0)

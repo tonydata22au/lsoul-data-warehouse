@@ -101,3 +101,6 @@ credentials/
 seeds/**/*.xlsx
 # Shared agent configuration (overrides the *.json rule above)
 !.claude/settings.json
+
+# Reviewed warehouse definition/configuration snapshots (never table-row exports)
+!sql/live/**/*.json

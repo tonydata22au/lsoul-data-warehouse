@@ -1,0 +1,18 @@
+{
+  "name": "projects/266174294882/locations/asia-southeast1/transferConfigs/698903f1-0000-219c-90c5-c82add6c110c",
+  "displayName": "daily_check_partition_insert_dates_V2",
+  "dataSourceId": "scheduled_query",
+  "destinationDatasetId": "",
+  "schedule": "every day 01:15",
+  "scheduleOptions": {
+    "startTime": "2026-02-08T17:00:00Z"
+  },
+  "scheduleOptionsV2": {
+    "timeBasedSchedule": {
+      "schedule": "every day 01:15",
+      "startTime": "2026-02-08T17:00:00Z"
+    }
+  },
+  "disabled": true,
+  "query_parameters": {}
+}

@@ -1,0 +1,8 @@
+actions:
+- operation:
+    name: insert_core_jushuitan_taobao_tmall_order_manual
+    dataset: jushuitan
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: stg_jushuitan_taobao_tmall_order_manual
+    filename: query_1786096776820.sql

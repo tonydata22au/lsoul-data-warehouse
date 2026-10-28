@@ -1,42 +1,7 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_ads_media_daily`(
-  i_number_year_back INT64
-)
-OPTIONS (
-  description = "LSOUL marketing performance report: ads media metrics by day x channel x market x level_1/2/3 commercial taxonomy x buying_type. Built on fn_ads_metrics_daily so spend reconciles to the platforms exactly. Includes TikTok Thailand (previously missing) and Meta recruitment spend (flagged is_sale_campaign=FALSE). 60 metrics covering reach, traffic, video/creative, social engagement, leads and TikTok Shop commerce. buying_type separates Auction delivery from GMV Max commerce so CPM/CPC stay meaningful. All money in VND; all rates recomputed from components."
-)
-AS (
-
-/*=====================================================================================
--- reportdb.fn_ads_media_daily(i_number_year_back INT64)
--- -------------------------------------------------------------------------------------
--- LSOUL marketing performance report layer: ads media metrics mapped onto the commercial
--- taxonomy (level_1 order source / level_2 sale channel / level_3 touchpoint).
---
--- Built entirely on reportdb.fn_ads_metrics_daily(), so spend reconciles to the platforms
--- by construction. All money is VND; for native-currency reconciliation against the
--- TikTok Thailand UI, use fn_ads_metrics_daily (spend_native + currency_code).
---
--- Grain : period_date x ads_channel x market x level_1 x level_2 x level_3 x buying_type
--- Params: i_number_year_back  0 = current year only, 1 = current + previous year, ...
---
--- CHANGES vs the previous version (2026-09-06)
---   + TikTok Thailand auction + GMV Max feeds added   (were missing entirely: 1.23B VND YTD)
---   + Meta recruitment campaigns no longer dropped; routed to Non-Sale / Recruitment and
---     flagged is_sale_campaign = FALSE            (68.7M VND YTD)
---     -> filter is_sale_campaign = TRUE to reproduce the old spend figures
---   + market column added; Thai Meta store spend no longer misrouted to 'VN Offline Store'
---   + buying_type column (Auction | GMV Max) - GMV Max reports spend and orders but no
---     impressions/clicks, so merging it with auction delivery inflated CPM ~26x
---   + 60 metric columns (was 6). Existing 6 keep their names and meaning.
---   + every rate recomputed from components at output grain - never AVG-then-SUM
---
--- Backward-compatible columns: period_date, ads_channel, level_1, level_2, level_3,
---                              spend, reach, impressions, clicks, engagements, video_views
-
-SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_ads_media_daily`(0)
-
-=====================================================================================*/
-
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_ads_media_daily(i_number_year_back INT64)
+OPTIONS(
+  description="LSOUL marketing performance report: ads media metrics by day x channel x market x level_1/2/3 commercial taxonomy x buying_type. Built on fn_ads_metrics_daily so spend reconciles to the platforms exactly. Includes TikTok Thailand (previously missing) and Meta recruitment spend (flagged is_sale_campaign=FALSE). 60 metrics covering reach, traffic, video/creative, social engagement, leads and TikTok Shop commerce. buying_type separates Auction delivery from GMV Max commerce so CPM/CPC stay meaningful. All money in VND; all rates recomputed from components.")
+AS
 WITH mapped AS (
   SELECT
     day AS period_date,
@@ -226,5 +191,4 @@ SELECT
   SAFE_DIVIDE(spend, SUM(spend) OVER (PARTITION BY period_date))                AS pct_of_day_spend,
   SAFE_DIVIDE(spend, SUM(spend) OVER (PARTITION BY period_date, ads_channel))   AS pct_of_channel_day_spend,
   SAFE_DIVIDE(spend, SUM(spend) OVER (PARTITION BY period_date, level_2))       AS pct_of_sale_channel_day_spend
-FROM agg
-);
+FROM agg;

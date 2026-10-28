@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4.core_pancake.sp_core_warehouse_transfers_insert`(IN i_inserted_at_date STRING)
+CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4`.core_pancake.sp_core_warehouse_transfers_insert(IN i_inserted_at_date STRING)
 BEGIN
 /*
 Author: Toan Pham

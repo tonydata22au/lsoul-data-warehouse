@@ -1,18 +1,6 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_order_master`(
- i_number_year_back INT64 --0: current year
- ,i_type INT64 --DEFAULT: 0
-)
-AS 
-/*
-Author: Toan Pham
-Date: 19/08/2026
-Comment: 
-
-Testing:
-  SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_order_master`(0,0) ORDER BY 1 DESC
-*/
-(
-  WITH raw AS (
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_order_master(i_number_year_back INT64, i_type INT64)
+AS
+WITH raw AS (
      SELECT
 
     --VIETNAM 
@@ -86,5 +74,4 @@ Testing:
   --WHERE country <> 'CHINA' and level_1 <> 'Sale Ecommerce'
 )
 
-  SELECT * FROM stage
-);
+  SELECT * FROM stage;

@@ -1,0 +1,9 @@
+config {
+  type:"declaration",
+  name:"raw_customer",
+  dataset:"raw_pancake",
+}
+SELECT
+*
+FROM ${ref("raw_customer")}
+WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP(CURRENT_DATE("Asia/Ho_Chi_Minh"))

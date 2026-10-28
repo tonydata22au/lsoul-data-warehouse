@@ -1,0 +1,4 @@
+config {
+  "type": "dataPreparation"
+}
+FROM `marine-cycle-484213-b4`.`analytics_445899027`.`pseudonymous_users_20260211`

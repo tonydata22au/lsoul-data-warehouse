@@ -1,0 +1,9 @@
+config {
+  type:"declaration",
+  name:"raw_dianplus_order",
+  dataset:"dianplus",
+}
+SELECT
+*
+FROM ${ref("raw_dianplus_order")}
+WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP(CURRENT_DATE("Asia/Ho_Chi_Minh"))

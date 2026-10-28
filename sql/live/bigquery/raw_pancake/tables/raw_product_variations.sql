@@ -1,0 +1,47 @@
+CREATE TABLE `marine-cycle-484213-b4.raw_pancake.raw_product_variations`
+(
+  updated_at STRING,
+  inserted_at STRING,
+  variation_id STRING,
+  variation_display_id STRING,
+  size_name STRING,
+  size_value STRING,
+  color_name STRING,
+  color_value STRING,
+  retail_price STRING,
+  retail_price_after_discount STRING,
+  average_imported_price STRING,
+  last_imported_price STRING,
+  total_purchase_price STRING,
+  price_at_counter STRING,
+  variation_wholesale_price STRING,
+  remain_quantity STRING,
+  is_hidden STRING,
+  is_locked STRING,
+  is_removed STRING,
+  is_sell_negative STRING,
+  is_composite STRING,
+  product_inserted_at STRING,
+  product_id STRING,
+  product_display_id STRING,
+  product_name STRING,
+  product_attributes STRING,
+  product_internal_note STRING,
+  product_public_note STRING,
+  product_supplier_product_ids STRING,
+  product_tags STRING,
+  variations_warehouses_warehouse_id STRING,
+  variations_warehouses_actual_remain_quantity STRING,
+  variations_warehouses_pending_quantity STRING,
+  variations_warehouses_remain_quantity STRING,
+  variations_warehouses_total_quantity STRING,
+  variations_warehouses_returning_quantity STRING,
+  variations_warehouses_waiting_quantity STRING,
+  display_id STRING,
+  fields STRING,
+  wholesale_price STRING
+)
+PARTITION BY DATE(_PARTITIONTIME)
+OPTIONS(
+  require_partition_filter=true
+);

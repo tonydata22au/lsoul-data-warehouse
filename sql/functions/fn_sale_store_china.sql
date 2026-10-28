@@ -1,17 +1,5 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_sale_store_china_v2`(
-  i_number_year_back INT64 -- number of years back from current year
-  ,i_type  INT64 --0: Base order by datetime
-)
-AS 
-(
-/********
---SALE STORE CHINA
-
-SELECT * * EXCEPT(variation_code,product_code,product_name,product_launch_date, variation_attributes,retail_price,warehouse_id,warehouse_name) FROM `marine-cycle-484213-b4.reportdb.fn_sale_store_china_v2`(0,0) ORDER BY 1 DESC
-SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_sale_store_china_v2`(0,1) ORDER BY 1 DESC
-SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_sale_store_china_v2`(0,3) ORDER BY revenue_vn ASC
-****/
-
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_sale_store_china_v2(i_number_year_back INT64, i_type INT64)
+AS
 WITH dim_product AS (
   -- ONE row per product_code. This is the entire fix.
   SELECT
@@ -177,6 +165,4 @@ SELECT
   AND to_remove_record = 0
   AND to_remove_sku = 0
   AND DATE_TRUNC(order_date, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
-  GROUP BY 1, 2, 3, 4, 5, 6, 7,8,9,10,11,12,13,14,15
-
-)
+  GROUP BY 1, 2, 3, 4, 5, 6, 7,8,9,10,11,12,13,14,15;

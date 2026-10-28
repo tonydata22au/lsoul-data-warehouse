@@ -1,0 +1,43 @@
+config {
+  type:"table",
+  schema:"reportdb",
+  name:"dash_materiality_config",
+  description:"Thresholds governing which movements reach the board narrative. Extended with a volatility rule (R5) and marketing rules (R6/R7)."
+}
+
+SELECT
+   0.15  AS pct_threshold          -- R1  WoW move on nmv / bills / aov
+  ,10.0  AS pace_threshold_pp      -- R3  pace gap in percentage points
+  ,TRUE  AS p_enable_abs_rule      -- R4  on/off
+  ,2     AS abs_rule_top_n         -- how many absolute movers R4 admits per page
+  ,50e6  AS abs_rule_min_vnd       -- and they must still clear this floor
+  ,4     AS min_hist_weeks         -- fewer than this, range test is not trustworthy
+
+  -- R2 magnitude floor. ON. R2 fires on any move that
+  -- leaves the 8-week range regardless of size, so on 2026-09-04 it admitted VN Wholesales
+  -- on a 0% WoW move worth 6.4m VND; the consistency gate then quarantined a whole page for
+  -- not writing a sentence about it. Now ON at 25e6: a point must be worth a sentence.
+  -- Verified against the 2026-09-04 point set - drops P07 only (6.4m); the next smallest
+  -- surviving point is P06 at 56m, so there is clear air either side of the threshold.
+  ,25e6  AS r2_min_abs_vnd
+
+  -- R5 VOLATILITY. A flat 15% band treats every channel alike, but 15% on
+  -- Xiaohongshu and 15% on Store Nguyen Trai are not the same event. The z-score
+  -- asks whether a move is large RELATIVE TO THAT CHANNEL'S OWN history, which is
+  -- the question a reader actually has. Set 2.0 = roughly a 1-in-20 week.
+  ,TRUE  AS p_enable_zscore_rule
+  ,2.0   AS zscore_threshold
+
+  -- R6/R7 MARKETING. Spend moves and efficiency moves are separate events and
+  -- need separate gates: a 30% spend cut is news even if ROAS held, and a ROAS
+  -- collapse is news even if spend was flat.
+  ,TRUE  AS p_enable_marketing_rule
+  ,0.25  AS spend_pct_threshold    -- R6  WoW spend move
+  ,10e6  AS spend_min_vnd          -- and the channel must spend at least this
+  -- 0.25 not 0.30, deliberately symmetric with spend_pct_threshold: there is no
+  -- principled reason an efficiency move needs a wider band than a spend move.
+  -- On the validation week (w/c 2026-08-24) this is what admits VN Online, whose
+  -- roas_channel fell 29% (19.8 -> 14.0) on spend UP 13% - a real story that a
+  -- 30% band would have dropped by one percentage point.
+  ,0.25  AS roas_pct_threshold     -- R7  WoW change in roas_channel
+  ,0.20  AS traffic_pct_threshold  -- R7  WoW change in sessions

@@ -1,0 +1,35 @@
+config {
+  type:"incremental",
+  name:"core_tiktok_thai_gmv_max_report",
+  dataset:"core_tiktok",
+  dependencyTargets:[{
+    name:"stg_tiktok_thai_gmv_max_report"
+  }],
+}
+SELECT DISTINCT
+inserted_at,
+campaign_id,
+campaign_name,
+operation_status,
+schedule_start_time,
+schedule_end_time,
+schedule_type,
+bid_type,
+identity_id,
+tt_account_name,
+cost,
+cost_per_order,
+cost_per_10_second_live_view,
+cost_per_live_view,
+max_delivery_budget,
+target_roi_budget,
+roi,
+roas_bid,
+orders,
+gross_revenue,
+net_cost,
+live_follows,
+live_views,
+`10_second_live_views`
+FROM ${ref("stg_tiktok_thai_gmv_max_report")}
+WHERE DATE(proc_date) = CURRENT_DATE("Asia/Ho_Chi_Minh")

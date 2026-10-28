@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4.surfosm.sp_surfosm_core_order_return_insert`()
+CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4`.surfosm.sp_surfosm_core_order_return_insert()
 BEGIN
 /*
 Author: Toan Pham

@@ -1,0 +1,670 @@
+config { type: "table", schema: "reportdb", name: "dash_action_context" }
+
+/* -----------------------------------------------------------------------------
+   2. dash_action_context
+   -----------------------------------------------------------------------------
+   One row per channel that appears in dash_highlights, carrying the SPECIFIC
+   anchor an action should name. All arithmetic here, none in the model.
+
+   -- 2026-09-04 EXTENSION: traffic drivers + same-period comparison ------------
+   Everything above the "NEW" markers is unchanged. Existing columns keep their
+   names, types and values; the WoW anchor columns (driver_level_3*, worst_*)
+   still measure COMPLETE weeks, because dash_highlights.impact_vnd does.
+
+   THREE THINGS TO READ BEFORE USING THE NEW COLUMNS
+
+   1. TWO WINDOWS, LABELLED. `impact_vnd` and every driver_l3_* column compare
+      complete weeks (p.cur_wk_* vs p.prv_wk_*) - that is what PAGE1_WOW is.
+      The new sp_* columns compare SAME PERIODS: week-to-date vs the same
+      weekdays last week for PAGE1, month-to-date vs the same days of last
+      month for PAGE2 (report_date 2026-09-03 => 09-01..09-03 vs 08-01..08-03).
+      The two never appear in one sentence without their window named;
+      sp_window_label carries it.
+
+   2. TRAFFIC IS NOT COUNTRY-SPLIT THE WAY SPEND IS. GA4 puts website visitors
+      in VIETNAM / THAILAND / OTHER, while spend on VN Online / Website is keyed
+      VIETNAM by the level_2 prefix. `sessions_*` is the country's own;
+      `sessions_channel_*` is every country's for that channel. Ratios that
+      divide spend by sessions use sessions_channel. Same rule as
+      dash_trend_marketing_weekly.
+
+   3. SPEND IS NOT CAUSE. The ads sources attribute by channel and day, so
+      roas_channel_* is an efficiency ratio, never incrementality. The narrative
+      text says "alongside" / "in parallel", never "drove" or "caused" - the
+      det_causal_claim_ok gate in sp_dash_review_ai fails the latter.
+   ----------------------------------------------------------------------------- */
+WITH p AS (SELECT * FROM ${ref("dash_run_params")}), 
+
+-- (a) which level_3 inside the channel drove the move
+l3 AS (
+  SELECT b.country, b.level_2, b.level_3,
+    SUM(IF(b.period_date BETWEEN p.cur_wk_start AND p.cur_wk_end, b.nmv,0))
+  - SUM(IF(b.period_date BETWEEN p.prv_wk_start AND p.prv_wk_end, b.nmv,0)) AS delta_nmv,
+    COUNT(DISTINCT IF(b.period_date BETWEEN p.cur_wk_start AND p.cur_wk_end, b.order_id,NULL)) AS bills_cur,
+    COUNT(DISTINCT IF(b.period_date BETWEEN p.prv_wk_start AND p.prv_wk_end, b.order_id,NULL)) AS bills_prv,
+    SAFE_DIVIDE(SUM(IF(b.period_date BETWEEN p.cur_wk_start AND p.cur_wk_end, b.nmv,0)),
+      NULLIF(COUNT(DISTINCT IF(b.period_date BETWEEN p.cur_wk_start AND p.cur_wk_end, b.order_id,NULL)),0)) AS basket_cur,
+    SAFE_DIVIDE(SUM(IF(b.period_date BETWEEN p.prv_wk_start AND p.prv_wk_end, b.nmv,0)),
+      NULLIF(COUNT(DISTINCT IF(b.period_date BETWEEN p.prv_wk_start AND p.prv_wk_end, b.order_id,NULL)),0)) AS basket_prv
+  FROM ${ref("dash_base_order_day")} b CROSS JOIN p 
+  WHERE b.period_date BETWEEN p.prv_wk_start AND p.cur_wk_end
+  GROUP BY 1,2,3
+),
+l3_top AS (   -- the single largest contributor, signed the same way as the channel
+  SELECT * EXCEPT(rn) FROM (
+    SELECT l3.*, ROW_NUMBER() OVER (PARTITION BY country, level_2 ORDER BY ABS(delta_nmv) DESC) rn
+    FROM l3
+  ) WHERE rn = 1
+),
+
+-- (b) worst trading window, offline stores only
+win AS (
+  SELECT * EXCEPT(rn) FROM (
+    SELECT h.*, ROW_NUMBER() OVER (PARTITION BY country, level_2 ORDER BY delta_nmv ASC) rn
+    FROM ${ref("dash_store_hour_wow")} h 
+  ) WHERE rn = 1
+),
+
+-- (c) MTD run-rate maths
+rr AS (
+  SELECT country, level_2, data_as_of, month_start, attainment_pct, gap_to_target,
+         mtd_actual_nmv, full_month_target,
+         DATE_DIFF(data_as_of, month_start, DAY) + 1                AS days_done,
+         DATE_DIFF(LAST_DAY(month_start), data_as_of, DAY)          AS days_left,
+         SAFE_DIVIDE(mtd_actual_nmv, DATE_DIFF(data_as_of, month_start, DAY)+1) AS achieved_daily,
+         SAFE_DIVIDE(full_month_target - mtd_actual_nmv,
+           NULLIF(DATE_DIFF(LAST_DAY(month_start), data_as_of, DAY),0))         AS required_daily
+  FROM ${ref("dash_page2_mtd")}
+),
+
+/* =========================== NEW FROM HERE ================================= */
+
+/* (d) period_comparison
+   Same-period windows, derived from p so dash_run_params is not restructured.
+
+   The month window is NOT DATE_SUB(report_date, INTERVAL 1 MONTH): that is how
+   same_period_prv_month_report_date is built and it is anchored on today_vn,
+   which lands a day late (2026-08-04 for a 2026-09-03 report). It also has to
+   survive a short prior month - MTD day 31 has no 31st of April - so the end is
+   clamped with LAST_DAY. Day-of-month alignment, per the brief. */
+period_comparison AS (
+  SELECT
+     p.*
+    ,DATE_TRUNC(p.report_date, WEEK(MONDAY))                              AS wtd_start
+    ,p.report_date                                                        AS wtd_end
+    ,DATE_SUB(DATE_TRUNC(p.report_date, WEEK(MONDAY)), INTERVAL 7 DAY)    AS prv_wtd_start
+    ,DATE_SUB(p.report_date, INTERVAL 7 DAY)                              AS prv_wtd_end
+    ,p.month_start                                                        AS mtd_start
+    ,p.report_date                                                        AS mtd_end
+    ,DATE_SUB(p.month_start, INTERVAL 1 MONTH)                            AS prv_mtd_start
+    ,LEAST(
+       DATE_ADD(DATE_SUB(p.month_start, INTERVAL 1 MONTH), INTERVAL p.mtd_days_elapsed - 1 DAY),
+       LAST_DAY(DATE_SUB(p.month_start, INTERVAL 1 MONTH))
+     )                                                                    AS prv_mtd_end
+    ,DATE_DIFF(p.report_date, DATE_TRUNC(p.report_date, WEEK(MONDAY)), DAY) + 1 AS wtd_days
+  FROM p
+),
+
+/* (e) traffic_drivers - paid media at (country, level_2, level_3)
+
+   Source is dash_base_ads_day, which IS fn_ads_media_daily(0) materialised for
+   the 9-week window with country derived from the level_2 prefix. Calling the
+   table function again here would re-scan core_meta / core_tiktok / Google Ads
+   for no new rows, and the TVF carries no country at all.
+
+   ads_channel is normalised to META / TIKTOK / GOOGLE_ADS. The raw value for
+   Google is 'Google Ads' (mixed case, space) - matching on 'GOOGLE_ADS' against
+   the raw column returns nothing. */
+ads_norm AS (
+  SELECT
+     a.country, a.level_2, a.level_3
+    ,CASE UPPER(a.ads_channel)
+       WHEN 'GOOGLE ADS' THEN 'GOOGLE_ADS'
+       ELSE UPPER(a.ads_channel) END              AS ads_channel
+    ,a.period_date
+    ,a.spend
+    ,a.clicks
+    ,COALESCE(a.impressions, a.reach)             AS delivery   -- Google serves vs Meta/TikTok people
+  FROM ${ref("dash_base_ads_day")} a 
+  CROSS JOIN period_comparison c
+  WHERE a.period_date BETWEEN LEAST(c.prv_wk_start, c.prv_wtd_start, c.prv_mtd_start) AND c.report_date
+),
+
+ads_by_channel AS (
+  SELECT
+     n.country, n.level_2, n.level_3, n.ads_channel
+    -- complete-week pair (aligns with impact_vnd on PAGE1_WOW)
+    ,SUM(IF(n.period_date BETWEEN c.cur_wk_start  AND c.cur_wk_end,  n.spend,    0)) AS spend_wk_cur
+    ,SUM(IF(n.period_date BETWEEN c.prv_wk_start  AND c.prv_wk_end,  n.spend,    0)) AS spend_wk_prv
+    ,SUM(IF(n.period_date BETWEEN c.cur_wk_start  AND c.cur_wk_end,  n.clicks,   0)) AS clicks_wk_cur
+    ,SUM(IF(n.period_date BETWEEN c.prv_wk_start  AND c.prv_wk_end,  n.clicks,   0)) AS clicks_wk_prv
+    ,SUM(IF(n.period_date BETWEEN c.cur_wk_start  AND c.cur_wk_end,  n.delivery, 0)) AS delivery_wk_cur
+    ,SUM(IF(n.period_date BETWEEN c.prv_wk_start  AND c.prv_wk_end,  n.delivery, 0)) AS delivery_wk_prv
+    -- week-to-date pair, same weekdays
+    ,SUM(IF(n.period_date BETWEEN c.wtd_start     AND c.wtd_end,     n.spend,    0)) AS spend_wtd_cur
+    ,SUM(IF(n.period_date BETWEEN c.prv_wtd_start AND c.prv_wtd_end, n.spend,    0)) AS spend_wtd_prv
+    ,SUM(IF(n.period_date BETWEEN c.wtd_start     AND c.wtd_end,     n.clicks,   0)) AS clicks_wtd_cur
+    ,SUM(IF(n.period_date BETWEEN c.prv_wtd_start AND c.prv_wtd_end, n.clicks,   0)) AS clicks_wtd_prv
+    ,SUM(IF(n.period_date BETWEEN c.wtd_start     AND c.wtd_end,     n.delivery, 0)) AS delivery_wtd_cur
+    ,SUM(IF(n.period_date BETWEEN c.prv_wtd_start AND c.prv_wtd_end, n.delivery, 0)) AS delivery_wtd_prv
+    -- month-to-date pair, same days of month
+    ,SUM(IF(n.period_date BETWEEN c.mtd_start     AND c.mtd_end,     n.spend,    0)) AS spend_mtd_cur
+    ,SUM(IF(n.period_date BETWEEN c.prv_mtd_start AND c.prv_mtd_end, n.spend,    0)) AS spend_mtd_prv
+    ,SUM(IF(n.period_date BETWEEN c.mtd_start     AND c.mtd_end,     n.clicks,   0)) AS clicks_mtd_cur
+    ,SUM(IF(n.period_date BETWEEN c.prv_mtd_start AND c.prv_mtd_end, n.clicks,   0)) AS clicks_mtd_prv
+    ,SUM(IF(n.period_date BETWEEN c.mtd_start     AND c.mtd_end,     n.delivery, 0)) AS delivery_mtd_cur
+    ,SUM(IF(n.period_date BETWEEN c.prv_mtd_start AND c.prv_mtd_end, n.delivery, 0)) AS delivery_mtd_prv
+  FROM ads_norm n CROSS JOIN period_comparison c
+  GROUP BY 1,2,3,4
+),
+
+/* (f) website traffic at (country, level_2, level_3)
+   fn_ads_media_daily has a level_3 = 'Website', but that is SPEND POINTED AT the
+   website, not visits. Sessions only exist in dash_base_traffic_day, which wraps
+   fn_marketing_website_traffic_analysis() - a separate source, and currently the
+   only instrumented one (VN Online / Website). No store footfall exists anywhere. */
+trf_agg AS (
+  SELECT
+     t.country, t.level_2, t.level_3
+    ,SUM(IF(t.period_date BETWEEN c.cur_wk_start  AND c.cur_wk_end,  t.sessions, 0)) AS sessions_wk_cur
+    ,SUM(IF(t.period_date BETWEEN c.prv_wk_start  AND c.prv_wk_end,  t.sessions, 0)) AS sessions_wk_prv
+    ,SUM(IF(t.period_date BETWEEN c.wtd_start     AND c.wtd_end,     t.sessions, 0)) AS sessions_wtd_cur
+    ,SUM(IF(t.period_date BETWEEN c.prv_wtd_start AND c.prv_wtd_end, t.sessions, 0)) AS sessions_wtd_prv
+    ,SUM(IF(t.period_date BETWEEN c.mtd_start     AND c.mtd_end,     t.sessions, 0)) AS sessions_mtd_cur
+    ,SUM(IF(t.period_date BETWEEN c.prv_mtd_start AND c.prv_mtd_end, t.sessions, 0)) AS sessions_mtd_prv
+    ,SUM(IF(t.period_date BETWEEN c.cur_wk_start  AND c.cur_wk_end  AND     t.is_paid_traffic, t.sessions, 0)) AS paid_wk_cur
+    ,SUM(IF(t.period_date BETWEEN c.prv_wk_start  AND c.prv_wk_end  AND     t.is_paid_traffic, t.sessions, 0)) AS paid_wk_prv
+    ,SUM(IF(t.period_date BETWEEN c.cur_wk_start  AND c.cur_wk_end  AND NOT t.is_paid_traffic, t.sessions, 0)) AS org_wk_cur
+    ,SUM(IF(t.period_date BETWEEN c.prv_wk_start  AND c.prv_wk_end  AND NOT t.is_paid_traffic, t.sessions, 0)) AS org_wk_prv
+    ,SUM(IF(t.period_date BETWEEN c.wtd_start     AND c.wtd_end     AND     t.is_paid_traffic, t.sessions, 0)) AS paid_wtd_cur
+    ,SUM(IF(t.period_date BETWEEN c.prv_wtd_start AND c.prv_wtd_end AND     t.is_paid_traffic, t.sessions, 0)) AS paid_wtd_prv
+    ,SUM(IF(t.period_date BETWEEN c.wtd_start     AND c.wtd_end     AND NOT t.is_paid_traffic, t.sessions, 0)) AS org_wtd_cur
+    ,SUM(IF(t.period_date BETWEEN c.prv_wtd_start AND c.prv_wtd_end AND NOT t.is_paid_traffic, t.sessions, 0)) AS org_wtd_prv
+    ,SUM(IF(t.period_date BETWEEN c.mtd_start     AND c.mtd_end     AND     t.is_paid_traffic, t.sessions, 0)) AS paid_mtd_cur
+    ,SUM(IF(t.period_date BETWEEN c.prv_mtd_start AND c.prv_mtd_end AND     t.is_paid_traffic, t.sessions, 0)) AS paid_mtd_prv
+    ,SUM(IF(t.period_date BETWEEN c.mtd_start     AND c.mtd_end     AND NOT t.is_paid_traffic, t.sessions, 0)) AS org_mtd_cur
+    ,SUM(IF(t.period_date BETWEEN c.prv_mtd_start AND c.prv_mtd_end AND NOT t.is_paid_traffic, t.sessions, 0)) AS org_mtd_prv
+    ,LOGICAL_AND(t.is_ga4_history_complete)                                          AS ga4_complete
+  FROM ${ref("dash_base_traffic_day")} t 
+  CROSS JOIN period_comparison c
+  WHERE t.period_date BETWEEN LEAST(c.prv_wk_start, c.prv_wtd_start, c.prv_mtd_start) AND c.report_date
+  GROUP BY 1,2,3
+),
+
+/* (g) traffic_drivers - one row per (country, level_2, level_3), all channels
+   folded into an array plus channel-agnostic totals. sessions_channel_* sums
+   every country for the level_2 + level_3, per note 2 in the header. */
+traffic_drivers AS (
+  SELECT
+     COALESCE(a.country, t.country) AS country
+    ,COALESCE(a.level_2, t.level_2) AS level_2
+    ,COALESCE(a.level_3, t.level_3) AS level_3
+    ,a.n_ads_channels
+    ,a.ads_channels
+    ,a.by_channel
+    ,IFNULL(a.spend_wk_cur,0)     AS spend_wk_cur     ,IFNULL(a.spend_wk_prv,0)     AS spend_wk_prv
+    ,IFNULL(a.spend_wtd_cur,0)    AS spend_wtd_cur    ,IFNULL(a.spend_wtd_prv,0)    AS spend_wtd_prv
+    ,IFNULL(a.spend_mtd_cur,0)    AS spend_mtd_cur    ,IFNULL(a.spend_mtd_prv,0)    AS spend_mtd_prv
+    ,IFNULL(a.clicks_wk_cur,0)    AS clicks_wk_cur    ,IFNULL(a.clicks_wk_prv,0)    AS clicks_wk_prv
+    ,IFNULL(a.clicks_wtd_cur,0)   AS clicks_wtd_cur   ,IFNULL(a.clicks_wtd_prv,0)   AS clicks_wtd_prv
+    ,IFNULL(a.clicks_mtd_cur,0)   AS clicks_mtd_cur   ,IFNULL(a.clicks_mtd_prv,0)   AS clicks_mtd_prv
+    ,IFNULL(a.delivery_wk_cur,0)  AS delivery_wk_cur  ,IFNULL(a.delivery_wk_prv,0)  AS delivery_wk_prv
+    ,IFNULL(a.delivery_wtd_cur,0) AS delivery_wtd_cur ,IFNULL(a.delivery_wtd_prv,0) AS delivery_wtd_prv
+    ,IFNULL(a.delivery_mtd_cur,0) AS delivery_mtd_cur ,IFNULL(a.delivery_mtd_prv,0) AS delivery_mtd_prv
+    ,IFNULL(t.sessions_wk_cur,0)  AS sessions_wk_cur  ,IFNULL(t.sessions_wk_prv,0)  AS sessions_wk_prv
+    ,IFNULL(t.sessions_wtd_cur,0) AS sessions_wtd_cur ,IFNULL(t.sessions_wtd_prv,0) AS sessions_wtd_prv
+    ,IFNULL(t.sessions_mtd_cur,0) AS sessions_mtd_cur ,IFNULL(t.sessions_mtd_prv,0) AS sessions_mtd_prv
+    ,IFNULL(t.paid_wk_cur,0)      AS paid_wk_cur      ,IFNULL(t.paid_wk_prv,0)      AS paid_wk_prv
+    ,IFNULL(t.paid_wtd_cur,0)     AS paid_wtd_cur     ,IFNULL(t.paid_wtd_prv,0)     AS paid_wtd_prv
+    ,IFNULL(t.paid_mtd_cur,0)     AS paid_mtd_cur     ,IFNULL(t.paid_mtd_prv,0)     AS paid_mtd_prv
+    ,IFNULL(t.org_wk_cur,0)       AS org_wk_cur       ,IFNULL(t.org_wk_prv,0)       AS org_wk_prv
+    ,IFNULL(t.org_wtd_cur,0)      AS org_wtd_cur      ,IFNULL(t.org_wtd_prv,0)      AS org_wtd_prv
+    ,IFNULL(t.org_mtd_cur,0)      AS org_mtd_cur      ,IFNULL(t.org_mtd_prv,0)      AS org_mtd_prv
+    ,t.ga4_complete
+    ,a.country IS NOT NULL AS has_paid_media
+    ,t.country IS NOT NULL AS has_site_traffic
+  FROM (
+    SELECT country, level_2, level_3
+      ,COUNT(*)                                                    AS n_ads_channels
+      ,STRING_AGG(ads_channel, '+' ORDER BY ads_channel)           AS ads_channels
+      ,ARRAY_AGG(STRUCT(
+          ads_channel
+         ,spend_wk_cur, spend_wk_prv
+         ,SAFE_DIVIDE(spend_wk_cur,    NULLIF(spend_wk_prv,0))    - 1 AS spend_wk_pct
+         ,clicks_wk_cur, clicks_wk_prv
+         ,SAFE_DIVIDE(clicks_wk_cur,   NULLIF(clicks_wk_prv,0))   - 1 AS clicks_wk_pct
+         ,delivery_wk_cur, delivery_wk_prv
+         ,SAFE_DIVIDE(delivery_wk_cur, NULLIF(delivery_wk_prv,0)) - 1 AS delivery_wk_pct
+         ,spend_wtd_cur, spend_wtd_prv
+         ,SAFE_DIVIDE(spend_wtd_cur,   NULLIF(spend_wtd_prv,0))   - 1 AS spend_wtd_pct
+         ,clicks_wtd_cur, clicks_wtd_prv
+         ,SAFE_DIVIDE(clicks_wtd_cur,  NULLIF(clicks_wtd_prv,0))  - 1 AS clicks_wtd_pct
+         ,spend_mtd_cur, spend_mtd_prv
+         ,SAFE_DIVIDE(spend_mtd_cur,   NULLIF(spend_mtd_prv,0))   - 1 AS spend_mtd_pct
+         ,clicks_mtd_cur, clicks_mtd_prv
+         ,SAFE_DIVIDE(clicks_mtd_cur,  NULLIF(clicks_mtd_prv,0))  - 1 AS clicks_mtd_pct
+        ) ORDER BY spend_wk_cur DESC)                              AS by_channel
+      ,SUM(spend_wk_cur) spend_wk_cur, SUM(spend_wk_prv) spend_wk_prv
+      ,SUM(spend_wtd_cur) spend_wtd_cur, SUM(spend_wtd_prv) spend_wtd_prv
+      ,SUM(spend_mtd_cur) spend_mtd_cur, SUM(spend_mtd_prv) spend_mtd_prv
+      ,SUM(clicks_wk_cur) clicks_wk_cur, SUM(clicks_wk_prv) clicks_wk_prv
+      ,SUM(clicks_wtd_cur) clicks_wtd_cur, SUM(clicks_wtd_prv) clicks_wtd_prv
+      ,SUM(clicks_mtd_cur) clicks_mtd_cur, SUM(clicks_mtd_prv) clicks_mtd_prv
+      ,SUM(delivery_wk_cur) delivery_wk_cur, SUM(delivery_wk_prv) delivery_wk_prv
+      ,SUM(delivery_wtd_cur) delivery_wtd_cur, SUM(delivery_wtd_prv) delivery_wtd_prv
+      ,SUM(delivery_mtd_cur) delivery_mtd_cur, SUM(delivery_mtd_prv) delivery_mtd_prv
+    FROM ads_by_channel GROUP BY 1,2,3
+  ) a
+  FULL OUTER JOIN trf_agg t
+    ON a.country = t.country AND a.level_2 = t.level_2 AND a.level_3 = t.level_3
+),
+
+-- channel-wide sessions, every country, for spend-per-session ratios (note 2)
+sessions_channel AS (
+  SELECT level_2, level_3
+        ,SUM(sessions_wk_cur)  AS ch_sessions_wk_cur ,SUM(sessions_wk_prv)  AS ch_sessions_wk_prv
+        ,SUM(sessions_wtd_cur) AS ch_sessions_wtd_cur,SUM(sessions_wtd_prv) AS ch_sessions_wtd_prv
+        ,SUM(sessions_mtd_cur) AS ch_sessions_mtd_cur,SUM(sessions_mtd_prv) AS ch_sessions_mtd_prv
+  FROM trf_agg GROUP BY 1,2
+),
+
+-- level_2 rollup, used when the level_3 the trade side names has no media of its
+-- own (Shopee, Lazada, Douyin, Taobao, Tmall, Xiaohongshu, VN Pop-up ... none of
+-- these exist in the ads level_3 vocabulary)
+traffic_l2 AS (
+  SELECT country, level_2
+        ,STRING_AGG(DISTINCT ads_channels, '+')          AS l2_ads_channels
+        ,SUM(spend_wk_cur)    AS l2_spend_wk_cur   ,SUM(spend_wk_prv)    AS l2_spend_wk_prv
+        ,SUM(spend_wtd_cur)   AS l2_spend_wtd_cur  ,SUM(spend_wtd_prv)   AS l2_spend_wtd_prv
+        ,SUM(spend_mtd_cur)   AS l2_spend_mtd_cur  ,SUM(spend_mtd_prv)   AS l2_spend_mtd_prv
+        ,SUM(clicks_wk_cur)   AS l2_clicks_wk_cur  ,SUM(clicks_wk_prv)   AS l2_clicks_wk_prv
+        ,SUM(clicks_wtd_cur)  AS l2_clicks_wtd_cur ,SUM(clicks_wtd_prv)  AS l2_clicks_wtd_prv
+        ,SUM(clicks_mtd_cur)  AS l2_clicks_mtd_cur ,SUM(clicks_mtd_prv)  AS l2_clicks_mtd_prv
+        ,SUM(sessions_wk_cur) AS l2_sessions_wk_cur,SUM(sessions_wk_prv) AS l2_sessions_wk_prv
+        ,SUM(sessions_wtd_cur) AS l2_sessions_wtd_cur,SUM(sessions_wtd_prv) AS l2_sessions_wtd_prv
+        ,SUM(sessions_mtd_cur) AS l2_sessions_mtd_cur,SUM(sessions_mtd_prv) AS l2_sessions_mtd_prv
+        ,LOGICAL_OR(has_paid_media)   AS l2_has_paid_media
+        ,LOGICAL_OR(has_site_traffic) AS l2_has_site_traffic
+  FROM traffic_drivers GROUP BY 1,2
+),
+
+/* (h) same-period trade, at BOTH grains. Sell-through is deliberately absent:
+   dash_stock_lists is keyed on variation_code only and carries no country /
+   level_2 / level_3, so there is no honest way to cut it by channel here.
+   units_per_bill and basket are the channel-grain substitutes. */
+trade_l2_sp AS (
+  SELECT b.country, b.level_2
+    ,SUM(IF(b.period_date BETWEEN c.wtd_start     AND c.wtd_end,     b.nmv,0)) AS wtd_nmv_cur
+    ,SUM(IF(b.period_date BETWEEN c.prv_wtd_start AND c.prv_wtd_end, b.nmv,0)) AS wtd_nmv_prv
+    ,SUM(IF(b.period_date BETWEEN c.mtd_start     AND c.mtd_end,     b.nmv,0)) AS mtd_nmv_cur
+    ,SUM(IF(b.period_date BETWEEN c.prv_mtd_start AND c.prv_mtd_end, b.nmv,0)) AS mtd_nmv_prv
+    ,COUNT(DISTINCT IF(b.period_date BETWEEN c.wtd_start     AND c.wtd_end,     b.order_id,NULL)) AS wtd_bills_cur
+    ,COUNT(DISTINCT IF(b.period_date BETWEEN c.prv_wtd_start AND c.prv_wtd_end, b.order_id,NULL)) AS wtd_bills_prv
+    ,COUNT(DISTINCT IF(b.period_date BETWEEN c.mtd_start     AND c.mtd_end,     b.order_id,NULL)) AS mtd_bills_cur
+    ,COUNT(DISTINCT IF(b.period_date BETWEEN c.prv_mtd_start AND c.prv_mtd_end, b.order_id,NULL)) AS mtd_bills_prv
+    ,SUM(IF(b.period_date BETWEEN c.wtd_start     AND c.wtd_end,     b.units_sold,0)) AS wtd_units_cur
+    ,SUM(IF(b.period_date BETWEEN c.prv_wtd_start AND c.prv_wtd_end, b.units_sold,0)) AS wtd_units_prv
+    ,SUM(IF(b.period_date BETWEEN c.mtd_start     AND c.mtd_end,     b.units_sold,0)) AS mtd_units_cur
+    ,SUM(IF(b.period_date BETWEEN c.prv_mtd_start AND c.prv_mtd_end, b.units_sold,0)) AS mtd_units_prv
+  FROM ${ref("dash_base_order_day")}b 
+  CROSS JOIN period_comparison c
+  WHERE b.period_date BETWEEN LEAST(c.prv_wtd_start, c.prv_mtd_start) AND c.report_date
+  GROUP BY 1,2
+),
+trade_l3_sp AS (
+  SELECT b.country, b.level_2, b.level_3
+    ,SUM(IF(b.period_date BETWEEN c.wtd_start     AND c.wtd_end,     b.nmv,0)) AS wtd_nmv_cur
+    ,SUM(IF(b.period_date BETWEEN c.prv_wtd_start AND c.prv_wtd_end, b.nmv,0)) AS wtd_nmv_prv
+    ,SUM(IF(b.period_date BETWEEN c.mtd_start     AND c.mtd_end,     b.nmv,0)) AS mtd_nmv_cur
+    ,SUM(IF(b.period_date BETWEEN c.prv_mtd_start AND c.prv_mtd_end, b.nmv,0)) AS mtd_nmv_prv
+    ,COUNT(DISTINCT IF(b.period_date BETWEEN c.wtd_start     AND c.wtd_end,     b.order_id,NULL)) AS wtd_bills_cur
+    ,COUNT(DISTINCT IF(b.period_date BETWEEN c.prv_wtd_start AND c.prv_wtd_end, b.order_id,NULL)) AS wtd_bills_prv
+    ,COUNT(DISTINCT IF(b.period_date BETWEEN c.mtd_start     AND c.mtd_end,     b.order_id,NULL)) AS mtd_bills_cur
+    ,COUNT(DISTINCT IF(b.period_date BETWEEN c.prv_mtd_start AND c.prv_mtd_end, b.order_id,NULL)) AS mtd_bills_prv
+  FROM ${ref("dash_base_order_day")} b
+  CROSS JOIN period_comparison c
+  WHERE b.period_date BETWEEN LEAST(c.prv_wtd_start, c.prv_mtd_start) AND c.report_date
+  GROUP BY 1,2,3
+),
+
+-- the three largest level_3 contributors, so the single l3_top pick is auditable
+l3_rank AS (
+  SELECT country, level_2,
+    ARRAY_AGG(STRUCT(level_3, delta_nmv, bills_cur, bills_prv)
+              ORDER BY ABS(delta_nmv) DESC LIMIT 3) AS level_3_top3
+  FROM l3 GROUP BY 1,2
+),
+
+/* (i) assemble: every existing column first, unchanged, then the new ones */
+base AS (
+SELECT
+   h.page, h.item_type, h.rank_in_group, h.country, h.level_1, h.level_2
+  ,h.impact_vnd, h.pct_change, h.driver, h.diagnosis, h.diagnosis_source
+  -- specific owner role, not a generic tag
+  ,CASE
+     WHEN h.level_1 = 'Store'          THEN CONCAT(CASE h.country WHEN 'VIETNAM' THEN 'VN' WHEN 'THAILAND' THEN 'TH' ELSE 'CN' END, ' Store team')
+     WHEN h.level_1 = 'Sale Ecommerce' THEN CONCAT(CASE h.country WHEN 'VIETNAM' THEN 'VN' WHEN 'THAILAND' THEN 'TH' ELSE 'CN' END, ' Ecom team')
+     WHEN h.level_1 = 'Sale Online'    THEN CONCAT(CASE h.country WHEN 'VIETNAM' THEN 'VN' WHEN 'THAILAND' THEN 'TH' ELSE 'CN' END, ' Online team')
+     WHEN h.level_1 = 'Wholesales'     THEN 'VN Wholesale team'
+     ELSE 'BOD'
+   END                                                    AS owner
+  ,t.level_3        AS driver_level_3
+  ,t.delta_nmv      AS driver_level_3_delta
+  ,t.bills_prv      AS driver_l3_bills_prv
+  ,t.bills_cur      AS driver_l3_bills_cur
+  ,t.basket_prv     AS driver_l3_basket_prv
+  ,t.basket_cur     AS driver_l3_basket_cur
+  ,w.trading_window AS worst_window
+  ,w.delta_nmv      AS worst_window_delta
+  ,w.bills_prv      AS window_bills_prv
+  ,w.bills_cur      AS window_bills_cur
+  ,w.basket_prv     AS window_basket_prv
+  ,w.basket_cur     AS window_basket_cur
+  ,r.days_left, r.achieved_daily, r.required_daily
+  ,SAFE_DIVIDE(r.required_daily, NULLIF(r.achieved_daily,0)) AS stepup_x
+
+  /* ------------------------- NEW: level_3 identity ------------------------- */
+  ,t.level_3                                            AS level_3
+  ,lr.level_3_top3
+
+  /* ------------------------- NEW: same-period windows ---------------------- */
+  ,IF(h.page='PAGE1_WOW','WTD vs same weekdays prior week',
+      'MTD vs same days prior month')                   AS sp_window_label
+  ,IF(h.page='PAGE1_WOW', c.wtd_start,     c.mtd_start)     AS sp_cur_start
+  ,IF(h.page='PAGE1_WOW', c.wtd_end,       c.mtd_end)       AS sp_cur_end
+  ,IF(h.page='PAGE1_WOW', c.prv_wtd_start, c.prv_mtd_start) AS sp_prv_start
+  ,IF(h.page='PAGE1_WOW', c.prv_wtd_end,   c.prv_mtd_end)   AS sp_prv_end
+  ,IF(h.page='PAGE1_WOW', c.wtd_days,      c.mtd_days_elapsed) AS sp_days
+
+  /* ------------------------- NEW: same-period trade ------------------------ */
+  ,IF(h.page='PAGE1_WOW', s2.wtd_nmv_cur,   s2.mtd_nmv_cur)   AS sp_nmv_cur
+  ,IF(h.page='PAGE1_WOW', s2.wtd_nmv_prv,   s2.mtd_nmv_prv)   AS sp_nmv_prv
+  ,IF(h.page='PAGE1_WOW', s2.wtd_nmv_cur - s2.wtd_nmv_prv,
+                          s2.mtd_nmv_cur - s2.mtd_nmv_prv)    AS sp_nmv_delta
+  ,IF(h.page='PAGE1_WOW', SAFE_DIVIDE(s2.wtd_nmv_cur, NULLIF(s2.wtd_nmv_prv,0)) - 1,
+                          SAFE_DIVIDE(s2.mtd_nmv_cur, NULLIF(s2.mtd_nmv_prv,0)) - 1) AS sp_nmv_pct
+  ,IF(h.page='PAGE1_WOW', s2.wtd_bills_cur, s2.mtd_bills_cur) AS sp_bills_cur
+  ,IF(h.page='PAGE1_WOW', s2.wtd_bills_prv, s2.mtd_bills_prv) AS sp_bills_prv
+  ,IF(h.page='PAGE1_WOW', SAFE_DIVIDE(s2.wtd_bills_cur, NULLIF(s2.wtd_bills_prv,0)) - 1,
+                          SAFE_DIVIDE(s2.mtd_bills_cur, NULLIF(s2.mtd_bills_prv,0)) - 1) AS sp_bills_pct
+  ,IF(h.page='PAGE1_WOW', s2.wtd_units_cur, s2.mtd_units_cur) AS sp_units_cur
+  ,IF(h.page='PAGE1_WOW', s2.wtd_units_prv, s2.mtd_units_prv) AS sp_units_prv
+  ,IF(h.page='PAGE1_WOW', SAFE_DIVIDE(s2.wtd_nmv_cur, NULLIF(s2.wtd_bills_cur,0)),
+                          SAFE_DIVIDE(s2.mtd_nmv_cur, NULLIF(s2.mtd_bills_cur,0))) AS sp_basket_cur
+  ,IF(h.page='PAGE1_WOW', SAFE_DIVIDE(s2.wtd_nmv_prv, NULLIF(s2.wtd_bills_prv,0)),
+                          SAFE_DIVIDE(s2.mtd_nmv_prv, NULLIF(s2.mtd_bills_prv,0))) AS sp_basket_prv
+  ,IF(h.page='PAGE1_WOW', s3.wtd_nmv_cur - s3.wtd_nmv_prv,
+                          s3.mtd_nmv_cur - s3.mtd_nmv_prv)    AS sp_l3_nmv_delta
+  ,IF(h.page='PAGE1_WOW', SAFE_DIVIDE(s3.wtd_nmv_cur, NULLIF(s3.wtd_nmv_prv,0)) - 1,
+                          SAFE_DIVIDE(s3.mtd_nmv_cur, NULLIF(s3.mtd_nmv_prv,0)) - 1) AS sp_l3_nmv_pct
+
+  /* ------------------------- NEW: traffic ---------------------------------- */
+  ,IFNULL(td.has_paid_media,   FALSE)                   AS has_paid_media
+  ,IFNULL(td.has_site_traffic, FALSE)                   AS has_site_traffic
+  ,CASE WHEN td.country IS NOT NULL THEN 'level_3'
+        WHEN tl2.l2_has_paid_media OR tl2.l2_has_site_traffic THEN 'level_2'
+        ELSE 'none' END                                 AS traffic_grain
+  ,IFNULL(td.ads_channels, tl2.l2_ads_channels)         AS ads_channels
+  ,IFNULL(td.n_ads_channels, 0)                         AS n_ads_channels
+  ,td.by_channel                                        AS traffic_by_ads_channel
+  -- headline window: complete week on PAGE1 (matches impact_vnd), MTD on PAGE2
+  ,IF(h.page='PAGE1_WOW','complete week','MTD same period') AS traffic_window_label
+  ,IF(h.page='PAGE1_WOW', COALESCE(td.spend_wk_cur,  tl2.l2_spend_wk_cur),
+                          COALESCE(td.spend_mtd_cur, tl2.l2_spend_mtd_cur))  AS spend_cur
+  ,IF(h.page='PAGE1_WOW', COALESCE(td.spend_wk_prv,  tl2.l2_spend_wk_prv),
+                          COALESCE(td.spend_mtd_prv, tl2.l2_spend_mtd_prv))  AS spend_prv
+  ,IF(h.page='PAGE1_WOW', COALESCE(td.clicks_wk_cur,  tl2.l2_clicks_wk_cur),
+                          COALESCE(td.clicks_mtd_cur, tl2.l2_clicks_mtd_cur)) AS clicks_cur
+  ,IF(h.page='PAGE1_WOW', COALESCE(td.clicks_wk_prv,  tl2.l2_clicks_wk_prv),
+                          COALESCE(td.clicks_mtd_prv, tl2.l2_clicks_mtd_prv)) AS clicks_prv
+  ,IF(h.page='PAGE1_WOW', td.delivery_wk_cur,  td.delivery_mtd_cur)          AS delivery_cur
+  ,IF(h.page='PAGE1_WOW', td.delivery_wk_prv,  td.delivery_mtd_prv)          AS delivery_prv
+  ,IF(h.page='PAGE1_WOW', COALESCE(td.sessions_wk_cur,  tl2.l2_sessions_wk_cur),
+                          COALESCE(td.sessions_mtd_cur, tl2.l2_sessions_mtd_cur)) AS sessions_cur
+  ,IF(h.page='PAGE1_WOW', COALESCE(td.sessions_wk_prv,  tl2.l2_sessions_wk_prv),
+                          COALESCE(td.sessions_mtd_prv, tl2.l2_sessions_mtd_prv)) AS sessions_prv
+  ,IF(h.page='PAGE1_WOW', sc.ch_sessions_wk_cur,  sc.ch_sessions_mtd_cur)    AS sessions_channel_cur
+  ,IF(h.page='PAGE1_WOW', sc.ch_sessions_wk_prv,  sc.ch_sessions_mtd_prv)    AS sessions_channel_prv
+  ,IF(h.page='PAGE1_WOW', td.paid_wk_cur, td.paid_mtd_cur)                   AS paid_sessions_cur
+  ,IF(h.page='PAGE1_WOW', td.paid_wk_prv, td.paid_mtd_prv)                   AS paid_sessions_prv
+  ,IF(h.page='PAGE1_WOW', td.org_wk_cur,  td.org_mtd_cur)                    AS organic_sessions_cur
+  ,IF(h.page='PAGE1_WOW', td.org_wk_prv,  td.org_mtd_prv)                    AS organic_sessions_prv
+  -- same-period traffic, always WTD on PAGE1 / MTD on PAGE2 (requirement 3)
+  ,IF(h.page='PAGE1_WOW', td.spend_wtd_cur,  td.spend_mtd_cur)               AS sp_spend_cur
+  ,IF(h.page='PAGE1_WOW', td.spend_wtd_prv,  td.spend_mtd_prv)               AS sp_spend_prv
+  ,IF(h.page='PAGE1_WOW', td.clicks_wtd_cur, td.clicks_mtd_cur)              AS sp_clicks_cur
+  ,IF(h.page='PAGE1_WOW', td.clicks_wtd_prv, td.clicks_mtd_prv)              AS sp_clicks_prv
+  ,IF(h.page='PAGE1_WOW', td.sessions_wtd_cur, td.sessions_mtd_cur)          AS sp_sessions_cur
+  ,IF(h.page='PAGE1_WOW', td.sessions_wtd_prv, td.sessions_mtd_prv)          AS sp_sessions_prv
+  ,IFNULL(td.ga4_complete, TRUE)                                             AS ga4_complete
+FROM ${ref("dash_highlights")} h 
+CROSS JOIN period_comparison c
+LEFT JOIN l3_top          t   ON t.country  = h.country AND t.level_2  = h.level_2
+LEFT JOIN win             w   ON w.country  = h.country AND w.level_2  = h.level_2
+LEFT JOIN rr              r   ON r.country  = h.country AND r.level_2  = h.level_2
+LEFT JOIN l3_rank         lr  ON lr.country = h.country AND lr.level_2 = h.level_2
+LEFT JOIN trade_l2_sp     s2  ON s2.country = h.country AND s2.level_2 = h.level_2
+LEFT JOIN trade_l3_sp     s3  ON s3.country = h.country AND s3.level_2 = h.level_2 AND s3.level_3 = t.level_3
+LEFT JOIN traffic_drivers td  ON td.country = h.country AND td.level_2 = h.level_2 AND td.level_3 = t.level_3
+LEFT JOIN traffic_l2      tl2 ON tl2.country= h.country AND tl2.level_2= h.level_2
+LEFT JOIN sessions_channel sc ON sc.level_2 = h.level_2 AND sc.level_3 = t.level_3
+),
+
+/* (j) derived ratios and the verdict, computed off `base` so each expression is
+   written once rather than repeated inside a CASE */
+scored AS (
+  SELECT
+     b.*
+    ,SAFE_DIVIDE(b.spend_cur,    NULLIF(b.spend_prv,0))    - 1 AS spend_pct
+    ,SAFE_DIVIDE(b.clicks_cur,   NULLIF(b.clicks_prv,0))   - 1 AS clicks_pct
+    ,SAFE_DIVIDE(b.delivery_cur, NULLIF(b.delivery_prv,0)) - 1 AS delivery_pct
+    ,SAFE_DIVIDE(b.sessions_cur, NULLIF(b.sessions_prv,0)) - 1 AS sessions_pct
+    ,SAFE_DIVIDE(b.sessions_channel_cur, NULLIF(b.sessions_channel_prv,0)) - 1 AS sessions_channel_pct
+    ,SAFE_DIVIDE(b.paid_sessions_cur,    NULLIF(b.paid_sessions_prv,0))    - 1 AS paid_sessions_pct
+    ,SAFE_DIVIDE(b.organic_sessions_cur, NULLIF(b.organic_sessions_prv,0)) - 1 AS organic_sessions_pct
+    ,SAFE_DIVIDE(b.sp_spend_cur,    NULLIF(b.sp_spend_prv,0))    - 1 AS sp_spend_pct
+    ,SAFE_DIVIDE(b.sp_clicks_cur,   NULLIF(b.sp_clicks_prv,0))   - 1 AS sp_clicks_pct
+    ,SAFE_DIVIDE(b.sp_sessions_cur, NULLIF(b.sp_sessions_prv,0)) - 1 AS sp_sessions_pct
+    ,SAFE_DIVIDE(b.spend_cur, NULLIF(b.clicks_cur,0))              AS cpc_cur
+    ,SAFE_DIVIDE(b.spend_prv, NULLIF(b.clicks_prv,0))              AS cpc_prv
+    ,SAFE_DIVIDE(b.spend_cur, NULLIF(b.sessions_channel_cur,0))    AS cost_per_session_cur
+    ,SAFE_DIVIDE(b.sp_nmv_cur, NULLIF(b.spend_cur,0))              AS roas_channel_cur
+    ,SAFE_DIVIDE(b.sp_nmv_prv, NULLIF(b.spend_prv,0))              AS roas_channel_prv
+    /* Two candidate channels, not one.
+
+       Picking by item_type alone is wrong: a LOWLIGHT whose story is "clicks
+       ROSE while revenue fell" needs the channel that GREW, and naming the
+       worst-falling one beside a "+130%" figure attributes another channel's
+       clicks to it. The verdict decides which of these two is named, one layer
+       down, because the verdict is not known yet here.
+
+       Each struct carries its OWN channel's figures, so a sentence that names a
+       channel quotes that channel's numbers rather than the level_3 total. */
+    ,(SELECT AS STRUCT ch.* FROM UNNEST(b.traffic_by_ads_channel) ch
+      WHERE ch.spend_wk_cur > 0 OR ch.spend_wk_prv > 0
+      ORDER BY IFNULL(IF(b.page='PAGE1_WOW', ch.clicks_wk_pct, ch.clicks_mtd_pct), 0) ASC,
+               ch.spend_wk_cur DESC
+      LIMIT 1)                                                     AS att_down
+    ,(SELECT AS STRUCT ch.* FROM UNNEST(b.traffic_by_ads_channel) ch
+      WHERE ch.spend_wk_cur > 0 OR ch.spend_wk_prv > 0
+      ORDER BY IFNULL(IF(b.page='PAGE1_WOW', ch.clicks_wk_pct, ch.clicks_mtd_pct), 0) DESC,
+               ch.spend_wk_cur DESC
+      LIMIT 1)                                                     AS att_up
+  FROM base b
+),
+
+/* (k) verdict - a separate step because BigQuery cannot reference a SELECT-list
+   alias from another expression in the same SELECT list, and the narrative in
+   (l) is built out of these */
+verdict AS (
+  SELECT
+   s.*
+
+  /* Is there enough media against THIS level_3 to read at all?
+
+     Two separate guards, because they fail for different reasons:
+     - traffic_grain must be 'level_3'. The level_2 rollup is kept as context but
+       never drives a verdict: VN Ecommerce media is all TikTok, and letting it
+       explain a Shopee move would be a fabricated attribution.
+     - the click base must be big enough. TL Offline Store / Emsphere ran 1.4 mVND
+       against 0 then 1 clicks; a "+infinity% clicks" reading off that is noise.
+       100 is the floor, kept visible here; it belongs in dash_materiality_config
+       next to spend_min_vnd when that table is next touched. */
+  ,s.traffic_grain = 'level_3'
+     AND IFNULL(s.clicks_prv,0) > 0
+     AND IFNULL(s.clicks_cur,0) + IFNULL(s.clicks_prv,0) >= 100  AS media_readable
+
+  /* traffic_verdict - the shape of the story, so the model does not have to
+     infer it and the deterministic fallback can render it in Vietnamese.
+     Thresholds come from dash_materiality_config, not new constants:
+     traffic_pct_threshold (0.20) for clicks and sessions,
+     spend_min_vnd (10m) for whether a cost-efficiency claim is worth making. */
+  /* Order matters. traffic_grain is decided first: when it is 'level_3' at least
+     one of has_paid_media / has_site_traffic is TRUE by construction, so testing
+     those before the grain only ever misfires - it relabels every level_2
+     fallback row as NOT_INSTRUMENTED, which is a different and wrong action. */
+  ,CASE
+     WHEN s.traffic_grain = 'none'                               THEN 'NOT_INSTRUMENTED'
+     WHEN s.traffic_grain = 'level_2'                            THEN 'MEDIA_NOT_AT_THIS_LEVEL_3'
+     WHEN IFNULL(s.clicks_prv,0) = 0
+       OR IFNULL(s.clicks_cur,0) + IFNULL(s.clicks_prv,0) < 100  THEN 'MEDIA_TOO_SMALL_TO_READ'
+     WHEN s.item_type='LOWLIGHT' AND s.clicks_pct <= -mc.traffic_pct_threshold
+          AND IFNULL(s.spend_pct,0) >= 0                         THEN 'SPEND_UP_CLICKS_DOWN'
+     WHEN s.item_type='LOWLIGHT' AND s.clicks_pct <= -mc.traffic_pct_threshold
+                                                                 THEN 'PAID_TRAFFIC_DOWN'
+     WHEN s.item_type='LOWLIGHT' AND s.sessions_pct <= -mc.traffic_pct_threshold
+                                                                 THEN 'SITE_TRAFFIC_DOWN'
+     WHEN s.item_type='LOWLIGHT' AND s.clicks_pct >= mc.traffic_pct_threshold
+                                                                 THEN 'TRAFFIC_UP_CONVERSION_DOWN'
+     WHEN s.item_type='LOWLIGHT'                                 THEN 'TRAFFIC_HELD_CONVERSION_DOWN'
+     WHEN s.item_type='HIGHLIGHT' AND s.clicks_pct >= mc.traffic_pct_threshold
+                                                                 THEN 'PAID_TRAFFIC_UP'
+     WHEN s.item_type='HIGHLIGHT' AND IFNULL(s.spend_pct,0) <= 0  THEN 'GROWTH_WITHOUT_SPEND'
+     ELSE 'MIXED'
+   END                                                   AS traffic_verdict
+  FROM scored s
+  CROSS JOIN ${ref("dash_materiality_config")} mc 
+),
+
+/* (l) attn - resolve WHICH channel gets named, now that the verdict is known.
+   Stories where traffic rose name the channel that rose; stories where it fell
+   name the channel that fell. Figures are that channel's own, on the page's
+   window (complete week on PAGE1, same-period MTD on PAGE2). */
+pick AS (
+  /* Resolved as a plain column, NOT via UNNEST([...]). A one-element array
+     literal around a possibly-NULL struct fails at runtime - BigQuery arrays
+     cannot hold a NULL element - and att_down IS NULL for every sub-channel
+     with no media, which is most of them. Struct field access on a NULL struct
+     simply yields NULL, which is what these columns should be. */
+  SELECT v.*
+        ,IF(v.traffic_verdict IN ('TRAFFIC_UP_CONVERSION_DOWN','PAID_TRAFFIC_UP'),
+            v.att_up, v.att_down) AS atc
+  FROM verdict v
+),
+attn AS (
+  SELECT
+     k.* EXCEPT(att_down, att_up, atc)
+    ,k.atc.ads_channel                                             AS attention_ads_channel
+    ,IF(k.page='PAGE1_WOW', k.atc.clicks_wk_cur, k.atc.clicks_mtd_cur) AS attention_clicks_cur
+    ,IF(k.page='PAGE1_WOW', k.atc.clicks_wk_prv, k.atc.clicks_mtd_prv) AS attention_clicks_prv
+    ,IF(k.page='PAGE1_WOW', k.atc.clicks_wk_pct, k.atc.clicks_mtd_pct) AS attention_clicks_pct
+    ,IF(k.page='PAGE1_WOW', k.atc.spend_wk_cur,  k.atc.spend_mtd_cur)  AS attention_spend_cur
+    ,IF(k.page='PAGE1_WOW', k.atc.spend_wk_prv,  k.atc.spend_mtd_prv)  AS attention_spend_prv
+    ,IF(k.page='PAGE1_WOW', k.atc.spend_wk_pct,  k.atc.spend_mtd_pct)  AS attention_spend_pct
+    ,SAFE_DIVIDE(IF(k.page='PAGE1_WOW', k.atc.spend_wk_cur, k.atc.spend_mtd_cur),
+       NULLIF(IF(k.page='PAGE1_WOW', k.atc.clicks_wk_cur, k.atc.clicks_mtd_cur),0)) AS attention_cpc_cur
+    ,SAFE_DIVIDE(IF(k.page='PAGE1_WOW', k.atc.spend_wk_prv, k.atc.spend_mtd_prv),
+       NULLIF(IF(k.page='PAGE1_WOW', k.atc.clicks_wk_prv, k.atc.clicks_mtd_prv),0)) AS attention_cpc_prv
+  FROM pick k
+)
+
+/* (m) driver_narrative - names the level_3 to look at and why.
+   Deliberately correlational: "alongside", never "drove". */
+SELECT
+   s.*
+  ,ARRAY_TO_STRING(ARRAY(SELECT x FROM UNNEST([
+      -- 1. which level_3, how much of the channel move
+      FORMAT('%s / %s - %s: %s carries %s of the %s move (%s, %s to %s).',
+        s.country, s.level_2, s.item_type,
+        IFNULL(s.level_3,'(unattributed)'),
+        `marine-cycle-484213-b4.reportdb.fn_fmt_money`(s.driver_level_3_delta),
+        `marine-cycle-484213-b4.reportdb.fn_fmt_money`(s.impact_vnd),
+        s.sp_window_label, CAST(s.sp_cur_start AS STRING), CAST(s.sp_cur_end AS STRING))
+      -- 2. paid media, by channel
+     ,CASE
+        WHEN s.traffic_verdict = 'NOT_INSTRUMENTED' THEN
+          'No paid media and no site sessions are instrumented for this channel, so a traffic loss and a conversion loss cannot be told apart here.'
+        WHEN s.traffic_verdict = 'MEDIA_NOT_AT_THIS_LEVEL_3' THEN
+          FORMAT('No paid media runs against %s itself. The channel as a whole spent %s on %s over the same window - context only, it does not attribute to %s.',
+            IFNULL(s.level_3,'this sub-channel'),
+            `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(s.spend_prv, s.spend_cur),
+            IFNULL(s.ads_channels,'-'), IFNULL(s.level_3,'it'))
+        WHEN s.has_paid_media THEN
+          FORMAT('Paid media (%s%s): spend %s (%s), clicks %s to %s (%s).',
+            IFNULL(s.ads_channels,'-'),
+            IF(s.traffic_grain='level_2', ', channel total', ''),
+            `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(s.spend_prv, s.spend_cur),
+            IF(s.spend_pct IS NULL,'n/a',FORMAT('%+.0f%%', s.spend_pct*100)),
+            FORMAT('%d', CAST(IFNULL(s.clicks_prv,0) AS INT64)), FORMAT('%d', CAST(IFNULL(s.clicks_cur,0) AS INT64)),
+            IF(s.clicks_pct IS NULL,'n/a',FORMAT('%+.0f%%', s.clicks_pct*100)))
+        ELSE 'No paid media runs against this channel.'
+      END
+      -- 3. website sessions
+     ,CASE
+        WHEN s.has_site_traffic THEN
+          FORMAT('Website sessions %s to %s (%s); paid share of sessions %s.',
+            FORMAT('%d', CAST(IFNULL(s.sessions_prv,0) AS INT64)),
+            FORMAT('%d', CAST(IFNULL(s.sessions_cur,0) AS INT64)),
+            IF(s.sessions_pct IS NULL,'n/a',FORMAT('%+.0f%%', s.sessions_pct*100)),
+            IF(s.paid_sessions_cur IS NULL,'n/a',
+               FORMAT('%.0f%%', 100*SAFE_DIVIDE(s.paid_sessions_cur, NULLIF(s.sessions_cur,0)))))
+        WHEN s.traffic_verdict <> 'NOT_INSTRUMENTED' THEN
+          'Site sessions are only instrumented for VN Online / Website; none apply to this channel.'
+        ELSE NULL
+      END
+      -- 4. trade, same period
+     ,FORMAT('Trade over the same period: NMV %s (%s), bills %d to %d (%s), basket %s.',
+        `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(s.sp_nmv_prv, s.sp_nmv_cur),
+        IF(s.sp_nmv_pct IS NULL,'n/a',FORMAT('%+.0f%%', s.sp_nmv_pct*100)),
+        CAST(IFNULL(s.sp_bills_prv,0) AS INT64), CAST(IFNULL(s.sp_bills_cur,0) AS INT64),
+        IF(s.sp_bills_pct IS NULL,'n/a',FORMAT('%+.0f%%', s.sp_bills_pct*100)),
+        `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(s.sp_basket_prv, s.sp_basket_cur))
+      -- 5. what to look at
+     ,CASE s.traffic_verdict
+        WHEN 'SPEND_UP_CLICKS_DOWN' THEN
+          FORMAT('Check %s first: its clicks moved %d to %d (%s) on spend %s, cost per click %s.',
+            IFNULL(s.attention_ads_channel,'the paid channel'),
+            CAST(IFNULL(s.attention_clicks_prv,0) AS INT64), CAST(IFNULL(s.attention_clicks_cur,0) AS INT64),
+            IF(s.attention_clicks_pct IS NULL,'n/a',FORMAT('%+.0f%%', s.attention_clicks_pct*100)),
+            `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(s.attention_spend_prv, s.attention_spend_cur),
+            `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(s.attention_cpc_prv, s.attention_cpc_cur))
+        WHEN 'PAID_TRAFFIC_DOWN' THEN
+          FORMAT('Check %s first: its clicks moved %d to %d (%s) alongside the revenue decline.',
+            IFNULL(s.attention_ads_channel,'the paid channel'),
+            CAST(IFNULL(s.attention_clicks_prv,0) AS INT64), CAST(IFNULL(s.attention_clicks_cur,0) AS INT64),
+            IF(s.attention_clicks_pct IS NULL,'n/a',FORMAT('%+.0f%%', s.attention_clicks_pct*100)))
+        WHEN 'SITE_TRAFFIC_DOWN' THEN
+          'Check the site funnel first: sessions fell alongside the revenue decline.'
+        WHEN 'TRAFFIC_UP_CONVERSION_DOWN' THEN
+          FORMAT('Traffic is not the problem - %s clicks moved %d to %d (%s) while revenue fell. Check landing experience, price, stock cover and floor conversion before adding spend.',
+            IFNULL(s.attention_ads_channel,'paid'),
+            CAST(IFNULL(s.attention_clicks_prv,0) AS INT64), CAST(IFNULL(s.attention_clicks_cur,0) AS INT64),
+            IF(s.attention_clicks_pct IS NULL,'n/a',FORMAT('%+.0f%%', s.attention_clicks_pct*100)))
+        WHEN 'TRAFFIC_HELD_CONVERSION_DOWN' THEN
+          'Traffic held; the loss is on conversion or basket, not reach - check pricing, stock cover and the checkout path before adding spend.'
+        WHEN 'PAID_TRAFFIC_UP' THEN
+          FORMAT('%s carried the traffic gain - confirm it holds past the promo window before treating it as run-rate.',
+            IFNULL(s.attention_ads_channel,'The paid channel'))
+        WHEN 'GROWTH_WITHOUT_SPEND' THEN
+          'Growth came without extra spend, so it is not buying reach - protect stock cover on this channel.'
+        WHEN 'NOT_INSTRUMENTED' THEN
+          'Instrumenting media or sessions for this channel is the prerequisite for a traffic read.'
+        WHEN 'MEDIA_NOT_AT_THIS_LEVEL_3' THEN
+          FORMAT('Look at trade for %s: the paid channels running here do not target it, so media cannot explain this move.',
+            IFNULL(s.level_3,'this sub-channel'))
+        WHEN 'MEDIA_TOO_SMALL_TO_READ' THEN
+          'Media volume against this sub-channel is too small to read a traffic signal from - treat this as a trade move.'
+        ELSE 'Traffic and trade moved in different directions - read traffic_by_ads_channel before acting.'
+      END
+    ]) AS x WHERE x IS NOT NULL), ' ')                   AS driver_narrative
+FROM attn s

@@ -1,0 +1,22 @@
+actions:
+- operation:
+    name: log_core_surfosm_inventory
+    dataset: surfosm
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_surfosm_inventory
+    filename: query_1784282983720.sql
+- operation:
+    name: insert_core_surfosm_order
+    dataset: surfosm
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: stg_surfosm_order
+    filename: query_1777704510060.sql
+- operation:
+    name: insert_core_surfosm_order_return
+    dataset: surfosm
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: stg_surfosm_order_return
+    filename: query_1777706562371.sql

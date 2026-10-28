@@ -1,0 +1,878 @@
+
+-- CREATE OR REPLACE TABLE `marine-cycle-484213-b4.reportdb.fn_stats_product_v2`
+-- OPTIONS (
+--   description = """Stock-forecasting scorecard per SKU: sell-through, velocity, DOH,
+-- colour bucket, and a deterministic overstock / stockout alert engine.
+-- Feeds reportdb.sp_ai_product_stock_insights. Refactor of fn_stats_product (v2)."""
+-- )
+-- AS
+/*
+Author     : Toan Pham
+Refactored : 2026-08-26
+
+DEFINITIONS
+  sale_velocity   = units sold in the rolling window / days_range        (units/day)
+  sell_through    = units sold in the window / (units sold + stock on hand)
+                    i.e. sell-through on AVAILABLE units. This is not the textbook
+                    "sold / received" definition - kept deliberately, but named and
+                    documented so nobody misreads it.
+  DOH             = stock on hand / sale_velocity                        (days of cover)
+
+ i_type                   INT64   -- 0 = daily per (SKU x warehouse); 1 = latest snapshot per SKU
+  ,i_number_year_back       INT64   -- 0 = current year
+  ,i_days_range             INT64   -- rolling sales window, e.g. 30 / 90
+  ,i_avg_units_sold_expect  INT64   -- SL bán trung bình mong muốn TRONG CẢ KỲ i_days_range
+  ,i_FromDate               DATE
+  ,i_ToDate                 DATE
+
+
+TESTING
+  SELECT * EXCEPT (sort_desc,is_latest,warehouse_id, warehouse_name, order_sources_name, sale_channel, sale_channel_details, order_year)
+  FROM `marine-cycle-484213-b4.reportdb.fn_stats_product_v2`(1,0,90,9,'2026-01-01','2026-06-21');
+  
+  SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_stats_product_v2`(0,0,90,9,NULL,NULL) WHERE is_latest = 1;
+
+  SELECT * EXCEPT(updated_date,sort_desc,is_latest,warehouse_id,warehouse_name,order_sources_name,sale_channel,sale_channel_details,order_year,sl_ton_kho_diff) FROM `marine-cycle-484213-b4.reportdb.fn_stats_product_v2` (0,0,60,30,NULL,NULL)
+
+  SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_stats_product_v2`(
+      1, 0, 60, 30,
+      DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 90 DAY),
+      DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL  1 DAY)
+  );
+
+*/
+WITH
+-------------------------------------------------------------------------------
+-- 0. Tunable business thresholds. Edit here, nowhere else.
+-------------------------------------------------------------------------------
+const AS (
+  SELECT
+    30    AS i_avg_units_sold_expect
+    ,60    AS i_days_range
+    
+    ,14   AS k_stockout_grace_days        -- days at zero stock after which a SKU is "inactive"
+    ,56   AS k_new_product_grace_days     -- 8 weeks: too young to be judged a slow mover
+    ,60   AS k_doh_healthy_max            -- <= 60d cover  = healthy (normal SKU)
+    ,90  AS k_doh_healthy_max_top        -- <= 90d cover = healthy (top seller: higher buffer allowed)
+    ,60  AS k_doh_watch_max              -- <= 90d cover = watch
+    ,90  AS k_doh_severe_max             -- <  90d cover = severe; >= 90d = dead stock
+    ,60   AS k_target_cover_days          -- planning target: stock we WANT to hold (normal SKU)
+    ,120  AS k_target_cover_days_top      -- planning target: stock we WANT to hold (top seller)
+    ,0.25 AS k_sell_through_low
+    ,0.50 AS k_sell_through_mid
+
+    -- Top-seller selection
+    ,10   AS k_top_n_all_time
+    ,20   AS k_top_n_recent
+    ,3    AS k_top_n_collection
+    ,30   AS k_recent_window_1_days
+    ,60   AS k_recent_window_2_days
+
+    -- Stockout trigger points
+    ,14   AS k_stockout_imminent_days
+    ,30   AS k_stockout_risk_days
+    ,30   AS k_stockout_imminent_days_top -- top sellers alert earlier
+    ,60   AS k_stockout_risk_days_top
+    ,0.2  AS k_min_velocity_for_alert
+
+    -- Colour bucket score cut-points (max score = 12)
+    ,11   AS k_score_green
+    ,7    AS k_score_yellow
+    ,4    AS k_score_red
+    ,9    AS k_score_green_top
+    ,6    AS k_score_yellow_top
+    ,3    AS k_score_red_top
+    ,TRUE AS k_top_stockout_floor         -- FALSE = drop the top-seller stockout floor
+
+    -- Forecasting / recommendation knobs (Objectives 2 and 3)
+    ,0.15 AS k_trend_threshold            -- +/-15% band separating ACCELERATING / STABLE / DECLINING
+    ,45   AS k_restock_cover_days         -- CRITICAL / HIGH restock target
+    ,30   AS k_restock_cover_days_accel   -- MEDIUM + accelerating restock target
+    ,60   AS k_restock_cover_days_top     -- top seller restock target
+    ,30   AS k_lead_time_days             -- assumed production lead time, drives reorder_point_units
+    ,90   AS k_overstock_days             -- days of cover above which a declining SKU is overstocked
+    ,4.0  AS k_top_min_weeks_cover        -- top sellers below this many weeks of cover get restocked
+)
+
+-------------------------------------------------------------------------------
+-- 1. Base metrics from raw inventory summary.
+--    Grain: period_date x variation_code x warehouse x channel.
+-------------------------------------------------------------------------------
+,base AS (
+  SELECT
+     f.* EXCEPT (report_type)
+    ,c.*
+    -- NaN-safe working copies. Every new metric below uses these, never the raw
+    -- columns, because one NaN in a trailing window poisons every row it touches.
+    ,IF(IS_NAN(f.units_sold), 0, IFNULL(f.units_sold, 0)) AS units_sold_safe
+    ,IF(IS_NAN(f.sl_ton_kho), 0, IFNULL(f.sl_ton_kho, 0)) AS stock_on_hand
+    -- Receipts from production. GREATEST(...,0) drops the 14 negative rows
+    -- (returns/corrections) so the sell-through denominator only ever grows.
+    -- sl_nhap_kho is NOT usable here: it is a net movement column including
+    -- inter-warehouse transfers, with 68,638 negative rows.
+    ,GREATEST(IFNULL(CAST(f.sl_nhap_moi_tu_sx AS FLOAT64), 0), 0) AS units_received_safe
+
+    -- OBJECTIVE 1: is_sale_end removed from this test. Inactive now means only
+    -- "out of stock beyond the grace period", which applies to active and
+    -- sale-ended SKUs identically.
+    ,IF(f.emty_stock_days > c.k_stockout_grace_days, 1, 0) AS is_inactive
+
+    ,SAFE_DIVIDE(i_avg_units_sold_expect, f.days_range) AS expected_velocity
+    ,SAFE_DIVIDE(f.units_sold_day_range, f.days_range)  AS velocity_raw
+    ,IFNULL(
+       SAFE_DIVIDE(f.units_sold_day_range, f.units_sold_day_range + f.sl_ton_kho)
+      ,0
+     ) AS sell_through_rate
+    ,DATE_SUB(DATE_TRUNC(CURRENT_DATE(), DAY), INTERVAL sort_desc DAY) AS d_date
+  FROM `marine-cycle-484213-b4.reportdb.sku_inventory_master` f
+  CROSS JOIN const c
+  WHERE report_type = 0
+  
+)
+
+-- 2a. Anchor the recent windows on the latest period actually present in the call.
+--     `days_covered` lets the QA appendix confirm the 30d/60d windows are really
+--     30 and 60 days wide -- if the caller passes a 5-day i_FromDate..i_ToDate,
+--     both windows collapse to 5 days and the two categories become identical.
+,window_anchor AS (
+  SELECT
+     MAX(period_date)                                        AS anchor_date
+    ,DATE_DIFF(MAX(period_date), MIN(period_date), DAY) + 1  AS days_covered
+  FROM base
+)
+
+-- 2c. SKU-grain sales. `units_sold` is the DAILY figure per row and is additive;
+--     `units_sold_day_range` is a rolling snapshot and must NOT be summed.
+,sku_sales AS (
+  SELECT
+     b.variation_code
+    ,ANY_VALUE(b.warehouse_id)    AS warehouse_id
+    ,ANY_VALUE(b.warehouse_name)  AS warehouse_name
+    ,ANY_VALUE(collection_bst)    AS collection_bst
+    ,MAX(b.is_sale_end)           AS is_sale_end_sku
+    ,SUM(IFNULL(b.units_sold, 0)) AS units_all_time
+    ,SUM(IF(b.period_date > DATE_SUB(w.anchor_date, INTERVAL b.k_recent_window_1_days DAY),
+            IFNULL(b.units_sold, 0), 0)) AS units_recent_30d
+    ,SUM(IF(b.period_date > DATE_SUB(w.anchor_date, INTERVAL b.k_recent_window_2_days DAY),
+            IFNULL(b.units_sold, 0), 0)) AS units_recent_60d
+  FROM base b
+  CROSS JOIN window_anchor w
+  WHERE b.variation_code IS NOT NULL 
+  GROUP BY b.variation_code
+)
+
+-- 2d. The four rankings. ROW_NUMBER (not DENSE_RANK) so "top 10" means 10 SKUs.
+--     PARTITION BY <eligibility boolean> confines the ranking to eligible SKUs in
+--     a single pass; the outer CASE nulls out everyone else.
+,top_sales_sku AS (
+  SELECT
+     s.variation_code
+    ,s.units_all_time
+    ,s.units_recent_30d
+    ,s.units_recent_60d
+    ,s.collection_bst
+
+    -- Category 1: all-time top N. Sale-ended SKUs are excluded before ranking.
+    ,CASE WHEN s.is_sale_end_sku = 0 AND s.units_all_time > 0
+          THEN ROW_NUMBER() OVER (
+                 PARTITION BY (s.is_sale_end_sku = 0 AND s.units_all_time > 0)
+                 ORDER BY s.units_all_time DESC, s.variation_code)
+     END AS rank_all_time
+
+    -- Category 2: top N over the last 30 days.
+    ,CASE WHEN s.units_recent_30d > 0
+          THEN ROW_NUMBER() OVER (
+                 PARTITION BY (s.units_recent_30d > 0)
+                 ORDER BY s.units_recent_30d DESC, s.variation_code)
+     END AS rank_30d
+
+    -- Category 3: top N over the last 60 days.
+    ,CASE WHEN s.units_recent_60d > 0
+          THEN ROW_NUMBER() OVER (
+                 PARTITION BY (s.units_recent_60d > 0)
+                 ORDER BY s.units_recent_60d DESC, s.variation_code)
+     END AS rank_60d
+
+    -- Category 4: top N within each collection_bst, live SKUs only.
+    ,CASE WHEN s.collection_bst IS NOT NULL AND s.is_sale_end_sku = 0 AND s.units_all_time > 0
+          THEN ROW_NUMBER() OVER (
+                 PARTITION BY s.collection_bst,
+                              (s.is_sale_end_sku = 0 AND s.units_all_time > 0)
+                 ORDER BY s.units_all_time DESC, s.variation_code)
+     END AS rank_in_collection
+  FROM sku_sales s
+)
+
+-- 2e. Ranks -> flags + human-readable qualification strings (EN and VI).
+--     Still exactly one row per variation_code.
+,top_seller_flagged AS (
+  SELECT
+     t.variation_code
+    ,t.units_recent_30d
+    ,t.units_recent_60d
+
+    ,IFNULL(t.rank_all_time      <= c.k_top_n_all_time,   FALSE) AS is_all_time_top_10
+    ,IFNULL(t.rank_30d           <= c.k_top_n_recent,     FALSE) AS is_top_20_30d
+    ,IFNULL(t.rank_60d           <= c.k_top_n_recent,     FALSE) AS is_top_20_60d
+    ,IFNULL(t.rank_in_collection <= c.k_top_n_collection, FALSE) AS is_top_by_collection
+
+    -- Qualify under ANY category -> TRUE.
+    ,(   IFNULL(t.rank_all_time      <= c.k_top_n_all_time,   FALSE)
+      OR IFNULL(t.rank_30d           <= c.k_top_n_recent,     FALSE)
+      OR IFNULL(t.rank_60d           <= c.k_top_n_recent,     FALSE)
+      OR IFNULL(t.rank_in_collection <= c.k_top_n_collection, FALSE)) AS is_top_seller
+
+    ,ARRAY_TO_STRING(ARRAY(SELECT x FROM UNNEST([
+        IF(IFNULL(t.rank_all_time <= c.k_top_n_all_time, FALSE),
+           FORMAT('All-time top %d (#%d)', c.k_top_n_all_time, t.rank_all_time), NULL),
+        IF(IFNULL(t.rank_30d <= c.k_top_n_recent, FALSE),
+           FORMAT('%d-day top %d (#%d)', c.k_recent_window_1_days, c.k_top_n_recent, t.rank_30d), NULL),
+        IF(IFNULL(t.rank_60d <= c.k_top_n_recent, FALSE),
+           FORMAT('%d-day top %d (#%d)', c.k_recent_window_2_days, c.k_top_n_recent, t.rank_60d), NULL),
+        IF(IFNULL(t.rank_in_collection <= c.k_top_n_collection, FALSE),
+           FORMAT('Top %d in collection %s (#%d)', c.k_top_n_collection, t.collection_bst, t.rank_in_collection), NULL)
+      ]) AS x WHERE x IS NOT NULL), ' | ') AS top_seller_categories
+
+    ,ARRAY_TO_STRING(ARRAY(SELECT x FROM UNNEST([
+        IF(IFNULL(t.rank_all_time <= c.k_top_n_all_time, FALSE),
+           FORMAT('Top %d toàn thời gian (#%d)', c.k_top_n_all_time, t.rank_all_time), NULL),
+        IF(IFNULL(t.rank_30d <= c.k_top_n_recent, FALSE),
+           FORMAT('Top %d trong %d ngày (#%d)', c.k_top_n_recent, c.k_recent_window_1_days, t.rank_30d), NULL),
+        IF(IFNULL(t.rank_60d <= c.k_top_n_recent, FALSE),
+           FORMAT('Top %d trong %d ngày (#%d)', c.k_top_n_recent, c.k_recent_window_2_days, t.rank_60d), NULL),
+        IF(IFNULL(t.rank_in_collection <= c.k_top_n_collection, FALSE),
+           FORMAT('Top %d của BST %s (#%d)', c.k_top_n_collection, t.collection_bst, t.rank_in_collection), NULL)
+      ]) AS x WHERE x IS NOT NULL), ' | ') AS top_seller_categories_vi
+  FROM top_sales_sku t
+  CROSS JOIN const c
+)
+
+-------------------------------------------------------------------------------
+-- 3. Derived metrics, with per-SKU thresholds resolved from the top-seller flag.
+--    The join below is 1:1 -- top_seller_flagged is SKU-grain.
+-------------------------------------------------------------------------------
+,derived AS (
+  SELECT
+     b.*
+    ,IFNULL(ts.is_top_seller,          FALSE) AS is_top_seller
+    ,IFNULL(ts.is_all_time_top_10,     FALSE) AS is_all_time_top_10
+    ,IFNULL(ts.is_top_20_30d,          FALSE) AS is_top_20_30d
+    ,IFNULL(ts.is_top_20_60d,          FALSE) AS is_top_20_60d
+    ,IFNULL(ts.is_top_by_collection,   FALSE) AS is_top_by_collection
+    ,IFNULL(ts.top_seller_categories,    '')  AS top_seller_categories
+    ,IFNULL(ts.top_seller_categories_vi, '')  AS top_seller_categories_vi
+    ,IFNULL(ts.units_recent_30d, 0)           AS sku_units_last_30d
+    ,IFNULL(ts.units_recent_60d, 0)           AS sku_units_last_60d
+
+    -- Threshold set actually applied to this row (exported so the numbers are auditable).
+    ,IF(IFNULL(ts.is_top_seller,FALSE), b.k_target_cover_days_top,      b.k_target_cover_days)      AS target_cover_days_adj
+    ,IF(IFNULL(ts.is_top_seller,FALSE), b.k_doh_healthy_max_top,        b.k_doh_healthy_max)        AS doh_healthy_max_adj
+    ,IF(IFNULL(ts.is_top_seller,FALSE), b.k_stockout_imminent_days_top, b.k_stockout_imminent_days) AS stockout_imminent_days_adj
+    ,IF(IFNULL(ts.is_top_seller,FALSE), b.k_stockout_risk_days_top,     b.k_stockout_risk_days)     AS stockout_risk_days_adj
+
+    -- Days of cover:
+    ,IF(b.sl_ton_kho <= 0, 0, SAFE_DIVIDE(b.sl_ton_kho, b.velocity_raw)) AS doh_raw
+    ,IF(b.sl_ton_kho > 0 AND IFNULL(b.velocity_raw, 0) = 0, 1, 0)        AS doh_is_infinite
+
+    -- Stock above the planning target. Top sellers are held to a 120-day target,
+    -- so less of their stock counts as excess.
+    ,GREATEST(
+       b.sl_ton_kho - CAST(CEIL(IFNULL(b.velocity_raw, 0)
+         * IF(IFNULL(ts.is_top_seller,FALSE), b.k_target_cover_days_top, b.k_target_cover_days)) AS INT64)
+      ,0
+     ) AS excess_units
+  FROM base b
+  LEFT JOIN top_seller_flagged ts ON b.variation_code = ts.variation_code
+  order by 1 desc
+)
+
+------------------------------------------------------------------------------
+-- 3a. OBJECTIVE 2 -- trailing sales windows.
+--     RANGE (not ROWS) on UNIX_DATE so a missing period_date does not silently
+--     shift the window: the data has gaps (e.g. 2026-03-10 is absent for some
+--     SKUs) and ROWS would treat a 7-row window as 7 days regardless.
+--     Partitioned by SKU x WAREHOUSE so velocity pairs with the stock held at
+--     that warehouse. The cumulative pair is partitioned by SKU only, because
+--     receipts land only in the central warehouse (caveat C1).
+-------------------------------------------------------------------------------
+,trend AS (
+  SELECT
+     d.*
+    ,SUM(d.units_sold_safe)     OVER w7   AS units_win_7d
+    ,SUM(d.units_sold_safe)     OVER w30  AS units_win_30d
+    ,SUM(d.units_sold_safe)     OVER w60  AS units_win_60d
+    -- How many days actually carried data in the trailing 30d frame. Lets you
+    -- see when avg_daily_sales_30d is understated by a partly-filled window.
+    ,COUNT(1)                   OVER w30  AS obs_days_30d
+    ,SUM(d.units_sold_safe)     OVER wcum AS units_sold_cum
+    ,SUM(d.units_received_safe) OVER wcum AS units_received_cum
+  FROM derived d
+  WINDOW
+     w7   AS (PARTITION BY d.variation_code, d.warehouse_id
+              ORDER BY UNIX_DATE(d.period_date) RANGE BETWEEN  6 PRECEDING AND CURRENT ROW)
+    ,w30  AS (PARTITION BY d.variation_code, d.warehouse_id
+              ORDER BY UNIX_DATE(d.period_date) RANGE BETWEEN 29 PRECEDING AND CURRENT ROW)
+    ,w60  AS (PARTITION BY d.variation_code, d.warehouse_id
+              ORDER BY UNIX_DATE(d.period_date) RANGE BETWEEN 59 PRECEDING AND CURRENT ROW)
+    ,wcum AS (PARTITION BY d.variation_code
+              ORDER BY UNIX_DATE(d.period_date) RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+)
+
+-------------------------------------------------------------------------------
+-- 3b. OBJECTIVE 2 -- forecast metrics, built in three passes because each layer
+--      consumes the aliases of the one before it.
+-------------------------------------------------------------------------------
+,forecast AS (
+  SELECT
+     t.*
+    -- (1)(2)(3) Average units per day. Divided by the NOMINAL window length per
+    -- your definition, so a partly-filled window understates -- see obs_days_30d.
+    ,SAFE_DIVIDE(t.units_win_7d,  7)  AS avg_daily_sales_7d_f
+    ,SAFE_DIVIDE(t.units_win_30d, 30) AS avg_daily_sales_30d_f
+    ,SAFE_DIVIDE(t.units_win_60d, 60) AS avg_daily_sales_60d_f
+    -- EXTRA: the signed % gap between the 7d and 30d rates. This is the number
+    -- that decides sales_trend_direction, exported so the label is auditable and
+    -- so you can sort by "how fast is it accelerating", not just the bucket.
+    ,SAFE_DIVIDE(
+        SAFE_DIVIDE(t.units_win_7d, 7) - SAFE_DIVIDE(t.units_win_30d, 30)
+       ,NULLIF(SAFE_DIVIDE(t.units_win_30d, 30), 0)
+     ) AS sales_trend_ratio
+  FROM trend t
+)
+
+,forecast2 AS (
+  SELECT
+     f.*
+    -- (4) 7d vs 30d rate, +/-15% band.
+    --     Both zero -> STABLE (no signal, not a decline).
+    --     30d zero but 7d positive -> ACCELERATING (sales just started).
+    ,CASE
+       WHEN f.avg_daily_sales_30d_f = 0 AND f.avg_daily_sales_7d_f = 0 THEN 'STABLE'
+       WHEN f.avg_daily_sales_30d_f = 0 AND f.avg_daily_sales_7d_f > 0 THEN 'ACCELERATING'
+       WHEN f.sales_trend_ratio >  f.k_trend_threshold                 THEN 'ACCELERATING'
+       WHEN f.sales_trend_ratio < -f.k_trend_threshold                 THEN 'DECLINING'
+       ELSE 'STABLE'
+     END AS sales_trend_direction_f
+
+    -- (5) Stock / 30d daily rate. NULL when the rate is zero, per spec.
+    ,SAFE_DIVIDE(f.stock_on_hand, NULLIF(f.avg_daily_sales_30d_f, 0))     AS days_until_stockout_f
+    -- (10) Same thing in weeks.
+    ,SAFE_DIVIDE(f.stock_on_hand, NULLIF(f.avg_daily_sales_30d_f, 0) * 7) AS weeks_of_cover_f
+
+    -- (7) Cumulative sold / cumulative received x 100, at SKU level (C1).
+    --     Can exceed 100% when the window starts after first receipt (C2).
+    ,SAFE_DIVIDE(f.units_sold_cum, NULLIF(f.units_received_cum, 0)) * 100 AS sell_through_rate_pct_f
+
+    -- EXTRA: naive 30-day demand forecast at the current 30d run rate. The
+    -- simplest defensible forecast and the direct input to a buy quantity.
+    ,f.avg_daily_sales_30d_f * 30 AS forecast_units_next_30d_f
+
+    -- EXTRA: classic reorder point = lead-time demand + safety stock, where
+    -- safety stock is one week at the more responsive 7d rate. Cross this with
+    -- stock_on_hand to see which SKUs are already below the reorder trigger.
+    ,f.avg_daily_sales_30d_f * f.k_lead_time_days + f.avg_daily_sales_7d_f * 7
+       AS reorder_point_units_f
+  FROM forecast f
+)
+
+,forecast3 AS (
+  SELECT
+     g.*
+    -- (6) Risk banding off days_until_stockout. NULL -> NO_SALES.
+    ,CASE
+       WHEN g.days_until_stockout_f IS NULL THEN 'NO_SALES'
+       WHEN g.days_until_stockout_f <= 7    THEN 'CRITICAL'
+       WHEN g.days_until_stockout_f <= 14   THEN 'HIGH'
+       WHEN g.days_until_stockout_f <= 30   THEN 'MEDIUM'
+       ELSE 'LOW'
+     END AS stockout_risk_level_f
+
+    -- (8) Overstocked only if it is BOTH deep in cover AND losing momentum.
+    --     Deep cover alone on an accelerating SKU is a buffer, not a problem.
+    ,(g.days_until_stockout_f > g.k_overstock_days
+      AND g.sales_trend_direction_f = 'DECLINING') AS overstock_flag_f
+  FROM forecast2 g
+)
+
+,scored_forecast AS (
+  SELECT
+     h.*
+    -- (9) Restock urgency 0-100: stockout risk 40%, trend 30%, top seller 30%.
+    --     Deliberately NOT suppressed for sale-ended SKUs -- Objective 1 says the
+    --     flag must not alter any score. recommended_restock_qty is where
+    --     sale-ended is correctly forced to zero.
+    ,CAST(ROUND(
+        0.40 * CASE h.stockout_risk_level_f
+                 WHEN 'CRITICAL' THEN 100 WHEN 'HIGH' THEN 75
+                 WHEN 'MEDIUM'   THEN  50 WHEN 'LOW'  THEN 15 ELSE 0 END
+      + 0.30 * CASE h.sales_trend_direction_f
+                 WHEN 'ACCELERATING' THEN 100 WHEN 'STABLE' THEN 50 ELSE 10 END
+      + 0.30 * IF(h.is_top_seller, 100, 0)
+     , 0) AS INT64) AS restock_urgency_score_f
+  FROM forecast3 h
+)
+------------------------------------------------------------------------------
+-- 4. Bands. OBJECTIVE 1: every branch keys off is_inactive, which no longer
+--    knows about is_sale_end, so a sale-ended SKU bands exactly like an active
+--    one with the same stock and sales.
+-------------------------------------------------------------------------------
+,banded AS (
+  SELECT
+     d.*
+    ,ROUND(d.doh_raw, 0)                        AS DOH
+    ,d.excess_units * IFNULL(d.retail_price, 0) AS excess_value
+
+    ,CASE
+       WHEN d.is_inactive = 1                          THEN 0
+       WHEN d.sell_through_rate = 0                    THEN 1
+       WHEN d.sell_through_rate < d.k_sell_through_low THEN 2
+       WHEN d.sell_through_rate < d.k_sell_through_mid THEN 3
+       ELSE 4
+     END AS sell_through_band
+
+    ,CASE
+       WHEN d.is_inactive = 1                        THEN 0
+       WHEN d.velocity_raw < d.expected_velocity / 4 THEN 1
+       WHEN d.velocity_raw < d.expected_velocity / 2 THEN 2
+       WHEN d.velocity_raw < d.expected_velocity     THEN 3
+       ELSE 4
+     END AS velocity_band
+
+    ,CASE
+       WHEN d.is_inactive = 1                                              THEN 0
+       WHEN d.sl_ton_kho <= 0 AND d.velocity_raw >= d.expected_velocity     THEN 4
+       WHEN d.sl_ton_kho <= 0 AND d.velocity_raw <  d.expected_velocity / 4 THEN 1
+       WHEN d.sl_ton_kho <= 0                                              THEN 3
+       WHEN d.doh_is_infinite = 1                                          THEN 1
+       WHEN d.doh_raw <= d.doh_healthy_max_adj                             THEN 4
+       WHEN d.doh_raw <= d.k_doh_watch_max                                 THEN 3
+       WHEN d.doh_raw <  d.k_doh_severe_max                                THEN 2
+       ELSE 1
+     END AS DOH_band
+  FROM scored_forecast d
+)
+
+-------------------------------------------------------------------------------
+-- 5. STEP 2 - Scorecard and colour buckets.
+--    Top sellers get (a) relaxed score cut-points, (b) the 150-day healthy
+--    ceiling already applied in DOH_band, and (c) a stockout floor that stops a
+--    green badge being printed over an imminent stockout (see DECISION 2).
+-------------------------------------------------------------------------------
+,scored AS (
+  SELECT
+     b.*
+    ,b.sell_through_band + b.velocity_band + b.DOH_band AS health_score
+
+    ,CASE
+       -- Discontinued / long-dead SKUs drop out, EXCEPT live top sellers, whose
+       -- stockout is the whole point of the flag.
+       WHEN b.is_inactive = 1
+            AND NOT (b.k_top_stockout_floor AND b.is_top_seller AND b.is_sale_end = 0)
+            THEN 'NO STOCK OR SALE ENDED'
+
+       -- Stockout floor, top sellers only.
+       WHEN b.k_top_stockout_floor AND b.is_top_seller AND b.is_sale_end = 0 AND b.sl_ton_kho <= 0
+            THEN '4-BLACK'
+       WHEN b.k_top_stockout_floor AND b.is_top_seller AND b.doh_is_infinite = 0
+            AND b.doh_raw < b.stockout_imminent_days_adj
+            THEN '3-RED'
+       WHEN b.k_top_stockout_floor AND b.is_top_seller AND b.doh_is_infinite = 0
+            AND b.doh_raw < b.stockout_risk_days_adj
+            THEN '2-YELLOW'
+
+       -- Relaxed cut-points for top sellers (9 / 6 / 3 out of a maximum 12).
+       WHEN b.is_top_seller
+            AND (b.sell_through_band + b.velocity_band + b.DOH_band) >= b.k_score_green_top
+            THEN '1-GREEN'
+       WHEN b.is_top_seller
+            AND ((b.sell_through_band + b.velocity_band + b.DOH_band) >= b.k_score_yellow_top
+                 OR b.product_days_since_launch <= b.k_new_product_grace_days)
+            THEN '2-YELLOW'
+       WHEN b.is_top_seller
+            AND (b.sell_through_band + b.velocity_band + b.DOH_band) >= b.k_score_red_top
+            THEN '3-RED'
+       WHEN b.is_top_seller THEN '4-BLACK'
+
+       -- Standard cut-points (11 / 7 / 4).
+       WHEN (b.sell_through_band + b.velocity_band + b.DOH_band) >= b.k_score_green  THEN '1-GREEN'
+       WHEN (b.sell_through_band + b.velocity_band + b.DOH_band) >= b.k_score_yellow
+            OR b.product_days_since_launch <= b.k_new_product_grace_days             THEN '2-YELLOW'
+       WHEN (b.sell_through_band + b.velocity_band + b.DOH_band) >= b.k_score_red    THEN '3-RED'
+       ELSE '4-BLACK'
+     END AS colour_bucket
+
+    -- Overstock exposure (0-100)
+    ,CAST(ROUND(
+        50 * LEAST(IFNULL(b.doh_raw, b.k_doh_severe_max) / b.k_doh_severe_max, 1)
+      + 30 * (1 - LEAST(IFNULL(SAFE_DIVIDE(b.velocity_raw, b.expected_velocity), 0), 1))
+      + 20 * PERCENT_RANK() OVER (
+               PARTITION BY b.period_date
+               ORDER BY b.excess_units * IFNULL(b.retail_price, 0)
+             )
+     , 0) AS INT64) AS overstock_risk_score
+  FROM banded b
+)
+
+-------------------------------------------------------------------------------
+-- 6. STEP 3 - Alert engine.
+--    Top sellers trip STOCKOUT_IMMINENT at 30 days of cover and STOCKOUT_RISK at
+--    60, versus 14 and 30 for normal SKUs, and are exempt from the
+--    k_min_velocity_for_alert gate so a quiet week cannot mute the alert.
+-------------------------------------------------------------------------------
+,alerted AS (
+  SELECT
+     s.*
+    ,CASE
+       -- Highest-value signal in the dataset: a live top seller at zero stock.
+       -- Must precede the inactive branch, which would otherwise swallow it.
+       WHEN s.is_top_seller AND s.is_sale_end = 0 AND s.sl_ton_kho <= 0     THEN 'STOCKOUT_NOW'
+
+       WHEN s.is_inactive = 1                                              THEN 'NO_STOCK_OR_ENDED'
+
+       -- Overstock family
+       WHEN s.doh_is_infinite = 1 AND s.sl_ton_kho > 0                     THEN 'DEAD_STOCK'
+       WHEN s.doh_raw >= s.k_doh_severe_max AND s.velocity_band <= 1        THEN 'OVERSTOCK_CRITICAL'
+       WHEN s.doh_raw >  s.k_doh_watch_max  AND s.velocity_band <= 2        THEN 'OVERSTOCK_HIGH'
+       WHEN s.doh_raw >  s.doh_healthy_max_adj AND s.velocity_band <= 3     THEN 'OVERSTOCK_WATCH'
+
+       -- Stockout family, top sellers first (earlier triggers, no velocity gate)
+       WHEN s.is_top_seller AND s.doh_is_infinite = 0
+            AND s.doh_raw < s.stockout_imminent_days_adj                    THEN 'STOCKOUT_IMMINENT'
+       WHEN s.is_top_seller AND s.doh_is_infinite = 0
+            AND s.doh_raw < s.stockout_risk_days_adj                        THEN 'STOCKOUT_RISK'
+
+       -- Stockout family, normal SKUs
+       WHEN s.sl_ton_kho <= 0
+            AND s.velocity_raw > s.k_min_velocity_for_alert                 THEN 'STOCKOUT_NOW'
+       WHEN s.doh_raw < s.stockout_imminent_days_adj
+            AND s.velocity_raw > s.k_min_velocity_for_alert                 THEN 'STOCKOUT_IMMINENT'
+       WHEN s.doh_raw < s.stockout_risk_days_adj
+            AND s.velocity_raw > s.k_min_velocity_for_alert                 THEN 'STOCKOUT_RISK'
+
+       ELSE 'HEALTHY'
+     END AS alert_code
+
+    ,CASE
+       WHEN s.is_inactive = 1
+            AND NOT (s.k_top_stockout_floor AND s.is_top_seller AND s.is_sale_end = 0) THEN 0
+       WHEN s.doh_is_infinite = 1 AND s.sl_ton_kho > 0 THEN 50
+       WHEN s.doh_raw >= s.k_doh_severe_max            THEN 40
+       WHEN s.doh_raw >  s.k_doh_watch_max             THEN 30
+       WHEN s.doh_raw >  s.doh_healthy_max_adj         THEN 15  -- top sellers only discounted past 150d
+       ELSE 0
+     END AS suggested_discount_pct
+  FROM scored s
+)
+
+-------------------------------------------------------------------------------
+-- 8. OBJECTIVE 3 -- rule-based discount and restock recommendations.
+--    Computed in their own CTE so ai_recommendation_note in the final SELECT can
+--    quote the exact numbers rather than recomputing and risking disagreement.
+-------------------------------------------------------------------------------
+,recommended AS (
+  SELECT
+     a.*
+    -- recommended_discount_pct. Branches evaluated in the order you specified.
+    -- See caveat C5: rule 3 pre-empts rule 4 for sale-ended accelerating SKUs.
+    ,CASE
+       -- Overstocked and declining -> 20-40%, scaled by depth of cover.
+       -- 90 days -> 20%, rising linearly to 40% at 365 days, then clamped.
+       WHEN a.overstock_flag_f AND a.sales_trend_direction_f = 'DECLINING'
+         THEN CAST(ROUND(LEAST(GREATEST(20 + (a.days_until_stockout_f - 90) / 275 * 20, 20), 40)) AS INT64)
+
+       -- Deep cover but demand holding -> a light 10-15% nudge.
+       -- 60 days -> 10%, rising to 15% at 180 days, then clamped.
+       WHEN a.days_until_stockout_f > 60 AND a.sales_trend_direction_f = 'STABLE'
+         THEN CAST(ROUND(LEAST(GREATEST(10 + (a.days_until_stockout_f - 60) / 120 * 5, 10), 15)) AS INT64)
+
+       -- Deep cover but demand growing -> never discount, it will clear itself.
+       WHEN a.days_until_stockout_f > 60 AND a.sales_trend_direction_f = 'ACCELERATING'
+         THEN 0
+
+       -- Production stopped with meaningful stock left -> clear it.
+       -- 30 days -> 15%, rising to 30% at 180 days, then clamped.
+       WHEN a.is_sale_end = 1 AND a.days_until_stockout_f > 30
+         THEN CAST(ROUND(LEAST(GREATEST(15 + (a.days_until_stockout_f - 30) / 150 * 15, 15), 30)) AS INT64)
+
+       ELSE 0
+     END AS recommended_discount_pct_f
+
+    -- recommended_restock_qty. Always "target cover minus what we already hold",
+    -- floored at zero. At warehouse grain this is a transfer request (C4).
+    ,CASE
+       -- Production has stopped: nothing can be reordered, whatever the demand.
+       WHEN a.is_sale_end = 1 THEN 0
+
+       -- About to run out -> top back up to 45 days of cover.
+       WHEN a.stockout_risk_level_f IN ('CRITICAL','HIGH')
+         THEN GREATEST(CAST(CEIL(a.avg_daily_sales_30d_f * a.k_restock_cover_days
+                                 - a.stock_on_hand) AS INT64), 0)
+
+       -- Moderate risk but demand is climbing -> size off the faster 7d rate,
+       -- because the 30d rate understates a SKU that has just taken off.
+       WHEN a.stockout_risk_level_f = 'MEDIUM' AND a.sales_trend_direction_f = 'ACCELERATING'
+         THEN GREATEST(CAST(CEIL(a.avg_daily_sales_7d_f * a.k_restock_cover_days_accel
+                                 - a.stock_on_hand) AS INT64), 0)
+
+       -- Top sellers carry a deeper buffer: below 4 weeks of cover, refill to 60 days.
+       WHEN a.is_top_seller AND a.weeks_of_cover_f < a.k_top_min_weeks_cover
+         THEN GREATEST(CAST(CEIL(a.avg_daily_sales_30d_f * a.k_restock_cover_days_top
+                                 - a.stock_on_hand) AS INT64), 0)
+
+       ELSE 0
+     END AS recommended_restock_qty_f
+  FROM alerted a
+)
+
+-------------------------------------------------------------------------------
+-- 9. Main export output query.
+--    Existing columns keep their original names, order and positions.
+--    All new columns are appended after `comments`.
+-------------------------------------------------------------------------------
+SELECT
+   d_date AS period_date
+  ,period_date AS updated_date
+  ,sort_desc
+  ,is_latest
+  ,product_code
+  ,variation_code
+  ,variation_attributes
+  ,product_name
+  ,product_days_since_launch
+  ,days_range
+  ,is_sale_end
+  ,is_inactive
+  ,is_top_seller                                     -- Step 1: top-seller flag
+  ,retail_price
+  ,warehouse_id
+  ,warehouse_name
+  ,warehouse_country
+  ,order_sources_name
+  ,sale_channel
+  ,sale_channel_details
+  ,order_year
+
+  -- Stock & flow
+  ,sl_nhap_moi_tu_sx
+  ,sl_nhap_kho
+  ,sl_ton_kho
+  ,sl_ton_kho_diff
+  ,tong_gia_tri_hang_ton_kho_theo_gia_ban
+  ,ton_kho_running_days
+  ,emty_stock_days
+
+  -- Sales
+  ,units_sold
+  ,units_sold_day_range
+  ,units_sold_since_restock
+  ,sales_revenue
+  ,revenue
+
+  -- Rates
+  ,ROUND(sell_through_rate, 4)  AS sell_through_rate   -- ORIGINAL: stock-based ratio, 0-1
+  ,ROUND(velocity_raw, 4)       AS sale_velocity
+  ,ROUND(expected_velocity, 4)  AS expected_velocity
+  ,DOH
+  ,doh_is_infinite
+
+  -- Scorecard
+  ,sell_through_band
+  ,velocity_band
+  ,DOH_band
+  ,health_score
+  ,colour_bucket
+
+  -- Alerting
+  ,alert_code
+  ,CASE alert_code
+     WHEN 'DEAD_STOCK'         THEN 1
+     WHEN 'OVERSTOCK_CRITICAL' THEN 1
+     WHEN 'STOCKOUT_NOW'       THEN 1
+     WHEN 'OVERSTOCK_HIGH'     THEN 2
+     WHEN 'STOCKOUT_IMMINENT'  THEN 2
+     WHEN 'OVERSTOCK_WATCH'    THEN 3
+     WHEN 'STOCKOUT_RISK'      THEN 3
+     ELSE 4
+   END AS alert_severity        -- 1 = act now, 4 = informational
+  ,overstock_risk_score
+  ,excess_units
+  ,excess_value
+  ,suggested_discount_pct
+
+  -- Rule-based comments. OBJECTIVE 1: no branch mentions or tests sale-ended, so
+  -- a sale-ended SKU gets the same comment as an active SKU with the same numbers.
+  ,CASE
+     WHEN is_top_seller AND sl_ton_kho <= 0 THEN
+       FORMAT('🔥 TOP SELLER (%s) — HẾT HÀNG. Ngưỡng tồn kho đã nâng lên (tồn mục tiêu %d ngày, cảnh báo sớm từ %d ngày). Ưu tiên nhập bổ sung ngay.',
+              top_seller_categories_vi, target_cover_days_adj, stockout_risk_days_adj)
+
+     WHEN is_inactive = 1 THEN
+       'SKU hết hàng kéo dài — không tính vào đánh giá tốc độ bán'
+
+     WHEN is_top_seller THEN
+       FORMAT('🔥 TOP SELLER (%s) — Ngưỡng tồn kho đã nâng lên: tồn mục tiêu %d ngày (thay vì %d), ngưỡng tồn khoẻ %d ngày (thay vì %d), cảnh báo hết hàng từ %d/%d ngày (thay vì %d/%d). %s',
+              top_seller_categories_vi,
+              target_cover_days_adj,      k_target_cover_days,
+              doh_healthy_max_adj,        k_doh_healthy_max,
+              stockout_imminent_days_adj, stockout_risk_days_adj,
+              k_stockout_imminent_days,   k_stockout_risk_days,
+              CASE colour_bucket
+                WHEN '1-GREEN'  THEN FORMAT('Tồn kho đang ở mức tốt (%d ngày DOH).', CAST(IFNULL(DOH,0) AS INT64))
+                WHEN '2-YELLOW' THEN FORMAT('Tồn kho cần chú ý (%d ngày DOH) — lên kế hoạch tái nhập sớm.', CAST(IFNULL(DOH,0) AS INT64))
+                WHEN '3-RED'    THEN FORMAT('Tồn kho thấp (%d ngày DOH) — ưu tiên nhập hàng khẩn cấp.', CAST(IFNULL(DOH,0) AS INT64))
+                ELSE 'Cảnh báo thiếu hụt nghiêm trọng — cần xử lý ngay.'
+              END)
+
+     WHEN colour_bucket = '1-GREEN'  THEN FORMAT('SKU bán chạy, tồn kho đủ bán khoảng %d ngày tới', CAST(IFNULL(DOH,0) AS INT64))
+     WHEN colour_bucket = '2-YELLOW' THEN FORMAT('SKU bán ở mức bình thường, tồn kho đủ khoảng %d ngày tới', CAST(IFNULL(DOH,0) AS INT64))
+     WHEN colour_bucket = '3-RED'    THEN FORMAT('SKU bán chậm, tồn %d ngày — cần đẩy doanh số/xả tồn, ưu tiên clearance', CAST(IFNULL(DOH,0) AS INT64))
+     WHEN colour_bucket = '4-BLACK'  THEN 'SKU gần như không bán — xem xét markdown sâu, bundle hoặc ngừng kinh doanh'
+     ELSE 'N/A'
+   END AS comments
+
+  -- ---- Top-seller detail (added previously) --------------------------------
+  ,is_all_time_top_10
+  ,is_top_20_30d
+  ,is_top_20_60d
+  ,is_top_by_collection
+  ,top_seller_categories
+  ,collection_bst
+  ,sku_units_last_30d
+  ,sku_units_last_60d
+
+  -- ---- OBJECTIVE 2: forecasting and stock analysis -------------------------
+  ,SAFE_CAST(ROUND(avg_daily_sales_7d_f,  4) AS NUMERIC) AS avg_daily_sales_7d       -- (1)
+  ,SAFE_CAST(ROUND(avg_daily_sales_30d_f, 4) AS NUMERIC) AS avg_daily_sales_30d      -- (2)
+  ,SAFE_CAST(ROUND(avg_daily_sales_60d_f, 4) AS NUMERIC) AS avg_daily_sales_60d      -- (3)
+  ,sales_trend_direction_f                               AS sales_trend_direction    -- (4)
+  ,SAFE_CAST(ROUND(days_until_stockout_f, 2) AS NUMERIC) AS days_until_stockout      -- (5)
+  ,stockout_risk_level_f                                 AS stockout_risk_level      -- (6)
+  -- (7) NEW sell-through: sold/received as a %. The original stock-based
+  --     sell_through_rate above is untouched; both are exported side by side.
+  ,SAFE_CAST(ROUND(sell_through_rate * 100, 2) AS NUMERIC) AS sell_through_rate_pct
+  ,overstock_flag_f                                      AS overstock_flag           -- (8)
+  ,SAFE_CAST(restock_urgency_score_f AS NUMERIC)         AS restock_urgency_score    -- (9)
+  ,SAFE_CAST(ROUND(weeks_of_cover_f, 2) AS NUMERIC)      AS weeks_of_cover           -- (10)
+
+  -- ---- Additional columns I judged worth having ----------------------------
+  -- Signed % gap between the 7d and 30d run rates. This is the number that
+  -- produces sales_trend_direction; exporting it makes the label auditable and
+  -- lets you rank by momentum rather than just bucket by it.
+  ,SAFE_CAST(ROUND(sales_trend_ratio * 100, 2) AS NUMERIC) AS sales_trend_pct
+  -- Days that actually carried data inside the trailing 30d frame. Below 30 means
+  -- avg_daily_sales_30d is diluted by a partly-filled window (young SKU, or a row
+  -- near the start of i_FromDate). Use it to suppress false NO_SALES readings.
+  ,obs_days_30d
+  -- Numerator and denominator behind sell_through_rate_pct, exported because the
+  -- denominator is window-truncated and the ratio can exceed 100% (caveat C2).
+  ,SAFE_CAST(units_sold_cum     AS NUMERIC) AS units_sold_cum
+  ,SAFE_CAST(units_received_cum AS NUMERIC) AS units_received_cum
+  -- Naive 30-day demand forecast at the current run rate: the simplest
+  -- defensible input to a buy quantity, and a sanity check on restock sizing.
+  ,SAFE_CAST(ROUND(forecast_units_next_30d_f, 2) AS NUMERIC) AS forecast_units_next_30d
+  -- Classic reorder point: lead-time demand + one week of safety stock at the
+  -- responsive 7d rate. Compare against sl_ton_kho to find SKUs already below
+  -- the trigger, independently of the banding logic.
+  ,SAFE_CAST(ROUND(reorder_point_units_f, 2) AS NUMERIC) AS reorder_point_units
+
+  -- ---- OBJECTIVE 3: recommendations ----------------------------------------
+  ,SAFE_CAST(recommended_discount_pct_f AS NUMERIC) AS recommended_discount_pct
+  ,recommended_restock_qty_f                        AS recommended_restock_qty
+  -- Human-readable summary. Branch order mirrors the two columns above so the
+  -- note always explains the number that was actually produced: restock first
+  -- (it is the more urgent action), then discount, then the quiet states.
+  ,CASE
+     WHEN recommended_restock_qty_f > 0 AND stockout_risk_level_f IN ('CRITICAL','HIGH') THEN
+       FORMAT('%s stockout risk: restock %d units for %d-day cover (stock %d, selling %.2f/day over 30d)',
+              stockout_risk_level_f, recommended_restock_qty_f, k_restock_cover_days,
+              CAST(stock_on_hand AS INT64), avg_daily_sales_30d_f)
+
+     WHEN recommended_restock_qty_f > 0 AND stockout_risk_level_f = 'MEDIUM' THEN
+       FORMAT('Medium risk with accelerating demand: restock %d units for %d-day cover (7d rate %.2f/day vs 30d rate %.2f/day)',
+              recommended_restock_qty_f, k_restock_cover_days_accel,
+              avg_daily_sales_7d_f, avg_daily_sales_30d_f)
+
+     WHEN recommended_restock_qty_f > 0 AND is_top_seller THEN
+       FORMAT('Top seller with low cover (%.1f weeks): restock %d units for %d-day cover',
+              weeks_of_cover_f, recommended_restock_qty_f, k_restock_cover_days_top)
+
+     WHEN recommended_discount_pct_f > 0 AND overstock_flag_f THEN
+       FORMAT('Overstock + declining sales (%d days of cover): recommend %d%% discount to clear inventory',
+              CAST(days_until_stockout_f AS INT64), recommended_discount_pct_f)
+
+     WHEN recommended_discount_pct_f > 0 AND is_sale_end = 1 THEN
+       FORMAT('Sale ended, %d days of stock remaining: recommend %d%% discount to accelerate clearance',
+              CAST(days_until_stockout_f AS INT64), recommended_discount_pct_f)
+
+     WHEN recommended_discount_pct_f > 0 THEN
+       FORMAT('Stable demand with %d days of cover: recommend %d%% discount to accelerate sales',
+              CAST(days_until_stockout_f AS INT64), recommended_discount_pct_f)
+
+     WHEN stockout_risk_level_f = 'NO_SALES' AND stock_on_hand > 0 THEN
+       'No sales in the last 30 days: review before any restock or markdown'
+
+     WHEN is_sale_end = 1 THEN
+       'Sale ended, stock clearing at the current rate: no action needed'
+
+     ELSE 'Healthy stock levels, no action needed'
+   END AS ai_recommendation_note
+FROM recommended
+--where variation_code = 'A23082727' and warehouse_name = 'Kho Online' order by 1 desc
+
+
+-- =============================================================================
+-- QA APPENDIX -- run after deploying. Expected results noted against each check.
+-- =============================================================================
+
+-- QA1. No fan-out. Both counts must be identical.
+--      Measured before the fix: 22,734 -> 550,450 (24.2x). After: 22,734 -> 22,734.
+/*
+SELECT
+  (SELECT COUNT(*) FROM `marine-cycle-484213-b4.reportdb.fn_product_inventory_summary_v2`(
+     0,1,90,DATE '2026-08-20',CURRENT_DATE()))                AS base_rows,
+  (SELECT COUNT(*) FROM `marine-cycle-484213-b4.reportdb.fn_stats_product`(
+     0,1,90,DATE '2026-08-20',CURRENT_DATE(),30))             AS function_rows;
+*/
+
+-- QA2. Category sizes. Expect exactly 10 / 20 / 20, and a flagged share in the
+--      low single digits (2.35% on the 2026-08-20 window, 2.2% on Jan-Aug).
+--      Anything approaching 100% means the ranking has regressed to DENSE_RANK.
+/*
+SELECT
+   COUNT(DISTINCT variation_code)                                    AS skus
+  ,COUNT(DISTINCT IF(is_all_time_top_10,   variation_code, NULL))    AS n_all_time
+  ,COUNT(DISTINCT IF(is_top_20_30d,        variation_code, NULL))    AS n_30d
+  ,COUNT(DISTINCT IF(is_top_20_60d,        variation_code, NULL))    AS n_60d
+  ,COUNT(DISTINCT IF(is_top_by_collection, variation_code, NULL))    AS n_collection
+  ,COUNT(DISTINCT IF(is_top_seller,        variation_code, NULL))    AS n_top_seller
+  ,ROUND(100 * COUNT(DISTINCT IF(is_top_seller, variation_code, NULL))
+             / COUNT(DISTINCT variation_code), 2)                    AS pct_flagged
+FROM `marine-cycle-484213-b4.reportdb.fn_stats_product_v2`(0,1,90,DATE '2026-01-01',CURRENT_DATE(),30);
+*/
+
+-- QA3. The flag must be constant per SKU. Expect zero rows.
+/*
+SELECT variation_code, COUNT(DISTINCT is_top_seller) AS distinct_flags
+FROM `marine-cycle-484213-b4.reportdb.fn_stats_product_v2`(0,1,90,DATE '2026-01-01',CURRENT_DATE(),30)
+GROUP BY variation_code HAVING COUNT(DISTINCT is_top_seller) > 1;
+*/
+
+-- QA4. No sale-ended SKU may hold an all-time or collection slot. Expect zero rows.
+/*
+SELECT DISTINCT variation_code, is_sale_end, top_seller_categories
+FROM `marine-cycle-484213-b4.reportdb.fn_stats_product_v2`(0,1,90,DATE '2026-01-01',CURRENT_DATE(),30)
+WHERE is_sale_end = 1 AND (is_all_time_top_10 OR is_top_by_collection);
+*/
+
+-- QA5. Green badge over a stockout -- the contradiction FIX 7 removes.
+--      Expect zero rows while k_top_stockout_floor = TRUE.
+/*
+SELECT COUNT(*) AS green_but_stocking_out
+FROM `marine-cycle-484213-b4.reportdb.fn_stats_product_v2`(0,1,90,DATE '2026-01-01',CURRENT_DATE(),30)
+WHERE is_top_seller AND colour_bucket = '1-GREEN'
+  AND alert_code IN ('STOCKOUT_NOW','STOCKOUT_IMMINENT','STOCKOUT_RISK');
+*/
+
+-- QA6. Window width sanity. If i_FromDate..i_ToDate spans under 60 days the two
+--      recent categories collapse into each other. Expect a large overlap but not
+--      an identical set on a >=60 day call.

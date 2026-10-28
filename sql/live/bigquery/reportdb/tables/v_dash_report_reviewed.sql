@@ -1,0 +1,35 @@
+CREATE VIEW `marine-cycle-484213-b4.reportdb.v_dash_report_reviewed`
+AS WITH served AS (
+  SELECT page, period_key FROM (
+    SELECT v.page, n.period_key,
+           ROW_NUMBER() OVER (PARTITION BY v.page ORDER BY n.generated_at DESC) rn
+    FROM `marine-cycle-484213-b4.reportdb.v_dash_report` v 
+    JOIN `marine-cycle-484213-b4.reportdb.dash_ai_narrative` n
+      ON n.page = v.page AND n.period_label = v.period_label
+  ) WHERE rn = 1
+),
+latest_review AS (
+  SELECT * EXCEPT(rn) FROM (
+    SELECT r.*, ROW_NUMBER() OVER (PARTITION BY r.page ORDER BY r.reviewed_at DESC) rn
+    FROM `marine-cycle-484213-b4.reportdb.dash_ai_review` r
+    JOIN served s ON s.page = r.page AND s.period_key = r.period_key
+  ) WHERE rn = 1
+)
+SELECT
+   v.* EXCEPT(narrative_en, narrative_vi, narrative_source, exec_summary_en, exec_summary_vi)
+  -- a quarantined narrative is replaced by the deterministic rule text.
+  -- The exec summary has no rule fallback - it is model prose by nature - so on
+  -- quarantine it is NULLed rather than shown unverified. A blank summary is
+  -- recoverable; a plausible-looking wrong one on a board pack is not.
+  -- PUBLISH_UNJUDGED (judge call failed, deterministic gate passed) is a publish:
+  -- only QUARANTINE falls back.
+  ,IF(lr.verdict = 'QUARANTINE', NULL, v.exec_summary_en) AS exec_summary_en
+  ,IF(lr.verdict = 'QUARANTINE', NULL, v.exec_summary_vi) AS exec_summary_vi
+  ,IF(lr.verdict = 'QUARANTINE', v.rule_narrative_en, v.narrative_en) AS narrative_en
+  ,IF(lr.verdict = 'QUARANTINE', v.rule_narrative_vi, v.narrative_vi) AS narrative_vi
+  ,IF(lr.verdict = 'QUARANTINE', 'RULE_QUARANTINED', v.narrative_source) AS narrative_source
+  ,lr.det_pass, lr.det_consistency_ok, lr.missing_points, lr.fabricated_points
+  ,lr.judge_avg, lr.judge_exec_quality, lr.verdict, lr.unsupported_numbers, lr.judge_issue
+  ,lr.guidance_version
+FROM `marine-cycle-484213-b4.reportdb.v_dash_report` v
+LEFT JOIN latest_review lr ON lr.page = v.page;

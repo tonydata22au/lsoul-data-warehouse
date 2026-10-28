@@ -1,0 +1,510 @@
+config { type: "table", schema: "reportdb", name: "dash_action_items" }
+
+/* -----------------------------------------------------------------------------
+   7. dash_action_items   -- SECTION 4
+   -----------------------------------------------------------------------------
+   Max 5 per page. Every item traces to a specific highlight/lowlight via
+   source_item. Owner is derived from country + level_1.
+   Format for rendering: '[owner] - action'.
+
+   section = 'PERFORMANCE' : traces to a named highlight/lowlight. Max 5 per page.
+   section = 'STOCK'       : traces to a named SKU list. Max 5, shown on both pages.
+
+   =============================================================================
+   2026-09-06: the prose is now written by gemini-3.5-flash, in EN and VI.
+   =============================================================================
+
+   WHAT CHANGED, AND WHAT DELIBERATELY DID NOT
+
+   SQL still computes every FIGURE and picks every branch. The model only
+   REWRITES the finished English sentence into better English and into natural
+   business Vietnamese. It is never handed raw metrics and asked to do
+   arithmetic, for two reasons:
+
+     - HARD RULE 1 of the whole pipeline is that the model never computes a
+       number. Letting it author the action text from raw inputs would breach
+       that in the one place the board is asked to ACT on.
+     - action_block is concatenated into narrative_en, and sp_dash_review_ai's
+       det_numeric_ok resolves every figure in the narrative against
+       facts_block + action_block. If the model authored the actions, an
+       invented number would appear on BOTH sides of that check and
+       SELF-AUTHORISE. The gate would pass while being wrong.
+
+   So: SQL writes the facts, the model writes the sentence, and five
+   deterministic guards below verify the model changed nothing that matters.
+   Any guard failing falls the row back to the SQL text - the report always
+   renders, exactly as it did before this change.
+
+   THE FIVE GUARDS (all in the `guard` CTE, all pure SQL)
+
+     1. numeric fidelity - every number in the model's text must already appear
+        in the SQL text. Same normalisation as sp_dash_review_ai: alphanumeric
+        codes stripped first so SKUs are not read as figures, leading zeros
+        removed. A model that rounds 22.1 to 22 fails and falls back.
+     2. code preservation - every SKU code in the SQL text must survive.
+        det_sku_ok downstream requires those codes to reach narrative_vi.
+     3. causal phrasing - the model's text must not match the same regex
+        det_causal_claim_ok uses. roas is an efficiency ratio; "spend drove
+        revenue" is a claim the attribution cannot support.
+     4. diacritics - the Vietnamese must actually be Vietnamese. Mirrors
+        det_diacritics_ok.
+     5. non-empty and length-sane - catches the thinking-token starvation mode
+        that currently has the page narratives quarantined
+        (see ai-generate-thinking-token-defect.md). Hence the explicit
+        thinking_budget below: this call must not repeat that failure.
+
+   THE OWNER TAG IS ADDED IN SQL, NOT BY THE MODEL. det_owner_tags_ok counts
+   '[...]' in action_block against narrative_vi. Letting the model emit the
+   bracket would make that count non-deterministic, so it only ever returns the
+   sentence body and SQL wraps it.
+
+   COLUMNS: all nine existing ones keep their names and meaning. action_text is
+   now the model's English (SQL on fallback); action_text_sql preserves the
+   deterministic original, which is what v_dash_ai_facts_core must hash so the
+   narrative cache is not busted by harmless rewording on every run.
+   ----------------------------------------------------------------------------- */
+WITH ctx AS (SELECT * FROM ${ref("dash_action_context")}), 
+
+perf AS (
+  SELECT
+     c.page
+    ,'PERFORMANCE' AS section
+    ,c.owner
+    ,CONCAT(c.country, ' / ', c.level_2, ' ',
+            IF(c.item_type='HIGHLIGHT','HIGHLIGHT','LOWLIGHT')) AS source_item
+    ,c.impact_vnd
+    ,c.item_type
+    ,ABS(c.impact_vnd) AS sort_key
+    ,CASE
+       -- media-readable branches: traffic_grain = 'level_3' and a click base over 100
+       WHEN c.page='PAGE1_WOW' AND c.item_type='LOWLIGHT'
+            AND c.media_readable AND c.traffic_verdict='SPEND_UP_CLICKS_DOWN' THEN
+         FORMAT('Rework the %s buy on %s: spend %s (%s%%) returned clicks %s->%s (%s%%) and cost per click %s, alongside a %s channel decline - audit creative fatigue, audience overlap and bid caps before renewing the budget',
+           IFNULL(c.attention_ads_channel,'paid'), IFNULL(c.level_3, c.level_2),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(c.attention_spend_prv, c.attention_spend_cur),
+           FORMAT('%.0f', IFNULL(c.attention_spend_pct,0)*100),
+           FORMAT('%d', CAST(IFNULL(c.attention_clicks_prv,0) AS INT64)), FORMAT('%d', CAST(IFNULL(c.attention_clicks_cur,0) AS INT64)),
+           FORMAT('%.0f', IFNULL(c.attention_clicks_pct,0)*100),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(c.attention_cpc_prv, c.attention_cpc_cur),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.impact_vnd))
+
+       WHEN c.page='PAGE1_WOW' AND c.item_type='LOWLIGHT'
+            AND c.media_readable AND c.traffic_verdict='TRAFFIC_UP_CONVERSION_DOWN' THEN
+         FORMAT('Do not add budget on %s: %s clicks %s->%s (%s%%) on spend %s while NMV moved %s and bills %d->%d - review price, landing and floor conversion, and check stock cover on the top sellers first',
+           IFNULL(c.level_3, c.level_2), IFNULL(c.attention_ads_channel,'paid'),
+           FORMAT('%d', CAST(IFNULL(c.attention_clicks_prv,0) AS INT64)), FORMAT('%d', CAST(IFNULL(c.attention_clicks_cur,0) AS INT64)),
+           FORMAT('%.0f', IFNULL(c.attention_clicks_pct,0)*100),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(c.attention_spend_prv, c.attention_spend_cur),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.impact_vnd),
+           c.driver_l3_bills_prv, c.driver_l3_bills_cur)
+
+       WHEN c.page='PAGE1_WOW' AND c.item_type='LOWLIGHT'
+            AND c.media_readable AND c.traffic_verdict='PAID_TRAFFIC_DOWN' THEN
+         FORMAT('Recover %s delivery to %s: clicks %s->%s (%s%%) on spend %s, alongside a %s channel decline - check pacing, disapprovals and audience size before changing the offer',
+           IFNULL(c.attention_ads_channel,'paid'), IFNULL(c.level_3, c.level_2),
+           FORMAT('%d', CAST(IFNULL(c.attention_clicks_prv,0) AS INT64)), FORMAT('%d', CAST(IFNULL(c.attention_clicks_cur,0) AS INT64)),
+           FORMAT('%.0f', IFNULL(c.attention_clicks_pct,0)*100),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(c.attention_spend_prv, c.attention_spend_cur),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.impact_vnd))
+
+       WHEN c.page='PAGE1_WOW' AND c.item_type='LOWLIGHT'
+            AND c.has_site_traffic AND c.traffic_verdict='SITE_TRAFFIC_DOWN' THEN
+         FORMAT('Audit the %s funnel: WEBSITE sessions %s->%s (%s%%) with bills %d->%d, alongside a %s channel decline - check indexation, page speed and the checkout path',
+           IFNULL(c.level_3, c.level_2),
+           FORMAT('%d', CAST(IFNULL(c.sessions_prv,0) AS INT64)), FORMAT('%d', CAST(IFNULL(c.sessions_cur,0) AS INT64)),
+           FORMAT('%.0f', IFNULL(c.sessions_pct,0)*100),
+           c.driver_l3_bills_prv, c.driver_l3_bills_cur,
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.impact_vnd))
+
+       WHEN c.page='PAGE1_WOW' AND c.item_type='HIGHLIGHT'
+            AND c.media_readable AND c.traffic_verdict='PAID_TRAFFIC_UP' THEN
+         FORMAT('Hold stock cover and fulfilment capacity on %s while %s clicks run %s->%s (%s%%) at spend %s on a %s channel gain - confirm it survives past the promo window before treating it as run-rate',
+           IFNULL(c.level_3,'the lead sub-channel'), IFNULL(c.attention_ads_channel,'paid'),
+           FORMAT('%d', CAST(IFNULL(c.attention_clicks_prv,0) AS INT64)), FORMAT('%d', CAST(IFNULL(c.attention_clicks_cur,0) AS INT64)),
+           FORMAT('%.0f', IFNULL(c.attention_clicks_pct,0)*100),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(c.attention_spend_prv, c.attention_spend_cur),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.impact_vnd))
+
+       ------------------------------------------------------------------ PAGE 1
+       WHEN c.page='PAGE1_WOW' AND c.item_type='LOWLIGHT' AND c.level_1='Store'
+            AND c.worst_window IS NOT NULL THEN
+         -- FRAMING FIX 2026-09-07: "this week" claimed a complete week. PAGE1 is
+         -- week-TO-DATE (Monday..report_date), so on any run before Sunday the
+         -- phrase overstates the window. The dates are now explicit.
+         FORMAT('Review floor coverage and merchandising at %s during the %s window, where bills moved %d->%d and basket moved %s (%s, the largest single loss window from %s to %s)',
+           IFNULL(c.driver_level_3, c.level_2), c.worst_window,
+           c.window_bills_prv, c.window_bills_cur,
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(c.window_basket_prv, c.window_basket_cur),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.worst_window_delta),
+           LTRIM(FORMAT_DATE('%e/%m', c.sp_cur_start)),        -- NEW: WTD start
+           LTRIM(FORMAT_DATE('%e/%m', c.sp_cur_end)))          -- NEW: WTD cutoff
+       WHEN c.page='PAGE1_WOW' AND c.item_type='LOWLIGHT' AND c.level_1='Wholesales' THEN
+         FORMAT('Re-contact the lapsed wholesale accounts: order count fell %d->%d (%s) even though average order value rose %s',
+           c.driver_l3_bills_prv, c.driver_l3_bills_cur, `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.impact_vnd),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(c.driver_l3_basket_prv, c.driver_l3_basket_cur))
+       WHEN c.page='PAGE1_WOW' AND c.item_type='LOWLIGHT' THEN
+         FORMAT('Investigate %s specifically, which accounts for %s of the %s channel decline (bills %d->%d, basket %s)',
+           IFNULL(c.driver_level_3,'the largest sub-channel'),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.driver_level_3_delta), `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.impact_vnd),
+           c.driver_l3_bills_prv, c.driver_l3_bills_cur,
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(c.driver_l3_basket_prv, c.driver_l3_basket_cur))
+       WHEN c.page='PAGE1_WOW' AND c.item_type='HIGHLIGHT' THEN
+         FORMAT('Hold stock cover and fulfilment capacity on %s, which delivered %s of the %s channel gain on bills %d->%d - confirm it survives past the promo window',
+           IFNULL(c.driver_level_3,'the lead sub-channel'),
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.driver_level_3_delta), `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.impact_vnd),
+           c.driver_l3_bills_prv, c.driver_l3_bills_cur)
+       ------------------------------------------------------------------ PAGE 2
+       WHEN c.page='PAGE2_MTD' AND c.item_type='LOWLIGHT' AND c.stepup_x >= 2.5 THEN
+         -- FRAMING FIX 2026-09-07: "%s/day achieved" carried no as-of date, so a
+         -- partial-month rate read as a settled full-month one. Cutoff added.
+         FORMAT('Re-forecast the month: closing the %s gap needs %s/day for the remaining %d days versus %s/day achieved month-to-date through %s, a %sx step-up that is unlikely to be traded out - escalate a revised number rather than a push',
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.impact_vnd), `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.required_daily),
+           c.days_left, `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.achieved_daily),
+           LTRIM(FORMAT_DATE('%e/%m', c.sp_cur_end)),          -- NEW: MTD cutoff
+           FORMAT('%.1f', c.stepup_x))
+       WHEN c.page='PAGE2_MTD' AND c.item_type='LOWLIGHT' THEN
+         -- FRAMING FIX 2026-09-07: same as above - the achieved rate is MTD, and
+         -- the sentence now says through when.
+         FORMAT('Build a recovery plan to lift daily run-rate from %s achieved month-to-date through %s across the remaining %d days (%sx step-up) and close the %s gap',
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(c.achieved_daily, c.required_daily),
+           LTRIM(FORMAT_DATE('%e/%m', c.sp_cur_end)),          -- NEW: MTD cutoff
+           c.days_left, FORMAT('%.1f', c.stepup_x), `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.impact_vnd))
+       WHEN c.page='PAGE2_MTD' AND c.item_type='HIGHLIGHT' THEN
+         -- FRAMING FIX 2026-09-07: cutoff and the forward window both stated, so
+         -- "still required" is visibly a rate for days not yet traded.
+         FORMAT('Protect the run-rate: %s/day achieved month-to-date through %s versus %s/day still required over the remaining %d days, so reallocate promo and stock support toward the channels behind plan rather than adding spend here',
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.achieved_daily),
+           LTRIM(FORMAT_DATE('%e/%m', c.sp_cur_end)),          -- NEW: MTD cutoff
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.required_daily),
+           c.days_left)                                        -- NEW: forward window
+       ELSE NULL
+     END AS action_text
+  FROM ctx c
+),
+
+/* ===========================================================================
+   perf_mtd_media   -- REWRITTEN 2026-09-07: forward-looking framing
+
+   WHAT WAS WRONG
+
+   The previous template ended:
+
+       ... against NMV %s (%s%%) over 2026-08-01 to 2026-08-06
+           - the same-period read, not the full prior month
+
+   and those two dates were sp_prv_start / sp_prv_end - the PRIOR month's
+   baseline window. The CURRENT window (sp_cur_start..sp_cur_end, i.e.
+   month_start..report_date, 2026-09-01..2026-09-06) never appeared in the
+   sentence at all. "over <dates>" reads as when the figures were recorded, so
+   the one item on the page that is about the month still being traded was
+   printed as a report on a month that closed five weeks ago. The trailing
+   qualifier was the only thing holding the meaning together, and it is exactly
+   what gemini-3.5-flash dropped when it rewrote the sentence:
+
+       "Optimize TIKTOK campaigns ... recorded over 2026-08-01 to 2026-08-06."
+
+   THE FIX, IN THREE PARTS
+
+     1. The sentence now OPENS with the forward period - days_left and the month
+        name - so the instruction is unambiguously about days not yet traded.
+     2. The current window is stated as an explicit cutoff, "month-to-date
+        through 6/09", instead of being left implicit.
+     3. The prior window is named as what it is - "the same days last month" -
+        and its dates are parenthesised, so they read as the baseline rather
+        than as the recording period.
+
+   The qualifier "- the same-period read, not the full prior month" is retired:
+   "the same days last month (1/08-6/08)" says it in the sentence's own grammar,
+   which is far harder for a rewrite to drop without the loss being visible.
+
+   NOTHING NUMERIC CHANGED. Every metric expression below is byte-identical to
+   the previous version. The only new substitutions are date and day-count
+   formatting drawn from columns dash_action_context already publishes.
+
+   DATE ANCHOR NOTE. days_left comes from dash_page2_mtd.data_as_of; sp_cur_end
+   comes from dash_run_params.report_date. They are the same date on every run
+   (verified 2026-09-06 = 2026-09-06), and the assertion in config guards it. If
+   they ever drift, this sentence would say "through 6/09 ... remaining 25 days"
+   while the run-rate items beside it say 24, so the assertion fails the run
+   rather than shipping two different as-of dates on one page.
+   ======================================================================== */
+perf_mtd_media AS (
+  SELECT
+     c.page, 'PERFORMANCE' AS section, c.owner
+    ,CONCAT(c.country, ' / ', c.level_2, ' LOWLIGHT') AS source_item
+    ,c.impact_vnd, c.item_type, ABS(c.impact_vnd) * 0.5 AS sort_key
+    ,FORMAT('Set the %s plan on %s for the remaining %d days of %s: month-to-date through %s, spend %s and clicks %s->%s (%s%%) against NMV %s (%s%%), vs the same days last month (%s-%s)'
+       -- %1  ads channel carrying the move, from the att_up/att_down pick in
+       --     dash_action_context. UNCHANGED.
+       ,IFNULL(c.attention_ads_channel,'paid media')
+       -- %2  the sub-channel the action lands on. UNCHANGED.
+       ,IFNULL(c.level_3, c.level_2)
+       -- %3  NEW - days still to trade this month. dash_page2_mtd:
+       --     DATE_DIFF(LAST_DAY(month_start), data_as_of, DAY) => 24.
+       --     This is what makes the sentence an instruction, not a report.
+       ,c.days_left
+       -- %4  NEW - month name of the CURRENT window => 'September'.
+       --     sp_cur_end, never sp_prv_end: the month being traded.
+       ,FORMAT_DATE('%B', c.sp_cur_end)
+       -- %5  NEW - the MTD cutoff, stated explicitly => '6/09'.
+       --     sp_cur_end = mtd_end = dash_run_params.report_date.
+       --     LTRIM strips the space %e pads single-digit days with.
+       ,LTRIM(FORMAT_DATE('%e/%m', c.sp_cur_end))
+       -- %6  paid spend, prior->current, one shared unit. UNCHANGED.
+       ,`marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(c.attention_spend_prv, c.attention_spend_cur)
+       -- %7  %8  clicks prior -> current on that channel. UNCHANGED.
+       ,FORMAT('%d', CAST(IFNULL(c.attention_clicks_prv,0) AS INT64))
+       ,FORMAT('%d', CAST(IFNULL(c.attention_clicks_cur,0) AS INT64))
+       -- %9  click change, whole percent. UNCHANGED.
+       ,FORMAT('%.0f', IFNULL(c.attention_clicks_pct,0)*100)
+       -- %10 same-period NMV, prior->current. UNCHANGED.
+       ,`marine-cycle-484213-b4.reportdb.fn_fmt_money_pair`(c.sp_nmv_prv, c.sp_nmv_cur)
+       -- %11 NMV change, whole percent. UNCHANGED.
+       ,FORMAT('%.0f', IFNULL(c.sp_nmv_pct,0)*100)
+       -- %12 %13 THE TWO DATES THAT CAUSED THE DEFECT. Same columns as before -
+       --     sp_prv_start / sp_prv_end, the prior month's same-day window - but
+       --     now short-form and inside "the same days last month (...)", where
+       --     they can only be read as the baseline. Previously they sat after
+       --     "over", which reads as the recording period.
+       ,LTRIM(FORMAT_DATE('%e/%m', c.sp_prv_start))
+       ,LTRIM(FORMAT_DATE('%e/%m', c.sp_prv_end))
+     ) AS action_text
+  FROM ctx c
+  WHERE c.page='PAGE2_MTD' AND c.item_type='LOWLIGHT' AND c.media_readable
+),
+
+traffic AS (
+  SELECT
+     c.page, 'PERFORMANCE' AS section, 'Data / BI Lead' AS owner
+    ,CONCAT(c.country, ' / ', c.level_2, ' LOWLIGHT') AS source_item
+    ,c.impact_vnd, c.item_type, ABS(c.impact_vnd) * 0.4 AS sort_key
+    ,CASE
+       WHEN c.level_1 = 'Store' THEN
+         FORMAT('Instrument door-count footfall for %s / %s: bills moved %d->%d, and with no footfall capture in any source system a visit loss and a conversion loss still cannot be told apart on the shop floor',
+           c.country, c.level_2, c.driver_l3_bills_prv, c.driver_l3_bills_cur)
+       ELSE
+         FORMAT('Bring %s seller-centre traffic into the pipeline for %s / %s: bills moved %d->%d and no media or session data exists for this sub-channel, so its %s move can only be read as a trade result',
+           IFNULL(c.level_3,'the marketplace'), c.country, c.level_2,
+           c.driver_l3_bills_prv, c.driver_l3_bills_cur,
+           `marine-cycle-484213-b4.reportdb.fn_fmt_money`(c.impact_vnd))
+     END AS action_text
+  FROM ctx c
+  WHERE c.page='PAGE1_WOW'
+    AND c.item_type='LOWLIGHT'
+    AND c.traffic_verdict IN ('NOT_INSTRUMENTED','MEDIA_NOT_AT_THIS_LEVEL_3','MEDIA_TOO_SMALL_TO_READ')
+    AND IFNULL(c.driver_l3_bills_cur,0) < IFNULL(c.driver_l3_bills_prv,0)
+),
+
+stock AS (
+  SELECT 'BOTH' AS page, 'STOCK' AS section, 'Kho/Vận Hành' AS owner,
+         CONCAT('Stock list: ', list_name) AS source_item,
+         rank_value AS impact_vnd, 'LOWLIGHT' AS item_type, rank_value AS sort_key,
+         CASE list_name
+           WHEN 'OVERSTOCK' THEN FORMAT('Put %s (%s) into a clearance or transfer plan: %d units on hand, %s weeks of cover, %s%% sell-through and %s of value tied up',
+             variation_code, IFNULL(product_name,'unnamed'), CAST(units_on_hand AS INT64),
+             FORMAT('%.0f', cover_weeks), FORMAT('%.0f', sell_through_rate*100), `marine-cycle-484213-b4.reportdb.fn_fmt_money`(rank_value))
+           WHEN 'UNDERSTOCK' THEN FORMAT('Raise a replenishment order for %s (%s) now: only %d units left at %s weeks cover with %s%% sell-through, putting %s of four-week demand at risk',
+             variation_code, IFNULL(product_name,'unnamed'), CAST(units_on_hand AS INT64),
+             FORMAT('%.1f', cover_weeks), FORMAT('%.0f', sell_through_rate*100), `marine-cycle-484213-b4.reportdb.fn_fmt_money`(rank_value))
+           WHEN 'DISCONTINUED' THEN FORMAT('Clear discontinued %s (%s): %d units still held at %s retail value with %s%% sell-through and no active sales plan',
+             variation_code, IFNULL(product_name,'unnamed'), CAST(units_on_hand AS INT64),
+             `marine-cycle-484213-b4.reportdb.fn_fmt_money`(rank_value), FORMAT('%.0f', sell_through_rate*100))
+           ELSE FORMAT('Secure supply for trending %s (%s): units sold rose %d->%d week on week with %s weeks of cover remaining',
+             variation_code, IFNULL(product_name,'unnamed'),
+             CAST(IFNULL(units_prv,0) AS INT64), CAST(IFNULL(units_cur,0) AS INT64), FORMAT('%.1f', cover_weeks))
+         END AS action_text
+  FROM ${ref("dash_stock_lists")}
+  WHERE rank_in_list <= 2
+),
+
+u AS (
+  SELECT page, section, owner, source_item, impact_vnd, item_type, sort_key, action_text FROM perf
+  WHERE action_text IS NOT NULL
+  UNION ALL SELECT page, section, owner, source_item, impact_vnd, item_type, sort_key, action_text FROM perf_mtd_media
+  UNION ALL SELECT page, section, owner, source_item, impact_vnd, item_type, sort_key, action_text FROM traffic
+  UNION ALL SELECT page, section, owner, source_item, impact_vnd, item_type, sort_key, action_text FROM stock
+),
+
+/* the deterministic spine: exactly what this table produced before */
+spine AS (
+  SELECT * EXCEPT(rn, sort_key, action_text)
+        ,action_text AS action_text_sql
+        ,rn          AS action_no
+  FROM (
+    SELECT u.*, ROW_NUMBER() OVER (PARTITION BY page, section ORDER BY sort_key DESC) AS rn
+    FROM u
+  )
+  WHERE rn <= 5
+),
+
+/* ===========================================================================
+   The model call. One per action line - at most 13 rows, so this is a rounding
+   error against ai_exec_run's 28 GB/month.
+
+   max_output_tokens is 8192 with thinking_budget 1024. Gemini 3 counts internal
+   reasoning against the output ceiling, and the page-narrative call is currently
+   quarantined precisely because a 10,000 ceiling was swallowed by 9,598 thinking
+   tokens, leaving the model 43 to write with. See
+   ai-generate-thinking-token-defect.md. This call is sized so that cannot
+   happen: the reasoning is capped and the remaining ~7,000 is far more than two
+   sentences need.
+   ======================================================================== */
+gen AS (
+  SELECT
+     s.*
+    ,AI.GENERATE(
+       CONCAT(
+'Rewrite one retail action item for a board report. Return polished English and natural Vietnamese.\n\n',
+'ABSOLUTE RULES\n',
+'1. Every number stays EXACTLY as written - same digits, decimals, signs and units. Never round,\n',
+'   reformat, convert or drop one. Do not add a number that is not in the input.\n',
+'2. Store names, platform names, channel names and product codes stay EXACTLY as written, in both\n',
+'   languages. Never translate or transliterate them (Store Nguyen Trai, Emsphere, Shopee, TIKTOK,\n',
+'   META, GOOGLE_ADS, V26011696, YERI DRESS).\n',
+'3. Never write that spend, ads, paid media or a campaign drove, generated, delivered, produced or\n',
+'   caused revenue. The attribution cannot support it. State the figures side by side instead\n',
+'   ("alongside", "while").\n',
+'4. Do NOT add an owner tag or any [bracket] prefix - that is added afterwards.\n',
+'5. One sentence, imperative, an instruction someone can act on. Max 60 words.\n',
+'6. KEEP THE TIME FRAMING. If the input is written about days STILL TO COME - "for the\n',
+'   remaining N days of <month>" - the output must stay about days still to come, in BOTH\n',
+'   languages. Never turn it into a past or completed period. Keep every "month-to-date\n',
+'   through <date>", "for the remaining N days" and "the same days last month" phrase, and\n',
+'   keep each date attached to the clause it is in. A date after "through" is the CUTOFF of\n',
+'   the period being traded now; a date in "the same days last month (...)" is the BASELINE.\n',
+'   Never swap them, never merge them, and never write that the figures were "recorded over"\n',
+'   or "measured during" the baseline dates.\n\n',
+'VIETNAMESE: natural professional retail Vietnamese with full diacritics, not a word-for-word\n',
+'translation. Use standard trade vocabulary (doanh thu, hoa don, gia tri gio hang, ton kho,\n',
+'ty le ban ra, chi tieu, tien do, chi phi quang cao, luot nhap, luot truy cap).\n\n',
+'ACTION TO REWRITE:\n', s.action_text_sql
+       ),
+       connection_id => 'marine-cycle-484213-b4.asia-southeast1.agent_platform_ai',
+       endpoint      => 'gemini-3.5-flash',
+       model_params  => JSON '{"generation_config":{"max_output_tokens":8192,"temperature":0.3,"thinking_config":{"thinking_budget":1024}}}',
+       output_schema => 'action_en STRING, action_vi STRING'
+     ) AS ai
+  FROM spine s
+),
+
+/* ===========================================================================
+   Five deterministic guards. Nothing here trusts the model.
+   ======================================================================== */
+guard AS (
+  SELECT
+     g.* EXCEPT(ai)
+    ,g.ai.action_en AS ai_en
+    ,g.ai.action_vi AS ai_vi
+    ,CAST(JSON_VALUE(g.ai.full_response,'$.usage_metadata.prompt_token_count')     AS INT64) AS prompt_tokens
+    ,CAST(JSON_VALUE(g.ai.full_response,'$.usage_metadata.candidates_token_count') AS INT64) AS output_tokens
+    ,CAST(JSON_VALUE(g.ai.full_response,'$.usage_metadata.thoughts_token_count')   AS INT64) AS thinking_tokens
+
+    -- 1. numeric fidelity. Codes stripped first so SKUs are not read as figures,
+    --    leading zeros normalised - same treatment sp_dash_review_ai applies.
+    ,ARRAY(
+       SELECT x FROM UNNEST(ARRAY(SELECT DISTINCT IF(LTRIM(a,'0')='','0',LTRIM(a,'0'))
+         FROM UNNEST(REGEXP_EXTRACT_ALL(
+           REGEXP_REPLACE(CONCAT(IFNULL(g.ai.action_en,''),' ',IFNULL(g.ai.action_vi,'')),
+             r'[A-Za-z]+[0-9]+[A-Za-z0-9\-]*', ' '), r'[0-9]+(?:\.[0-9]+)?')) a)) x
+       WHERE x NOT IN UNNEST(ARRAY(SELECT DISTINCT IF(LTRIM(b,'0')='','0',LTRIM(b,'0'))
+         FROM UNNEST(REGEXP_EXTRACT_ALL(
+           REGEXP_REPLACE(g.action_text_sql, r'[A-Za-z]+[0-9]+[A-Za-z0-9\-]*', ' '),
+           r'[0-9]+(?:\.[0-9]+)?')) b))
+     ) AS invented_numbers
+
+    -- 2. every product code in the SQL text must survive into BOTH languages
+    ,(SELECT LOGICAL_AND(REGEXP_CONTAINS(IFNULL(g.ai.action_en,''), code)
+                     AND REGEXP_CONTAINS(IFNULL(g.ai.action_vi,''), code))
+      FROM UNNEST(IFNULL(REGEXP_EXTRACT_ALL(g.action_text_sql, r'\b[A-Z][0-9]{6,}[0-9A-Z\-]*\b'), [])) code)
+      IS NOT FALSE                                                        AS codes_kept
+
+    -- 3. the same causal regex det_causal_claim_ok enforces
+    ,NOT REGEXP_CONTAINS(LOWER(CONCAT(IFNULL(g.ai.action_en,''),' ',IFNULL(g.ai.action_vi,''))),
+        r'\b(spend|spending|advertising|ad spend|ads|paid media|campaigns?)\b[^.]{0,40}\b(drove|driving|generated|delivered|produced|caused|resulted in)\b')
+                                                                          AS causal_ok
+
+    -- 4. the Vietnamese must actually carry diacritics
+    ,REGEXP_CONTAINS(IFNULL(g.ai.action_vi,''),
+      r'[àáâãèéêìíòóôõùúýăđĩũơưạảấầẩẫậắằẳẵặẹẻẽếềểễệỉịọỏốồổỗộớờởỡợụủứừửữựỳỵỷỹ]')
+                                                                          AS diacritics_ok
+
+    -- 5. non-empty and not a truncated stub
+    ,LENGTH(IFNULL(g.ai.action_en,'')) >= 40 AS en_present
+    ,LENGTH(IFNULL(g.ai.action_vi,'')) >= 40 AS vi_present
+
+    -- 6. TIME FRAMING - added 2026-09-07.
+    --    The PAGE2 items are instructions for days not yet traded. A model can
+    --    keep every number and still invert the instruction: "for the remaining
+    --    24 days" -> "over the last 24 days" passes guard 1 untouched, because
+    --    24 is in both texts. Rule 1 cannot see meaning, only digits.
+    --
+    --    Asymmetric on purpose. English is checked POSITIVELY - the input is
+    --    English, prompt rule 6 tells the model to keep the phrase, so requiring
+    --    'remaining' back is safe. Vietnamese is checked NEGATIVELY, for the
+    --    absence of a past-period marker, because there are several correct ways
+    --    to render "remaining" (24 ngay con lai / phan con lai cua thang) and a
+    --    positive list would fall perfectly good Vietnamese back to English -
+    --    which is the one thing the Vietnamese report cannot afford.
+    ,(NOT REGEXP_CONTAINS(LOWER(g.action_text_sql), r'\bremaining\b'))
+       OR (REGEXP_CONTAINS(LOWER(IFNULL(g.ai.action_en,'')), r'\bremaining\b')
+           AND NOT REGEXP_CONTAINS(LOWER(IFNULL(g.ai.action_vi,'')),
+                 r'vừa qua|đã qua|trước đây|tuần qua|tháng qua|trong quá khứ'))
+                                                                          AS frame_ok
+
+    -- 7. DATE TOKENS - added 2026-09-07.
+    --    Every d/mm token in the SQL sentence must survive into both languages.
+    --    Guard 1 already authorises the digits 6, 9, 1 and 8, so a model that
+    --    wrote "through 6/08" instead of "through 6/09" - swapping the cutoff for
+    --    the baseline, which is precisely the defect being fixed - would pass
+    --    numeric fidelity. This checks the tokens themselves, not their digits.
+    --    Word boundaries so '6/09' does not satisfy itself from inside '16/09'.
+    ,(SELECT LOGICAL_AND(REGEXP_CONTAINS(IFNULL(g.ai.action_en,''), CONCAT(r'\b', tok, r'\b'))
+                     AND REGEXP_CONTAINS(IFNULL(g.ai.action_vi,''), CONCAT(r'\b', tok, r'\b')))
+      FROM UNNEST(IFNULL(REGEXP_EXTRACT_ALL(g.action_text_sql, r'\b[0-9]{1,2}/[0-9]{2}\b'), [])) tok)
+      IS NOT FALSE                                                        AS dates_kept
+  FROM gen g
+),
+
+verdict AS (
+  SELECT
+     x.*
+    ,ARRAY_LENGTH(x.invented_numbers) = 0 AS numbers_ok
+    ,CASE
+       WHEN NOT x.en_present OR NOT x.vi_present     THEN 'empty_or_truncated'
+       WHEN ARRAY_LENGTH(x.invented_numbers) > 0     THEN 'invented_number'
+       WHEN NOT x.codes_kept                         THEN 'code_dropped'
+       WHEN NOT x.causal_ok                          THEN 'causal_claim'
+       WHEN NOT x.diacritics_ok                      THEN 'no_diacritics'
+       WHEN NOT x.frame_ok                           THEN 'frame_flipped'
+       WHEN NOT x.dates_kept                         THEN 'date_dropped'
+       ELSE 'ok'
+     END                                             AS gen_status
+  FROM guard x
+)
+
+SELECT
+   page, section, owner, source_item, impact_vnd, item_type
+
+   -- the model's English where it passed every guard, the SQL sentence otherwise
+  ,IF(v.gen_status = 'ok', v.ai_en, v.action_text_sql)                    AS action_text
+   -- Vietnamese for the report. On a guard failure this falls back to the
+   -- English SQL sentence rather than NULL, so section 4 always renders
+   -- something true; vi_source says which the reader is looking at.
+  ,IF(v.gen_status = 'ok', v.ai_vi, v.action_text_sql)                    AS action_text_vi
+  ,v.action_text_sql
+  ,action_no
+
+   -- the owner tag is wrapped here, never by the model
+  ,CONCAT('[', owner, '] - ', IF(v.gen_status = 'ok', v.ai_en, v.action_text_sql)) AS action_item
+  ,CONCAT('[', owner, '] - ', IF(v.gen_status = 'ok', v.ai_vi, v.action_text_sql)) AS action_item_vi
+
+   -- provenance, so a reader can always tell what wrote the sentence in front of them
+  ,v.gen_status
+  ,IF(v.gen_status = 'ok', 'ai', 'sql')                                   AS text_source
+  ,IF(v.gen_status = 'ok', 'ai_vi', 'en_fallback')                        AS vi_source
+  ,v.numbers_ok, v.codes_kept, v.causal_ok, v.diacritics_ok, v.frame_ok, v.dates_kept
+  ,v.invented_numbers
+  ,'gemini-3.5-flash'                                                     AS model_endpoint
+  ,v.prompt_tokens, v.output_tokens, v.thinking_tokens
+  ,CURRENT_TIMESTAMP()                                                    AS generated_at
+FROM verdict v

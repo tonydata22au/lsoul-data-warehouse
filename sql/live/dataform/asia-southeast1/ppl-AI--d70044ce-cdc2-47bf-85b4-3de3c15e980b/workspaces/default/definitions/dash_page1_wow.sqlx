@@ -1,0 +1,119 @@
+config {
+  type:"table",
+  name:"dash_page1_wow",
+  dependencyTargets:[{
+    name:"dash_base_order_day"
+  }, {
+    name:"dash_run_params"
+  }],
+}
+/* -----------------------------------------------------------------------------
+   3. dash_page1_wow   -- PAGE 1, SECTION 2 (trend view) + diagnosis engine
+   -----------------------------------------------------------------------------
+   Grain: country x level_1 x level_2.
+   bills = COUNT(DISTINCT order_id). Verified in Phase 1 that no order spans more
+   than one channel, so this is exact and additive at every rollup.
+   basket = nmv / bills.
+
+   DIAGNOSIS. The five rows of the agreed decision table are matched EXACTLY and
+   tagged diagnosis_source='decision_table'. The table covers 5 of 27 possible
+   direction combinations; anything else is tagged 'derived' and described from
+   the metrics rather than forced into a row it does not fit ("never state a
+   diagnosis the metrics don't support").
+
+   DRIVER. bills if |%d bills| >= 2x |%d basket|; basket if the reverse;
+   otherwise 'mixed' -- i.e. when both moved and neither dominates we say mixed
+   instead of picking one.
+
+   TRAFFIC. Not present in any source. The conversion-rate rule cannot be
+   evaluated, so wherever bills fell we say so explicitly rather than skipping it.
+   ----------------------------------------------------------------------------- */
+WITH p AS (SELECT * FROM ${ref("dash_run_params")}),
+agg AS (
+  SELECT
+     b.country, b.level_1, b.level_2
+    ,SUM(IF(b.period_date BETWEEN p.cur_wk_start AND p.cur_wk_end, b.nmv, 0)) AS nmv_cur
+    ,SUM(IF(b.period_date BETWEEN p.prv_wk_start AND p.prv_wk_end, b.nmv, 0)) AS nmv_prv
+    ,SUM(IF(b.period_date BETWEEN p.cur_wk_start AND p.cur_wk_end, b.gmv, 0)) AS gmv_cur
+    ,SUM(IF(b.period_date BETWEEN p.prv_wk_start AND p.prv_wk_end, b.gmv, 0)) AS gmv_prv
+    ,COUNT(DISTINCT IF(b.period_date BETWEEN p.cur_wk_start AND p.cur_wk_end, b.order_id, NULL)) AS bills_cur
+    ,COUNT(DISTINCT IF(b.period_date BETWEEN p.prv_wk_start AND p.prv_wk_end, b.order_id, NULL)) AS bills_prv
+    ,SUM(IF(b.period_date BETWEEN p.cur_wk_start AND p.cur_wk_end, b.units_sold, 0)) AS units_cur
+    ,SUM(IF(b.period_date BETWEEN p.prv_wk_start AND p.prv_wk_end, b.units_sold, 0)) AS units_prv
+  FROM ${ref("dash_base_order_day")} b
+  CROSS JOIN p
+  WHERE b.period_date BETWEEN p.prv_wk_start AND p.cur_wk_end
+  GROUP BY 1,2,3
+),
+calc AS (
+  SELECT a.*, p.flat_band, p.cur_wk_start, p.cur_wk_end, p.prv_wk_start, p.prv_wk_end
+    ,SAFE_DIVIDE(a.nmv_cur, a.bills_cur)                    AS basket_cur
+    ,SAFE_DIVIDE(a.nmv_prv, a.bills_prv)                    AS basket_prv
+    ,a.nmv_cur - a.nmv_prv                                  AS delta_nmv
+    ,SAFE_DIVIDE(a.nmv_cur, NULLIF(a.nmv_prv,0)) - 1        AS pct_nmv
+    ,SAFE_DIVIDE(a.gmv_cur, NULLIF(a.gmv_prv,0)) - 1        AS pct_gmv
+    ,SAFE_DIVIDE(a.bills_cur, NULLIF(a.bills_prv,0)) - 1    AS pct_bills
+    ,SAFE_DIVIDE(SAFE_DIVIDE(a.nmv_cur,a.bills_cur),
+        NULLIF(SAFE_DIVIDE(a.nmv_prv,a.bills_prv),0)) - 1   AS pct_basket
+  FROM agg a CROSS JOIN p
+),
+dir AS (
+  SELECT c.*
+    ,CASE WHEN pct_nmv    IS NULL THEN 'n/a' WHEN ABS(pct_nmv)   <flat_band THEN 'flat' WHEN pct_nmv   >0 THEN 'up' ELSE 'down' END AS rev_dir
+    ,CASE WHEN pct_bills  IS NULL THEN 'n/a' WHEN ABS(pct_bills) <flat_band THEN 'flat' WHEN pct_bills >0 THEN 'up' ELSE 'down' END AS bills_dir
+    ,CASE WHEN pct_basket IS NULL THEN 'n/a' WHEN ABS(pct_basket)<flat_band THEN 'flat' WHEN pct_basket>0 THEN 'up' ELSE 'down' END AS basket_dir
+    ,CASE WHEN ABS(IFNULL(pct_bills,0)) >= 2*ABS(IFNULL(pct_basket,0)) THEN 'bills'
+          WHEN ABS(IFNULL(pct_basket,0)) >= 2*ABS(IFNULL(pct_bills,0)) THEN 'basket'
+          ELSE 'mixed' END AS driver
+  FROM calc c
+)
+SELECT
+   cur_wk_start, cur_wk_end, prv_wk_start, prv_wk_end
+  ,country, level_1, level_2
+  ,nmv_prv, nmv_cur, delta_nmv, pct_nmv
+  ,gmv_prv, gmv_cur, pct_gmv
+  ,bills_prv, bills_cur, pct_bills
+  ,basket_prv, basket_cur, pct_basket
+  ,units_prv, units_cur
+  ,rev_dir, bills_dir, basket_dir, driver
+  -- ---------- decision table (exact matches) ----------
+  ,CASE
+     WHEN rev_dir='down' AND bills_dir='down' AND basket_dir='flat' THEN 'Fewer customers'
+     WHEN rev_dir='down' AND bills_dir='up'   AND basket_dir='down' THEN 'Weak cross-sell / upsell'
+     WHEN rev_dir='down' AND bills_dir='down' AND basket_dir='up'   THEN 'Volume loss masked by mix'
+     WHEN rev_dir='up'   AND bills_dir='down' AND basket_dir='up'   THEN 'Growth is fragile - fewer, bigger baskets'
+     WHEN rev_dir='up'   AND bills_dir='up'   AND basket_dir='down' THEN 'Growth via discounting'
+     -- ---------- derived (not in the table) ----------
+     WHEN rev_dir='flat' THEN 'No material revenue movement'
+     WHEN rev_dir='up'   AND driver='bills'  THEN 'Growth driven by transaction volume'
+     WHEN rev_dir='up'   AND driver='basket' THEN 'Growth driven by basket size'
+     WHEN rev_dir='up'                       THEN 'Growth from both volume and basket - driver is mixed'
+     WHEN rev_dir='down' AND driver='bills'  THEN 'Decline driven by fewer transactions'
+     WHEN rev_dir='down' AND driver='basket' THEN 'Decline driven by smaller baskets'
+     WHEN rev_dir='down'                     THEN 'Decline from both volume and basket - driver is mixed'
+     ELSE 'Insufficient comparison data'
+   END AS diagnosis
+  ,CASE
+     WHEN (rev_dir='down' AND bills_dir='down' AND basket_dir='flat')
+       OR (rev_dir='down' AND bills_dir='up'   AND basket_dir='down')
+       OR (rev_dir='down' AND bills_dir='down' AND basket_dir='up')
+       OR (rev_dir='up'   AND bills_dir='down' AND basket_dir='up')
+       OR (rev_dir='up'   AND bills_dir='up'   AND basket_dir='down')
+     THEN 'decision_table' ELSE 'derived' END AS diagnosis_source
+  ,CASE
+     WHEN rev_dir='down' AND bills_dir='down' AND basket_dir='flat' THEN 'Check traffic (footfall for Store, sessions for Ecom)'
+     WHEN rev_dir='down' AND bills_dir='up'   AND basket_dir='down' THEN 'Review attach rate, bundles, staff training'
+     WHEN rev_dir='down' AND bills_dir='down' AND basket_dir='up'   THEN 'Check conversion and price/discount mix'
+     WHEN rev_dir='up'   AND bills_dir='down' AND basket_dir='up'   THEN 'Check customer acquisition pipeline'
+     WHEN rev_dir='up'   AND bills_dir='up'   AND basket_dir='down' THEN 'Check margin and discount depth'
+     WHEN rev_dir='down' AND driver='basket' THEN 'Check discount depth and product mix'
+     WHEN rev_dir='down' AND driver='bills'  THEN 'Check traffic and conversion'
+     WHEN rev_dir='down'                     THEN 'Check traffic, conversion and discount mix'
+     ELSE 'No action required' END AS action_trigger
+  -- traffic is unavailable everywhere; say so rather than silently skipping the rule
+  ,bills_dir='down' AS bills_declined
+  ,IF(bills_dir='down',
+      'Traffic/footfall not available in source - cannot separate traffic loss from conversion loss. Verify traffic first.',
+      NULL) AS traffic_note
+FROM dir
+WHERE nmv_cur > 0 OR nmv_prv > 0

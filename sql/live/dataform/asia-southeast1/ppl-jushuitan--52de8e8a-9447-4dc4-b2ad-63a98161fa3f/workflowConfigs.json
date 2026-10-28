@@ -1,0 +1,12 @@
+[
+  {
+    "name": "projects/marine-cycle-484213-b4/locations/asia-southeast1/repositories/52de8e8a-9447-4dc4-b2ad-63a98161fa3f/workflowConfigs/ppl_jushuitan",
+    "releaseConfig": "projects/marine-cycle-484213-b4/locations/asia-southeast1/repositories/52de8e8a-9447-4dc4-b2ad-63a98161fa3f/releaseConfigs/default",
+    "invocationConfig": {
+      "queryPriority": "INTERACTIVE",
+      "executionMode": "DEFAULT"
+    },
+    "cronSchedule": "0 8 * * *",
+    "timeZone": "Asia/Saigon"
+  }
+]

@@ -1,11 +1,6 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_sale_wholeshale_vn_product`(
-  number_year_back INT64 -- number of years back from current year
-)
-AS 
---Store VN
---SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_sale_wholeshale_vn_product`(0)
-(
-  SELECT DISTINCT
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_sale_wholeshale_vn_product(number_year_back INT64)
+AS
+SELECT DISTINCT
       o.order_id,
       order_date,
       oi.product_id,
@@ -44,7 +39,7 @@ AS
     WHERE 1=1
       --AND DATE_TRUNC(o.inserted_at, YEAR) >='2026-01-01' 
       --AND DATE_TRUNC(o.inserted_at, day) between '2025-11-01' and '2025-11-30'
-      --AND o.order_id = '30654'
+      --AND o.order_id = 'REDACTED_EXAMPLE'
       AND DATE_TRUNC(o.inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)
       AND o.order_id NOT IN (SELECT CAST(order_id AS STRING) FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` WHERE is_duplicate = 1)
       AND oi.cart_quantity > 0
@@ -52,5 +47,4 @@ AS
       AND status_name NOT IN ('canceled','returned')
       AND o.order_sources_name LIKE ('Wholesale')
       AND LEFT(variation_display_id,2) NOT IN ('TG','HT','HN','HH','TD','TU')
-      order by 2 desc, 4, 5
-)
+      order by 2 desc, 4, 5;

@@ -1,0 +1,29 @@
+CREATE TABLE `marine-cycle-484213-b4.google_ads.p_ads_Campaign_6757483582`
+(
+  campaign_id INT64 OPTIONS(description="The ID of the campaign."),
+  customer_id INT64 OPTIONS(description="The ID of the customer."),
+  bidding_strategy_name STRING OPTIONS(description="The name of the bidding strategy. All bidding strategies within an account must be named distinctly. The length of this string should be between 1 and 255, inclusive, in UTF-8 bytes, (trimmed)."),
+  campaign_advertising_channel_sub_type STRING OPTIONS(description="Optional refinement to `advertising_channel_type`. Must be a valid sub-type of the parent channel type. Can be set only when creating campaigns. After campaign is created, the field can not be changed."),
+  campaign_advertising_channel_type STRING OPTIONS(description="The primary serving target for ads within the campaign. The targeting options can be refined in `network_settings`. This field is required and should not be empty when creating new campaigns. Can be set only when creating campaigns. After the campaign is created, the field can not be changed."),
+  campaign_bidding_strategy STRING OPTIONS(description="Portfolio bidding strategy used by campaign."),
+  campaign_bidding_strategy_type STRING OPTIONS(description="The type of bidding strategy. A bidding strategy can be created by setting either the bidding scheme to create a standard bidding strategy or the `bidding_strategy` field to create a portfolio bidding strategy. This field is read-only."),
+  campaign_budget_amount_micros INT64 OPTIONS(description="The amount of the budget, in the local currency for the account. Amount is specified in micros, where one million is equivalent to one currency unit. Monthly spend is capped at 30.4 times this amount."),
+  campaign_budget_explicitly_shared BOOL OPTIONS(description="Specifies whether the budget is explicitly shared. Defaults to true if unspecified in a create operation. If true, the budget was created with the purpose of sharing across one or more campaigns. If false, the budget was created with the intention of only being used with a single campaign. The budget's name and status will stay in sync with the campaign's name and status. Attempting to share the budget with a second campaign will result in an error. A non-shared budget can become an explicitly shared. The same operation must also assign the budget a name. A shared campaign budget can never become non-shared."),
+  campaign_budget_has_recommended_budget BOOL OPTIONS(description="Indicates whether there is a recommended budget for this campaign budget. This field is read-only."),
+  campaign_budget_period STRING OPTIONS(description="Period over which to spend the budget. Defaults to DAILY if not specified."),
+  campaign_budget_recommended_budget_amount_micros INT64 OPTIONS(description="The recommended budget amount. If no recommendation is available, this will be set to the budget amount. Amount is specified in micros, where one million is equivalent to one currency unit. This field is read-only."),
+  campaign_budget_total_amount_micros INT64 OPTIONS(description="The lifetime amount of the budget, in the local currency for the account. Amount is specified in micros, where one million is equivalent to one currency unit."),
+  campaign_campaign_budget STRING OPTIONS(description="The budget of the campaign."),
+  campaign_end_date_time DATETIME OPTIONS(description="The last day and time of the campaign in serving customer's timezone in \"yyyy-MM-dd HH:mm:ss\" format. Set the time component to 23:59:59 for daily granularity, time granularity is only supported for some campaign types. On create, defaults to running indefinitely. To set an existing campaign to run indefinitely, clear this field."),
+  campaign_experiment_type STRING OPTIONS(description="The type of campaign: normal, draft, or experiment."),
+  campaign_manual_cpc_enhanced_cpc_enabled BOOL OPTIONS(description="Whether bids are to be enhanced based on conversion optimizer data."),
+  campaign_maximize_conversion_value_target_roas FLOAT64 OPTIONS(description="The target return on ad spend (ROAS) option. If set, the bid strategy will maximize revenue while averaging the target return on ad spend. If the target ROAS is high, the bid strategy may not be able to spend the full budget. If the target ROAS is not set, the bid strategy will aim to achieve the highest possible ROAS for the budget."),
+  campaign_name STRING OPTIONS(description="The name of the campaign. This field is required and should not be empty when creating new campaigns. It must not contain any null (code point 0x0), NL line feed (code point 0xA) or carriage return (code point 0xD) characters."),
+  campaign_percent_cpc_enhanced_cpc_enabled BOOL OPTIONS(description="Adjusts the bid for each auction upward or downward, depending on the likelihood of a conversion. Individual bids may exceed cpc_bid_ceiling_micros, but the average bid amount for a campaign should not."),
+  campaign_serving_status STRING OPTIONS(description="The ad serving status of the campaign."),
+  campaign_start_date_time DATETIME OPTIONS(description="The date and time when campaign started in serving. The timestamp is in the customer's time zone and in yyyy-MM-dd HH:mm:ss format. Set the time component to 00:00:00 for daily granularity, time granularity is only supported for some campaign types."),
+  campaign_status STRING OPTIONS(description="The status of the campaign. When a new campaign is added, the status defaults to ENABLED."),
+  campaign_tracking_url_template STRING OPTIONS(description="The URL template for constructing a tracking URL."),
+  campaign_url_custom_parameters STRING OPTIONS(description="The list of mappings used to substitute custom parameter tags in a `tracking_url_template`, `final_urls`, or `mobile_final_urls`.")
+)
+PARTITION BY DATE(_PARTITIONTIME);

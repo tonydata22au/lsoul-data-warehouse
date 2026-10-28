@@ -1,0 +1,12 @@
+[
+  {
+    "name": "projects/marine-cycle-484213-b4/locations/asia-southeast1/repositories/b819e444-052a-4734-ade7-fcc930cbcb56/workflowConfigs/ppl_pancake_orders",
+    "releaseConfig": "projects/marine-cycle-484213-b4/locations/asia-southeast1/repositories/b819e444-052a-4734-ade7-fcc930cbcb56/releaseConfigs/default",
+    "invocationConfig": {
+      "queryPriority": "INTERACTIVE",
+      "executionMode": "DEFAULT"
+    },
+    "cronSchedule": "20 8 * * *",
+    "timeZone": "Asia/Saigon"
+  }
+]

@@ -1,15 +1,5 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_ads_spend_summary`(
-  i_number_year_back INT64
-) 
-AS (
-/*
-Author: Toan Pham
-Date: 10/06/2026
-
-TESTING: SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_ads_spend_summary`(0) 
-
-*/
-
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_ads_spend_summary(i_number_year_back INT64)
+AS
 WITH META_ADS AS (
 SELECT 
 day 
@@ -406,6 +396,4 @@ SELECT
     ,SUM(total_customers) AS total_customers
 FROM order_ads
 GROUP BY 1,2,3,4,5,6
-ORDER BY 1 DESC
-
-);
+ORDER BY 1 DESC;

@@ -1,0 +1,269 @@
+config {
+  type:"table",
+  schema:"reportdb",
+  name:"dash_material_points",
+  description:"The single set of movements the narrative may discuss. Trade points (P##) plus, new, marketing points (M##). Adds a data-completeness gate on the pace rule, a volatility rule, and spend/efficiency rules."
+}
+
+/* -----------------------------------------------------------------------------
+   dash_material_points  -- THE single source of truth for consistency
+   -----------------------------------------------------------------------------
+   Requirement 4 says one narrative across four views. That only holds if the set
+   of points is decided ONCE, in SQL, and every field draws from the same set.
+   This table is that set. exec_summary, highlights, lowlights, trends and actions
+   all reference these point_ids, so a point cannot appear in one field and be
+   missing from another.
+
+   THRESHOLDS, exactly as specified:
+     R1  WoW change >= +/-15% on nmv, bills or aov
+     R2  metric outside the trailing 8-week range
+     R3  pace off by >= 10pp
+
+   R4 IS AN ADDITION, AND IT IS ON BY DEFAULT - read this before trusting the output.
+   Applying R1-R3 literally to the live week SUPPRESSES the largest decline on the
+   page. VN Offline Store moved -14% NMV, -2% bills, -12% AOV, all inside the 15%
+   band and inside its 8-week range, with pace +5pp. Strictly it is immaterial.
+   It is also -216m VND, the biggest absolute mover of the week.
+   Meanwhile TL Offline Store at +12m VND (+4%) IS material under R2, because it
+   edged above its 8-week range.
+   So a literal reading sends the BOD a +12m item and hides a -216m one.
+   R4 therefore admits the top N movers by absolute VND regardless of percentage.
+   Set p_enable_abs_rule = FALSE in dash_materiality_config for literal compliance.
+
+   ---------------------------------------------------------------------------
+   WHAT IS NEW
+
+   R3 IS NOW GATED ON DATA COMPLETENESS. The monthly build truncates a channel at
+   MIN(data_complete_through), so on the first days of a month CHINA / TQ Ecommerce
+   reads zero MTD against a full-month target purely because Tmall and Taobao
+   upload weekly. Measured 2026-09-02: 737.5m VND of real, loaded Douyin and
+   Xiaohongshu revenue discarded, giving a -6.7pp pace gap that describes the
+   upload schedule, not the trade. R3 now requires is_month_data_complete, so a
+   channel is never called out for missing pace on days it was never read.
+
+   R5 VOLATILITY. R1's flat 15% band is blind to how noisy a channel normally is.
+   nmv_zscore_8wk asks whether the move is large against that channel's own
+   history, which catches a quiet channel breaking pattern and stops a habitually
+   swingy one being reported every week.
+
+   R6 / R7 MARKETING. Paid media and site traffic now reach the narrative.
+   R6 fires on a spend move, R7 on an efficiency or traffic move - deliberately
+   separate, because a spend cut with ROAS held and a ROAS collapse with spend
+   flat are different stories needing different actions. Marketing points carry
+   M## ids and point_type = 'MARKETING'; trade points keep P## exactly as before,
+   so anything keyed on the P-series is unaffected.
+   ----------------------------------------------------------------------------- */
+WITH p AS (SELECT * FROM ${ref("dash_run_params")}),
+cfg AS (SELECT * FROM ${ref("dash_materiality_config")}),
+
+-- level_3 is rolled up to level_2 for the point list; attribution detail already
+-- lives in dash_action_context and is joined in later.
+cur2 AS (
+  SELECT t.country, t.level_1, t.level_2,
+         SUM(t.nmv) AS nmv, SUM(t.bills) AS bills,
+         SAFE_DIVIDE(SUM(t.nmv), NULLIF(SUM(t.bills),0))   AS aov,
+         SAFE_DIVIDE(SUM(t.units), NULLIF(SUM(t.bills),0)) AS units_per_bill,
+         MIN(t.nmv_min_8wk) AS nmv_min_8wk, MAX(t.nmv_max_8wk) AS nmv_max_8wk,
+         AVG(t.nmv_avg_8wk) AS nmv_avg_8wk,
+         MIN(t.aov_min_8wk) AS aov_min_8wk, MAX(t.aov_max_8wk) AS aov_max_8wk,
+         MIN(t.bills_min_8wk) AS bills_min_8wk, MAX(t.bills_max_8wk) AS bills_max_8wk,
+         MAX(t.hist_weeks_available) AS hist_weeks_available,
+         -- weighted so the rollup reflects where the money is, not a flat mean
+         SAFE_DIVIDE(SUM(t.nmv_zscore_8wk * t.nmv), NULLIF(SUM(t.nmv),0)) AS nmv_zscore_8wk,
+         LOGICAL_AND(IFNULL(t.is_week_complete, TRUE))     AS is_week_complete,
+         SUM(t.nmv_excluded_by_cutoff)                     AS nmv_excluded_by_cutoff
+  FROM ${ref("dash_trend_weekly")} t
+  WHERE t.is_current_week
+  GROUP BY 1,2,3
+),
+prv AS (
+  SELECT country, level_2,
+         SUM(nmv) AS nmv_p, SUM(bills) AS bills_p,
+         SAFE_DIVIDE(SUM(nmv), NULLIF(SUM(bills),0)) AS aov_p
+  FROM ${ref("dash_trend_weekly")} t
+  CROSS JOIN p
+  WHERE t.week_start = p.prv_wk_start
+  GROUP BY 1,2
+),
+mth AS (
+  SELECT country, level_2, attainment_vs_full_month, expected_pace, pace_gap_pp,
+         nmv AS mtd_nmv, month_target, is_low_target, is_target_invalid, is_unmapped_channel,
+         is_month_data_complete, days_covered, days_elapsed,
+         nmv_run_rate_full_month, projected_attainment, required_vs_recent_ratio
+  FROM ${ref("dash_trend_monthly")}
+  WHERE is_current_month
+),
+
+-- ---------- marketing, current and prior week, rolled to level_2 -------------
+mkt_cur AS (
+  SELECT country, level_2,
+         SUM(spend) AS spend, SUM(clicks) AS clicks, SUM(delivery) AS delivery,
+         SUM(sessions) AS sessions, SUM(nmv) AS mkt_nmv, SUM(bills) AS mkt_bills,
+         SAFE_DIVIDE(SUM(nmv), NULLIF(SUM(spend),0)) AS roas_channel,
+         STRING_AGG(DISTINCT ads_channels, '+') AS ads_channels,
+         LOGICAL_OR(has_traffic) AS has_traffic
+  FROM ${ref("dash_trend_marketing_weekly")}
+  WHERE is_current_week
+  GROUP BY 1,2
+),
+mkt_prv AS (
+  SELECT t.country, t.level_2,
+         SUM(t.spend) AS spend_p, SUM(t.sessions) AS sessions_p,
+         SAFE_DIVIDE(SUM(t.nmv), NULLIF(SUM(t.spend),0)) AS roas_p
+  FROM ${ref("dash_trend_marketing_weekly")} t
+  CROSS JOIN p
+  WHERE t.week_start = p.prv_wk_start
+  GROUP BY 1,2
+),
+
+calc AS (
+  SELECT
+     c.country, c.level_1, c.level_2
+    ,c.nmv, v.nmv_p, c.nmv - IFNULL(v.nmv_p,0) AS delta_nmv
+    ,SAFE_DIVIDE(c.nmv,   NULLIF(v.nmv_p,0))   - 1 AS pct_nmv
+    ,SAFE_DIVIDE(c.bills, NULLIF(v.bills_p,0)) - 1 AS pct_bills
+    ,SAFE_DIVIDE(c.aov,   NULLIF(v.aov_p,0))   - 1 AS pct_aov
+    ,c.bills, v.bills_p, c.aov, v.aov_p, c.units_per_bill
+    ,c.nmv_min_8wk, c.nmv_max_8wk, c.nmv_avg_8wk, c.aov_min_8wk, c.aov_max_8wk
+    ,c.bills_min_8wk, c.bills_max_8wk, c.hist_weeks_available
+    ,c.nmv_zscore_8wk, c.is_week_complete, c.nmv_excluded_by_cutoff
+    ,m.attainment_vs_full_month, m.expected_pace, m.pace_gap_pp
+    ,m.mtd_nmv, m.month_target, m.is_low_target, m.is_target_invalid, m.is_unmapped_channel
+    ,IFNULL(m.is_month_data_complete, TRUE) AS is_month_data_complete
+    ,m.projected_attainment, m.required_vs_recent_ratio
+    ,k.spend, k.roas_channel, k.sessions, k.ads_channels, k.clicks, k.delivery
+    ,kp.spend_p, kp.roas_p, kp.sessions_p
+    ,SAFE_DIVIDE(k.spend,        NULLIF(kp.spend_p,0))    - 1 AS pct_spend
+    ,SAFE_DIVIDE(k.roas_channel, NULLIF(kp.roas_p,0))     - 1 AS pct_roas
+    ,SAFE_DIVIDE(k.sessions,     NULLIF(kp.sessions_p,0)) - 1 AS pct_sessions
+  FROM cur2 c
+  LEFT JOIN prv v      ON v.country  = c.country AND v.level_2  = c.level_2
+  LEFT JOIN mth m      ON m.country  = c.country AND m.level_2  = c.level_2
+  LEFT JOIN mkt_cur k  ON k.country  = c.country AND k.level_2  = c.level_2
+  LEFT JOIN mkt_prv kp ON kp.country = c.country AND kp.level_2 = c.level_2
+),
+
+flagged AS (
+  SELECT calc.*, cfg.*,
+    -- R1
+    (ABS(IFNULL(pct_nmv,0))   >= cfg.pct_threshold
+     OR ABS(IFNULL(pct_bills,0)) >= cfg.pct_threshold
+     OR ABS(IFNULL(pct_aov,0))   >= cfg.pct_threshold)                       AS r1_pct
+    -- R2 (only where enough history exists to make a range meaningful)
+    -- r2_min_abs_vnd defaults to 0, so behaviour is unchanged until it is set. It exists
+    -- because R2 has no magnitude floor: on 2026-09-04 it admitted VN Wholesales as P07 on a
+    -- 0% WoW move worth 6.4m VND, and the consistency gate then quarantined PAGE2_MTD for
+    -- omitting it - the only point the model dropped. A floor of 25e6 would have excluded it.
+    ,(hist_weeks_available >= cfg.min_hist_weeks
+      AND ABS(IFNULL(delta_nmv,0)) >= cfg.r2_min_abs_vnd
+      AND (nmv > nmv_max_8wk OR nmv < nmv_min_8wk
+        OR aov > aov_max_8wk OR aov < aov_min_8wk
+        OR bills > bills_max_8wk OR bills < bills_min_8wk))                   AS r2_range
+    -- R3 - now requires the month to be readable before pace is judged
+    ,(ABS(IFNULL(pace_gap_pp,0)) >= cfg.pace_threshold_pp
+      AND NOT IFNULL(is_low_target,FALSE)
+      AND NOT IFNULL(is_target_invalid,FALSE)
+      AND is_month_data_complete)                                             AS r3_pace
+    -- R5 volatility, relative to the channel's own 8-week spread
+    ,(cfg.p_enable_zscore_rule
+      AND hist_weeks_available >= cfg.min_hist_weeks
+      AND ABS(IFNULL(nmv_zscore_8wk,0)) >= cfg.zscore_threshold)              AS r5_volatility
+    -- R6 spend move, only where the channel spends enough to matter
+    ,(cfg.p_enable_marketing_rule
+      AND IFNULL(spend,0) >= cfg.spend_min_vnd
+      AND ABS(IFNULL(pct_spend,0)) >= cfg.spend_pct_threshold)                AS r6_spend
+    -- R7 efficiency or traffic move
+    ,(cfg.p_enable_marketing_rule
+      AND IFNULL(spend,0) >= cfg.spend_min_vnd
+      AND (ABS(IFNULL(pct_roas,0))     >= cfg.roas_pct_threshold
+        OR ABS(IFNULL(pct_sessions,0)) >= cfg.traffic_pct_threshold))         AS r7_efficiency
+    ,ROW_NUMBER() OVER (ORDER BY ABS(calc.delta_nmv) DESC)                    AS abs_rank
+  FROM calc CROSS JOIN cfg
+),
+
+-- Trade points keep the P-series and its original ordering exactly.
+trade AS (
+  SELECT
+     'TRADE' AS point_type
+    ,FORMAT('P%02d', ROW_NUMBER() OVER (ORDER BY ABS(delta_nmv) DESC)) AS point_id
+    ,f.*
+  FROM flagged f
+  WHERE r1_pct OR r2_range OR r3_pace OR r5_volatility
+     OR (p_enable_abs_rule AND abs_rank <= abs_rule_top_n
+         AND ABS(delta_nmv) >= abs_rule_min_vnd)
+),
+-- Marketing points are a parallel series so the P-numbering never shifts.
+--
+-- DEFECT FIXED 2026-09-04. This previously selected from `flagged` with no regard for what
+-- the trade series had already taken, so a channel that moved on BOTH dimensions was emitted
+-- twice. Measured on the 2026-09-04 run: VIETNAM / VN Online appeared as P02 and M01 with an
+-- identical -118.4m delta_nmv. That pushed the point count from 7 to 8 and made the
+-- consistency gate demand two sentences about one channel - a contributing cause of both
+-- pages quarantining that morning.
+--
+-- A channel is now admitted here only when marketing is its ONLY story. Where a trade rule
+-- also fired, its paid-media figures ride on the trade line instead (see the PAID MEDIA
+-- suffix in v_dash_ai_facts_core) and material_reason already names the spend or efficiency
+-- move, so nothing is lost.
+marketing AS (
+  SELECT
+     'MARKETING' AS point_type
+    ,FORMAT('M%02d', ROW_NUMBER() OVER (ORDER BY ABS(IFNULL(spend,0) - IFNULL(spend_p,0)) DESC)) AS point_id
+    ,f.*
+  FROM flagged f
+  WHERE (r6_spend OR r7_efficiency)
+    AND NOT (r1_pct OR r2_range OR r3_pace OR r5_volatility
+             OR (p_enable_abs_rule AND abs_rank <= abs_rule_top_n
+                 AND ABS(delta_nmv) >= abs_rule_min_vnd))
+)
+
+SELECT
+   u.point_id
+  ,u.point_type
+  ,u.country, u.level_1, u.level_2
+  ,u.nmv, u.nmv_p, u.delta_nmv, u.pct_nmv
+  ,u.bills, u.bills_p, u.pct_bills
+  ,u.aov, u.aov_p, u.pct_aov, u.units_per_bill
+  ,u.nmv_min_8wk, u.nmv_max_8wk, u.nmv_avg_8wk, u.hist_weeks_available
+  ,u.nmv_zscore_8wk
+  ,u.mtd_nmv, u.month_target, u.attainment_vs_full_month, u.expected_pace, u.pace_gap_pp
+  ,u.projected_attainment, u.required_vs_recent_ratio
+  ,u.is_month_data_complete, u.is_week_complete, u.nmv_excluded_by_cutoff
+  ,u.spend, u.spend_p, u.pct_spend
+  ,u.roas_channel, u.roas_p, u.pct_roas
+  ,u.sessions, u.sessions_p, u.pct_sessions
+  ,u.clicks, u.delivery, u.ads_channels
+  ,u.r1_pct, u.r2_range, u.r3_pace, u.r5_volatility, u.r6_spend, u.r7_efficiency
+  ,(u.p_enable_abs_rule AND u.abs_rank <= u.abs_rule_top_n
+      AND ABS(u.delta_nmv) >= u.abs_rule_min_vnd)                             AS r4_absolute
+  ,CASE WHEN u.point_type = 'MARKETING'
+          THEN IF(IFNULL(u.pct_roas,0) >= 0, 'HIGHLIGHT', 'LOWLIGHT')
+        ELSE IF(u.delta_nmv >= 0, 'HIGHLIGHT', 'LOWLIGHT') END                AS item_type
+  -- human-readable reason, carried into the prompt so the model can explain WHY
+  ,ARRAY_TO_STRING(ARRAY(
+     SELECT x FROM UNNEST([
+        IF(u.r1_pct,   FORMAT('WoW move >=15%% (NMV %s%%, bills %s%%, AOV %s%%)',
+                       FORMAT('%.0f', IFNULL(u.pct_nmv,0)*100), FORMAT('%.0f', IFNULL(u.pct_bills,0)*100),
+                       FORMAT('%.0f', IFNULL(u.pct_aov,0)*100)), NULL),
+        IF(u.r2_range, FORMAT('outside trailing 8-week range (%s-%s mVND, now %s)',
+                       FORMAT('%.0f', u.nmv_min_8wk/1e6), FORMAT('%.0f', u.nmv_max_8wk/1e6),
+                       FORMAT('%.0f', u.nmv/1e6)), NULL),
+        IF(u.r3_pace,  FORMAT('pace off by %spp (%s%% of month target at %s%% elapsed)',
+                       FORMAT('%.0f', u.pace_gap_pp), FORMAT('%.0f', u.attainment_vs_full_month*100),
+                       FORMAT('%.0f', u.expected_pace*100)), NULL),
+        IF(u.r5_volatility, FORMAT('%s SD from its own 8-week mean',
+                       FORMAT('%.1f', u.nmv_zscore_8wk)), NULL),
+        IF(u.r6_spend, FORMAT('paid spend %s%% WoW (%s -> %s mVND on %s)',
+                       FORMAT('%.0f', IFNULL(u.pct_spend,0)*100), FORMAT('%.0f', IFNULL(u.spend_p,0)/1e6),
+                       FORMAT('%.0f', IFNULL(u.spend,0)/1e6), IFNULL(u.ads_channels,'paid media')), NULL),
+        IF(u.r7_efficiency, FORMAT('efficiency moved (roas_channel %s%%, sessions %s%%)',
+                       FORMAT('%.0f', IFNULL(u.pct_roas,0)*100),
+                       FORMAT('%.0f', IFNULL(u.pct_sessions,0)*100)), NULL),
+        IF(NOT u.is_month_data_complete,
+           'MTD figures incomplete - channel truncated at its completeness cutoff', NULL),
+        IF(u.p_enable_abs_rule AND u.abs_rank <= u.abs_rule_top_n AND ABS(u.delta_nmv) >= u.abs_rule_min_vnd
+           AND NOT (u.r1_pct OR u.r2_range OR u.r3_pace OR u.r5_volatility),
+           FORMAT('largest absolute mover (%s mVND) though below percentage thresholds',
+                       FORMAT('%.0f', u.delta_nmv/1e6)), NULL)
+     ]) x WHERE x IS NOT NULL), '; ')                                          AS material_reason
+FROM (SELECT * FROM trade UNION ALL SELECT * FROM marketing) u

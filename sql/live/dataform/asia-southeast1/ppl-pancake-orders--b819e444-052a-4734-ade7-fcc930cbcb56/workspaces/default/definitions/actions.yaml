@@ -1,0 +1,13 @@
+actions:
+- operation:
+    name: insert_core_orders_items
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: stg_order
+    filename: query_1781839194193.sql
+- operation:
+    name: insert_core_orders_returned
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: stg_orders_returned
+    filename: query_1778925538950.sql

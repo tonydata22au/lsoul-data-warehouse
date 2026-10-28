@@ -1,79 +1,5 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_performance_snapshot_ai_generated_v2`(
-  i_type INT64                    -- reserved, not currently used by any branch below
-  ,i_number_year_back INT64       -- 0: current year only
-)
-AS 
-/*
-Author: Toan Pham
-Date: 04/08/2026
-Comment: 
-
-Endpoint Name	Model / Use Case	Description
-gemini-2.5-flash (Default):	Fast & Balanced	The default model if no endpoint is specified. Optimized for high-throughput speed, cost efficiency, and general multimodal tasks.
-gemini-1.5-flash:	Lightweight & High Speed
-
-Testing:
-  
-  SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_performance_snapshot_ai_generated_v2` (0,1);
-
-
-====================================================================
- AI-Generated Performance Insights: MTD & WoW reports
- Built on top of fn_performance_snapshot (v2)
-====================================================================
-
-WHAT THIS DOES
-  1. v_performance_base    - dedupes fn_performance_snapshot's product-grain
-                              output down to (country, level_1, level_2, level_3)
-                              for the current month + last 2 weeks, reusing the
-                              weekly/monthly/target/growth columns the function
-                              already computes (no re-aggregation of raw sales).
-  2. v_mtd_prompt           - ONE row: a text prompt summarizing overall +
-                              country + channel MTD figures.
-  3. v_wow_prompt           - ONE row: same, for the last fully completed week
-                              vs the week before it.
-  4. v_ai_report_prompts    - unions the two into a single 2-row dataset.
-  5. performance_ai_insights - calls AI.GENERATE() ONCE PER ROW (so twice total,
-                              not once per data row) and writes summary /
-                              highlights / lowlights to a table.
-
-WHY NOT CALL AI.GENERATE() PER SNAPSHOT ROW
-  fn_performance_snapshot returns product-grain rows. Calling AI.GENERATE()
-  directly against that would mean one Gemini call per product/channel
-  combination -- expensive, and it produces disjointed per-row commentary
-  instead of one coherent report. Pre-aggregating into a single prompt per
-  report type keeps this to 2 LLM calls total, matching Google's own guidance
-  to send the AI functions as few rows as possible.
-
-ASSUMPTIONS -- please validate before running
-  - Revenue figures from fn_performance_snapshot are already normalized to a
-    single currency (VND-equivalent, based on the *_vn column naming in v1).
-    Adjust the currency wording in the prompt text below if that's wrong.
-  - WoW compares the LAST FULLY COMPLETED week vs the week before it, not the
-    current in-progress week. Change the filter in v_wow_prompt if you'd
-    rather report on the partial current week.
-  - MTD achievement/target is only available at the OVERALL (company-wide)
-    grain, matching what fn_performance_snapshot actually tracks -- the
-    underlying target plan table only carries daily targets per channel
-    (level_2), not a monthly target per country/channel. Country-level MTD
-    figures below are revenue-only (no target column) for that reason.
-  - connection_id is commented out, which uses end-user credentials (EUC) to
-    call Vertex AI -- the identity running this needs the Vertex AI User IAM
-    role. If you use a BigQuery Cloud Resource connection instead, uncomment
-    connection_id and set it, e.g. 'us.your_vertex_connection'.
-  - endpoint is set to gemini-2.5-pro for stronger narrative reasoning over
-    numeric data; swap to gemini-2.5-flash for a cheaper/faster option.
-
-USAGE
-  Run this whole script top to bottom once to create the views + table.
-  Re-run just the final CREATE OR REPLACE TABLE statement (Section 5) on a
-  schedule (e.g. daily via a BigQuery scheduled query) to refresh insights --
-  the views underneath will pull fresh data automatically.
-*/
-(
--- =========================================================================
--- 1. Deduped channel-grain base: current MTD + last 2 weeks only
--- =========================================================================
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_performance_snapshot_ai_generated_v2(i_type INT64, i_number_year_back INT64)
+AS
 WITH v_performance_base AS (
   SELECT DISTINCT
     period_date, week_start, month_start, country, level_1, level_2, level_3,
@@ -329,5 +255,4 @@ SELECT
   ai_result.highlights AS highlights,
   ai_result.lowlights  AS lowlights,
   CURRENT_TIMESTAMP()  AS generated_at
-FROM ai_generated
-)
+FROM ai_generated;

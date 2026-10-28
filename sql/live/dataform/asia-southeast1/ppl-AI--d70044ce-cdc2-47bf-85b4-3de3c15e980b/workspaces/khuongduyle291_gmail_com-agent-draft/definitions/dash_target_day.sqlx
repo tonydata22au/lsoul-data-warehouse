@@ -1,0 +1,64 @@
+config {
+  type:"table",
+  name:"dash_target_day",
+}
+WITH base_target AS (
+  SELECT DISTINCT
+         DATE(sale_date) AS sale_date,
+         DATE_TRUNC(sale_date, WEEK(MONDAY))  AS week_start,
+         DATE_TRUNC(sale_date, MONTH) AS month_start,
+         DATE_TRUNC(sale_date, YEAR) AS year_start,
+         sale_country AS country,
+         sale_channel_type AS level_1_raw,
+         IFNULL(sale_channel_type,channel) AS level_1, 
+         channel AS level_2,
+         metric_value_daily AS target_revenue_per_level_2
+  FROM `marine-cycle-484213-b4.reportdb.sale_plan_2026_daily`
+  WHERE is_for_daily_report = 1
+)
+,base_target_2 AS (
+  SELECT
+  * EXCEPT (target_revenue_per_level_2)
+  --DAILY
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY sale_date ORDER BY sale_date) AS target_by_date
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY sale_date,country ORDER BY sale_date) AS target_by_date_country
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY sale_date,level_1 ORDER BY sale_date) AS target_by_date_level_1
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY sale_date,level_2 ORDER BY sale_date) AS target_by_date_level_2
+  
+  --WEEK
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY week_start ORDER BY week_start) AS target_by_week
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY week_start,country  ORDER BY week_start) AS target_by_week_country
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY week_start,level_1  ORDER BY week_start) AS target_by_week_level_1
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY week_start,level_2  ORDER BY week_start) AS target_by_week_level_2
+  --MONTH
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY month_start ORDER BY month_start) AS target_by_month
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY month_start,country ORDER BY month_start) AS target_by_month_country
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY month_start,level_1 ORDER BY month_start) AS target_by_month_level_1
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY month_start,level_2 ORDER BY month_start) AS target_by_month_level_2 
+  
+  --YEAR
+  ,SUM(target_revenue_per_level_2) OVER (PARTITION BY year_start ORDER BY year_start) AS target_by_year
+
+  FROM base_target
+)
+
+SELECT
+  * EXCEPT (level_1_raw,target_by_date_level_2,target_by_week_level_2,target_by_month_level_2)
+  ,target_by_date_level_2 AS day_target_revenue
+  ,target_by_week_level_2  AS week_target_revenue
+  ,target_by_month_level_2 AS month_target_revenue
+  ,target_by_year AS year_target_revenue
+  ,level_1_raw IS NULL                  AS is_unmapped_channel
+  ,level_2 = 'VN Online'                AS is_multi_country_target
+  -- #5 REVISED: threshold is on FULL-MONTH target < 500m VND, not MTD < 100m.
+  -- Rationale: MTD target grows through the month, so a fixed MTD threshold
+  -- suppresses different channels on day 3 vs day 28. Full-month target is
+  -- stable. 500m sits in the natural gap between TQ Pop-up (min month 302m)
+  -- and TL Offline Store (min month 622m), and permanently isolates
+  -- VN Wholesales (105-175m every month) without ever touching a real
+  -- trading channel. Verified against all 10 channels x 12 months of FY2026.
+  ,target_by_month_level_2 < 500e6         AS is_low_target
+  ,target_by_month_level_2 <= 0            AS is_target_invalid
+FROM base_target_2 
+
+

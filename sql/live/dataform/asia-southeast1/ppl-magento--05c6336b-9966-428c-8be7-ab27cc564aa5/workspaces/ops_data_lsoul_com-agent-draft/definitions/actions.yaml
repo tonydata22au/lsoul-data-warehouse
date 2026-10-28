@@ -1,0 +1,8 @@
+actions:
+- operation:
+    name: Query task (1783259619621)
+    dataset: magento
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: stg_magento_order
+    filename: query_1783259619621.sql

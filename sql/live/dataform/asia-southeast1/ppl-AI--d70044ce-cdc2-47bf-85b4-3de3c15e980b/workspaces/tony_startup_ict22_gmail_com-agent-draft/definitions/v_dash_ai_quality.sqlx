@@ -1,0 +1,21 @@
+config {
+  type:"view",
+  name:"v_dash_ai_quality",
+  dependencyTargets:[{
+    name:"ai_exec_run"
+  }],
+}
+SELECT
+   guidance_version
+  ,page
+  ,COUNT(*)                                   AS generations
+  ,ROUND(AVG(IF(det_pass, 1, 0))*100, 1)      AS det_pass_rate_pct
+  ,ROUND(AVG(judge_avg), 2)                   AS judge_avg
+  ,ROUND(AVG(judge_shape_adherence), 2)       AS avg_shape
+  ,ROUND(AVG(judge_vi_naturalness), 2)        AS avg_vi_naturalness
+  ,COUNTIF(verdict='QUARANTINE')              AS quarantined
+  ,COUNTIF(attempt_no > 1)                    AS retries
+  ,MIN(reviewed_at)                           AS first_seen
+  ,MAX(reviewed_at)                           AS last_seen
+FROM `marine-cycle-484213-b4.reportdb.dash_ai_review`
+GROUP BY guidance_version, page

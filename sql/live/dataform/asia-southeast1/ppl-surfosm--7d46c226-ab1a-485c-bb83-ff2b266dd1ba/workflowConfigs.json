@@ -1,0 +1,12 @@
+[
+  {
+    "name": "projects/marine-cycle-484213-b4/locations/asia-southeast1/repositories/7d46c226-ab1a-485c-bb83-ff2b266dd1ba/workflowConfigs/ppl_surfosm",
+    "releaseConfig": "projects/marine-cycle-484213-b4/locations/asia-southeast1/repositories/7d46c226-ab1a-485c-bb83-ff2b266dd1ba/releaseConfigs/default",
+    "invocationConfig": {
+      "queryPriority": "INTERACTIVE",
+      "executionMode": "DEFAULT"
+    },
+    "cronSchedule": "45 7 * * *",
+    "timeZone": "Asia/Saigon"
+  }
+]

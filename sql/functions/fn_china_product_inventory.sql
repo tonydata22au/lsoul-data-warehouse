@@ -1,19 +1,5 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_china_product_inventory`(
-  i_type  INT64 --0: Group by variation code , 1: them detail Kho
-  ,i_number_year_back INT64 -- number of years back from current year
-  
-)
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_china_product_inventory(i_type INT64, i_number_year_back INT64)
 AS
-/*
-Author: Toan Pham
-Date: 04/06/2026
-Comment: get inventory of each variation/product in each warehouses
-call:
-    SELECT distinct variation_code FROM `marine-cycle-484213-b4.reportdb.fn_china_product_inventory`(0,'') where product_code is null order by 1
-    SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_china_product_inventory`(0,0) ORDER BY 2 DESC
-
-*/
-( 
 WITH stock_store_cn AS (
 SELECT 
 ROW_NUMBER() OVER (PARTITION BY skuCode, warehouse_name, DATE(updated_at) ORDER BY proc_date desc) AS sort_num
@@ -182,8 +168,4 @@ SELECT
 CASE WHEN ROW_NUMBER() OVER (PARTITION BY variation_code, Kho ORDER BY updated_at DESC) = 1 THEN 1 ELSE 0 END AS is_latest
 ,*
 FROM master_table
-WHERE i_type = 1
-)
-
-
-  
+WHERE i_type = 1;

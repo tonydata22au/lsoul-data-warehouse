@@ -1,0 +1,332 @@
+{
+  "updated": [
+    {
+      "path": "sql/functions/fn_product_variations_warehouse_summary.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_product_variations_warehouse_summary",
+      "source": "sql/live/bigquery/reportdb/routines/fn_product_variations_warehouse_summary.sql"
+    },
+    {
+      "path": "sql/functions/fn_thailand_product_inventory.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_thailand_product_inventory",
+      "source": "sql/live/bigquery/reportdb/routines/fn_thailand_product_inventory.sql"
+    },
+    {
+      "path": "sql/functions/fn_product_inventory_overseas_shipment.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_product_inventory_overseas_shipment",
+      "source": "sql/live/bigquery/reportdb/routines/fn_product_inventory_overseas_shipment.sql"
+    },
+    {
+      "path": "sql/functions/fn_ads_spend_summary.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_ads_spend_summary",
+      "source": "sql/live/bigquery/reportdb/routines/fn_ads_spend_summary.sql"
+    },
+    {
+      "path": "sql/functions/fn_assortment_seg_cont_by_warehouse.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_assortment_seg_cont_by_warehouse",
+      "source": "sql/live/bigquery/reportdb/routines/fn_assortment_seg_cont_by_warehouse.sql"
+    },
+    {
+      "path": "sql/functions/fn_sale_ecom_thai.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_thai_v2",
+      "source": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_thai_v2.sql",
+      "publication_edits": [
+        "Removed example identifiers from comments"
+      ]
+    },
+    {
+      "path": "sql/functions/fn_assortment_seg_cont.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_assortment_seg_cont",
+      "source": "sql/live/bigquery/reportdb/routines/fn_assortment_seg_cont.sql"
+    },
+    {
+      "path": "sql/functions/fn-order_master.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_order_master",
+      "source": "sql/live/bigquery/reportdb/routines/fn_order_master.sql"
+    },
+    {
+      "path": "sql/functions/fn_sale_wholeshale_vn.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_sale_wholeshale_vn_v2",
+      "source": "sql/live/bigquery/reportdb/routines/fn_sale_wholeshale_vn_v2.sql",
+      "publication_edits": [
+        "Removed example identifiers from comments"
+      ]
+    },
+    {
+      "path": "sql/functions/fn_sale_online_thai.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_sale_online_thai_v2",
+      "source": "sql/live/bigquery/reportdb/routines/fn_sale_online_thai_v2.sql",
+      "publication_edits": [
+        "Removed example identifiers from comments"
+      ]
+    },
+    {
+      "path": "sql/functions/fn_sale_ecom_taobao_tmall_manual_china.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_taobao_tmall_manual_china_v2",
+      "source": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_taobao_tmall_manual_china_v2.sql"
+    },
+    {
+      "path": "sql/functions/fn_sale_store_vn.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_sale_store_vn_v2",
+      "source": "sql/live/bigquery/reportdb/routines/fn_sale_store_vn_v2.sql",
+      "publication_edits": [
+        "Removed example identifiers from comments"
+      ]
+    },
+    {
+      "path": "sql/functions/fn_marketing_website_traffic_analysis.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_marketing_website_traffic_analysis",
+      "source": "sql/live/bigquery/reportdb/routines/fn_marketing_website_traffic_analysis.sql"
+    },
+    {
+      "path": "sql/functions/fn_sale_online_vn.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_sale_online_vn_v2",
+      "source": "sql/live/bigquery/reportdb/routines/fn_sale_online_vn_v2.sql",
+      "publication_edits": [
+        "Removed example identifiers from comments"
+      ]
+    },
+    {
+      "path": "sql/functions/fn_performance_snapshot_v2.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_performance_snapshot_v2",
+      "source": "sql/live/bigquery/reportdb/routines/fn_performance_snapshot_v2.sql"
+    },
+    {
+      "path": "sql/functions/fn_ads_spend_ggads.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_ads_spend_ggads",
+      "source": "sql/live/bigquery/reportdb/routines/fn_ads_spend_ggads.sql"
+    },
+    {
+      "path": "sql/functions/fn_china_product_inventory.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_china_product_inventory",
+      "source": "sql/live/bigquery/reportdb/routines/fn_china_product_inventory.sql"
+    },
+    {
+      "path": "sql/functions/fn_sale_wholeshale_vn_product.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_sale_wholeshale_vn_product",
+      "source": "sql/live/bigquery/reportdb/routines/fn_sale_wholeshale_vn_product.sql",
+      "publication_edits": [
+        "Removed example identifiers from comments"
+      ]
+    },
+    {
+      "path": "sql/functions/fn_performance_snapshot_ai_generated_v2.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_performance_snapshot_ai_generated_v2",
+      "source": "sql/live/bigquery/reportdb/routines/fn_performance_snapshot_ai_generated_v2.sql"
+    },
+    {
+      "path": "sql/functions/fn_dim_sku.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_dim_sku",
+      "source": "sql/live/bigquery/reportdb/routines/fn_dim_sku.sql"
+    },
+    {
+      "path": "sql/functions/fn_product_inventory_summary_v2.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_product_inventory_summary_v2",
+      "source": "sql/live/bigquery/reportdb/routines/fn_product_inventory_summary_v2.sql"
+    },
+    {
+      "path": "sql/functions/fn_sale_ecom_vn.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_vn_v2",
+      "source": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_vn_v2.sql",
+      "publication_edits": [
+        "Removed example identifiers from comments"
+      ]
+    },
+    {
+      "path": "sql/functions/fn_ads_metrics_daily.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_ads_metrics_daily",
+      "source": "sql/live/bigquery/reportdb/routines/fn_ads_metrics_daily.sql"
+    },
+    {
+      "path": "sql/functions/fn_sale_ecom_china.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_china_v2",
+      "source": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_china_v2.sql"
+    },
+    {
+      "path": "sql/functions/fn_sale_website_product.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_sale_website_product",
+      "source": "sql/live/bigquery/reportdb/routines/fn_sale_website_product.sql"
+    },
+    {
+      "path": "sql/functions/fn_sale_website.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_sale_website",
+      "source": "sql/live/bigquery/reportdb/routines/fn_sale_website.sql"
+    },
+    {
+      "path": "sql/functions/fn_ads_media_daily.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_ads_media_daily",
+      "source": "sql/live/bigquery/reportdb/routines/fn_ads_media_daily.sql"
+    },
+    {
+      "path": "sql/functions/fn_sale_store_china.sql",
+      "object": "marine-cycle-484213-b4.reportdb.fn_sale_store_china_v2",
+      "source": "sql/live/bigquery/reportdb/routines/fn_sale_store_china_v2.sql"
+    },
+    {
+      "path": "sql/procedures/sp_jushuitan_core_order_insert.sql",
+      "object": "marine-cycle-484213-b4.jushuitan.sp_jushuitan_core_order_insert",
+      "source": "sql/live/bigquery/jushuitan/routines/sp_jushuitan_core_order_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_data_insert_log.sql",
+      "object": "marine-cycle-484213-b4.sysdb.sp_data_insert_log",
+      "source": "sql/live/bigquery/sysdb/routines/sp_data_insert_log.sql"
+    },
+    {
+      "path": "sql/procedures/sp_core_order_insert.sql",
+      "object": "marine-cycle-484213-b4.core_pancake.sp_core_order_insert",
+      "source": "sql/live/bigquery/core_pancake/routines/sp_core_order_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_dash_run_dashboard.sql",
+      "object": "marine-cycle-484213-b4.reportdb.sp_dash_run_dashboard",
+      "source": "sql/live/bigquery/reportdb/routines/sp_dash_run_dashboard.sql"
+    },
+    {
+      "path": "sql/procedures/sp_pancake_core_variations_insert.sql",
+      "object": "marine-cycle-484213-b4.core_pancake.sp_pancake_core_variations_insert",
+      "source": "sql/live/bigquery/core_pancake/routines/sp_pancake_core_variations_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_core_warehouse_transfers_insert.sql",
+      "object": "marine-cycle-484213-b4.core_pancake.sp_core_warehouse_transfers_insert",
+      "source": "sql/live/bigquery/core_pancake/routines/sp_core_warehouse_transfers_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_dash_approve_guidance.sql",
+      "object": "marine-cycle-484213-b4.reportdb.sp_dash_approve_guidance",
+      "source": "sql/live/bigquery/reportdb/routines/sp_dash_approve_guidance.sql"
+    },
+    {
+      "path": "sql/procedures/sp_dianplus_core_inventory_insert.sql",
+      "object": "marine-cycle-484213-b4.dianplus.sp_dianplus_core_inventory_insert",
+      "source": "sql/live/bigquery/dianplus/routines/sp_dianplus_core_inventory_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_magento_core_order_insert.sql",
+      "object": "marine-cycle-484213-b4.magento.sp_magento_core_order_insert",
+      "source": "sql/live/bigquery/magento/routines/sp_magento_core_order_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_pancake_core_inventory_histories_insert.sql",
+      "object": "marine-cycle-484213-b4.core_pancake.sp_pancake_core_inventory_histories_insert",
+      "source": "sql/live/bigquery/core_pancake/routines/sp_pancake_core_inventory_histories_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_surfosm_core_order_item_insert.sql",
+      "object": "marine-cycle-484213-b4.surfosm.sp_surfosm_core_order_item_insert",
+      "source": "sql/live/bigquery/surfosm/routines/sp_surfosm_core_order_item_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_pancake_core_variation_warehouses_insert.sql",
+      "object": "marine-cycle-484213-b4.core_pancake.sp_pancake_core_variation_warehouses_insert",
+      "source": "sql/live/bigquery/core_pancake/routines/sp_pancake_core_variation_warehouses_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_jushuitan_core_order_item_insert.sql",
+      "object": "marine-cycle-484213-b4.jushuitan.sp_jushuitan_core_order_item_insert",
+      "source": "sql/live/bigquery/jushuitan/routines/sp_jushuitan_core_order_item_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_pancake_core_product_insert.sql",
+      "object": "marine-cycle-484213-b4.core_pancake.sp_pancake_core_product_insert",
+      "source": "sql/live/bigquery/core_pancake/routines/sp_pancake_core_product_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_dash_review_ai.sql",
+      "object": "marine-cycle-484213-b4.reportdb.sp_dash_review_ai",
+      "source": "sql/live/bigquery/reportdb/routines/sp_dash_review_ai.sql"
+    },
+    {
+      "path": "sql/procedures/sp_jushuitan_core_inventory_insert.sql",
+      "object": "marine-cycle-484213-b4.jushuitan.sp_jushuitan_core_inventory_insert",
+      "source": "sql/live/bigquery/jushuitan/routines/sp_jushuitan_core_inventory_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_core_variations_inventory_insert.sql",
+      "object": "marine-cycle-484213-b4.core_pancake.sp_core_variations_inventory_insert",
+      "source": "sql/live/bigquery/core_pancake/routines/sp_core_variations_inventory_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_core_order_item_insert.sql",
+      "object": "marine-cycle-484213-b4.core_pancake.sp_core_order_item_insert",
+      "source": "sql/live/bigquery/core_pancake/routines/sp_core_order_item_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_dash_generate_ai.sql",
+      "object": "marine-cycle-484213-b4.reportdb.sp_dash_generate_ai",
+      "source": "sql/live/bigquery/reportdb/routines/sp_dash_generate_ai.sql"
+    },
+    {
+      "path": "sql/procedures/sp_jushuitan_taobao_tmall_order_manual_core_order_item_insert.sql",
+      "object": "marine-cycle-484213-b4.jushuitan.sp_jushuitan_taobao_tmall_order_manual_core_order_item_insert",
+      "source": "sql/live/bigquery/jushuitan/routines/sp_jushuitan_taobao_tmall_order_manual_core_order_item_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_surfosm_core_order_insert.sql",
+      "object": "marine-cycle-484213-b4.surfosm.sp_surfosm_core_order_insert",
+      "source": "sql/live/bigquery/surfosm/routines/sp_surfosm_core_order_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_pancake_core_customer_insert.sql",
+      "object": "marine-cycle-484213-b4.core_pancake.sp_pancake_core_customer_insert",
+      "source": "sql/live/bigquery/core_pancake/routines/sp_pancake_core_customer_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_dash_submit_feedback.sql",
+      "object": "marine-cycle-484213-b4.reportdb.sp_dash_submit_feedback",
+      "source": "sql/live/bigquery/reportdb/routines/sp_dash_submit_feedback.sql"
+    },
+    {
+      "path": "sql/procedures/sp_pancake_core_warehouse_insert.sql",
+      "object": "marine-cycle-484213-b4.core_pancake.sp_pancake_core_warehouse_insert",
+      "source": "sql/live/bigquery/core_pancake/routines/sp_pancake_core_warehouse_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_core_product_inventory_insert.sql",
+      "object": "marine-cycle-484213-b4.core_pancake.sp_core_product_inventory_insert",
+      "source": "sql/live/bigquery/core_pancake/routines/sp_core_product_inventory_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_surfosm_core_order_return_insert.sql",
+      "object": "marine-cycle-484213-b4.surfosm.sp_surfosm_core_order_return_insert",
+      "source": "sql/live/bigquery/surfosm/routines/sp_surfosm_core_order_return_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_core_orders_returned_insert.sql",
+      "object": "marine-cycle-484213-b4.core_pancake.sp_core_orders_returned_insert",
+      "source": "sql/live/bigquery/core_pancake/routines/sp_core_orders_returned_insert.sql"
+    },
+    {
+      "path": "sql/procedures/sp_magento_core_order_item_insert.sql",
+      "object": "marine-cycle-484213-b4.magento.sp_magento_core_order_item_insert",
+      "source": "sql/live/bigquery/magento/routines/sp_magento_core_order_item_insert.sql"
+    },
+    {
+      "path": "sql/functions/sys-udf_remove_vn_accents.sql",
+      "objects": [
+        "marine-cycle-484213-b4.sysdb.udf_remove_vn_accents"
+      ]
+    },
+    {
+      "path": "sql/functions/sys-fn_money.sql",
+      "objects": [
+        "marine-cycle-484213-b4.reportdb.fn_money_scale",
+        "marine-cycle-484213-b4.reportdb.fn_money_unit",
+        "marine-cycle-484213-b4.reportdb.fn_fmt_money",
+        "marine-cycle-484213-b4.reportdb.fn_fmt_money_pair"
+      ]
+    }
+  ],
+  "unmatched": [
+    {
+      "path": "sql/functions/fn_stats_product_comments_ai_generated.sql",
+      "objects": []
+    },
+    {
+      "path": "sql/procedures/sp_check_partition_insert_dates.sql",
+      "objects": [
+        "marine-cycle-484213-b4.raw_pancake.sp_check_partition_insert_dates"
+      ]
+    }
+  ]
+}

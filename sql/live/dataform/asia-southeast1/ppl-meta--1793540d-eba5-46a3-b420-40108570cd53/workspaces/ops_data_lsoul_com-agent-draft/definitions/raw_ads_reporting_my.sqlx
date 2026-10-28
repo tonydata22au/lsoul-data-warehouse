@@ -1,0 +1,9 @@
+config {
+  type:"declaration",
+  name:"raw_ads_reporting_my",
+  dataset:"raw_meta",
+}
+SELECT
+*
+FROM ${ref("raw_ads_reporting_my")}
+WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP(CURRENT_DATE())

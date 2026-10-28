@@ -1,0 +1,34 @@
+config {
+  type:"table",
+  name:"dash_nmv_factor",
+}
+WITH tt AS (
+  SELECT level_3,
+         SUM(revenue_cn_gmv) AS gmv,
+         SUM(revenue_cn) AS nmv
+  FROM `marine-cycle-484213-b4.reportdb.fn_sale_ecom_taobao_tmall_manual_china_v2`(0,0)
+  WHERE 1=1
+    AND DATE(order_date)
+        BETWEEN DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 180 DAY)
+            AND DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 30 DAY)
+  GROUP BY level_3
+),
+jst AS (
+  SELECT level_3,
+         SUM(revenue_cn_gmv) AS gmv,
+         SUM(revenue_cn) AS nmv
+  FROM `marine-cycle-484213-b4.reportdb.fn_sale_ecom_china_v2`(0,0)
+  WHERE 1=1
+    AND DATE(order_date)
+        BETWEEN DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 180 DAY)
+            AND DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 30 DAY)
+  GROUP BY level_3
+)
+SELECT
+   level_3
+  ,gmv                                   AS mature_gmv_cny
+  ,nmv                                   AS mature_nmv_cny
+  ,ROUND(SAFE_DIVIDE(nmv, gmv), 4)       AS nmv_factor
+  ,CURRENT_DATE('Asia/Ho_Chi_Minh')      AS computed_on
+FROM (SELECT * FROM tt UNION ALL SELECT * FROM jst)
+WHERE gmv > 0

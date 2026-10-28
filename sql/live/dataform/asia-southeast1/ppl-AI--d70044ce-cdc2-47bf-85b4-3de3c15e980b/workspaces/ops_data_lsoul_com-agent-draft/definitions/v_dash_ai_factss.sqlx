@@ -1,0 +1,27 @@
+config {
+  type:"view",
+  schema:"reportdb",
+  name:"v_dash_ai_facts",
+  description:"Public interface over v_dash_ai_facts_core. Now passes the real guidance_version through instead of hard-coding 0."
+}
+
+/* -----------------------------------------------------------------------------
+   Two columns added 2026-09-06, nothing removed or renamed.
+ 
+   action_block_vi   - Vietnamese actions, already written and guarded in
+                       dash_action_items. This is what the report renders, and
+                       what sp_dash_generate_ai should append to narrative_vi
+                       once actions_vi is dropped from its output schema.
+   action_block_sql  - the deterministic SQL spine. facts_hash in the core view
+                       is computed from THIS, not from the model's English, so
+                       rewording does not bust the narrative cache.
+ 
+   sp_dash_review_ai reads facts_block and action_block from this view and is
+   unaffected: det_numeric_ok still resolves narrative figures against
+   facts_block + action_block, and the guards in dash_action_items guarantee the
+   English block carries exactly the spine's numbers and no others.
+   ----------------------------------------------------------------------------- */
+SELECT page, period_label, period_key, facts_hash, prompt,
+       facts_block, action_block, action_block_vi, action_block_sql,
+       guidance_version
+FROM ${ref("v_dash_ai_facts_core")}

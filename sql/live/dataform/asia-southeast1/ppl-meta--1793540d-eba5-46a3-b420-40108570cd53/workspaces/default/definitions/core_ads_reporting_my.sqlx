@@ -1,0 +1,31 @@
+config {
+  type:"incremental",
+  name:"core_ads_reporting_my",
+  dataset:"core_meta",
+  dependencyTargets:[{
+    name:"stg_ads_reporting_my"
+  }],
+}
+SELECT DISTINCT
+  date_start AS day,
+  campaign_id, 
+  campaign_name, 
+  adset_name, 
+  ad_name, 
+  spend AS amount_spend, 
+  reach,
+  page_engagement, 
+  conversion_messaging_conversation_started_7d,
+  ROUND(cost_conversion_messaging_conversation_started_7d,1) AS cost_conversion_messaging_conversation_started_7d, 
+  clicks, 
+  ROUND(cpc,1) AS cpc, 
+  ROUND(cpm,1) AS cpm, 
+  UPPER(REGEXP_EXTRACT(campaign_name, r'^([^_]+_[^_]+)_')) AS campaign_type,
+  CASE
+  WHEN LEFT(campaign_name, STRPOS(campaign_name || '_', '_') - 1) IN ('Eng', 'Reach') THEN 'SPENT STORE'
+  WHEN SUBSTR(LEFT(campaign_name, STRPOS(campaign_name || '_', '_') - 1), 1, 4) = 'Mess' THEN 'SPENT SOCIAL'
+  WHEN UPPER(REGEXP_EXTRACT(campaign_name, r'^[^_]+_([^_]+)_')) = 'TIKTOK' THEN 'SPENT ECOMMERCE'
+  ELSE 'OTHER'
+  END AS spent_source
+FROM ${ref("stg_ads_reporting_my")}
+WHERE proc_date = CURRENT_DATE("Asia/Ho_Chi_Minh")

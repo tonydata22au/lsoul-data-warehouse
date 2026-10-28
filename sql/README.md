@@ -18,6 +18,15 @@ BigQuery write** (`CREATE OR REPLACE TABLE`, `CREATE OR REPLACE PROCEDURE/FUNCTI
 | [`working_files/`](working_files/) | Numbered deployment set for the AI performance dashboard (`01`–`08`) plus scratch (`00-*`) | Mixed DDL/DML; see file headers for run order |
 | [`archive/`](archive/) | `zarchived-*` superseded versions kept for reference | Do not deploy |
 
+## Live definitions and pipeline source
+
+The [live snapshot](live/README.md) records the current accessible deployed objects,
+saved queries, scheduled queries and Dataform source. See the
+[sync guide](../docs/warehouse-definition-sync.md) for scope, provenance and refresh steps.
+The snapshot separates schema DDL from transformations; it is not a batch deployment.
+Matching function/procedure files here are refreshed from deployed routines. Historical
+CTAS/backfill and working files are retained and may differ from the live source.
+
 ## Data flow
 
 ```text

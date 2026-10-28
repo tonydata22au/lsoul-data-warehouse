@@ -1,10 +1,5 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_sale_website_product`(
-  number_year_back INT64 -- number of years back from current year
-)
-AS 
-(
---SALE WEBSITE
--- SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_sale_website_product`(0) ORDER BY 1 DESC
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_sale_website_product(number_year_back INT64)
+AS
 WITH CTE AS (
 SELECT
       o.increment_id AS order_id,
@@ -28,10 +23,10 @@ SELECT
           WHEN o.order_currency_code = 'CNY' THEN total_amount * 3800
           ELSE grand_total
         END AS sales_revenue_vn,
-      item_discount_amount AS discount_amount,
+      oi.item_discount_amount AS discount_amount,
       amount_refunded,
-      qty_ordered AS units_sold,
-      qty_canceled,
+      oi.qty_ordered AS units_sold,
+      oi.qty_canceled,
       qty_refunded, 
       qty_shipped,
       CASE WHEN COUNT(oi.items_sku) OVER (PARTITION BY oi.items_sku, o.increment_id ORDER BY o.increment_id) > 1 AND retail_price_incl_tax IS NULL THEN 1 ELSE 0 END AS remove_duplicate
@@ -47,9 +42,4 @@ SELECT
 SELECT
 * EXCEPT (remove_duplicate)
 FROM CTE
-WHERE remove_duplicate = 0
-
-)
-
-
-   
+WHERE remove_duplicate = 0;

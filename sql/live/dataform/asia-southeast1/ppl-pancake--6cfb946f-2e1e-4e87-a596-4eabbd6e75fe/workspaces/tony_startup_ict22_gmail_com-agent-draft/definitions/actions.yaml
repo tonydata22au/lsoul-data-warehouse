@@ -1,0 +1,49 @@
+actions:
+- operation:
+    name: Query task (1781833889494)
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: insert_core_pancake_product
+    filename: query_1781833889494.sql
+- operation:
+    name: insert_core_pancake_customer
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: stg_customer
+    filename: query_1779196186799.sql
+- operation:
+    name: insert_core_pancake_inventory_histories
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: stg_inventory_histories
+    filename: query_1780393352598.sql
+- operation:
+    name: insert_core_pancake_product
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: stg_product
+    filename: query_1779193504874.sql
+- operation:
+    name: insert_core_pancake_variation_warehouses
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: stg_variation_warehouses
+    filename: query_1779729342663.sql
+- operation:
+    name: insert_core_pancake_variations
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: stg_variations
+    filename: query_1779198216775.sql
+- operation:
+    name: insert_core_pancake_warehouse
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: stg_inventory_histories
+    filename: query_1779933478282.sql
+- operation:
+    name: log_core_stats_inventory_variations
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_stats_inventory_variations
+    filename: query_1780393577267.sql

@@ -1,0 +1,35 @@
+config {
+  type:"table",
+  name:"dash_run_params"
+}
+WITH b AS (
+  SELECT
+     CURRENT_DATE('Asia/Ho_Chi_Minh')                                   AS today_vn
+    ,DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 1 DAY)         AS report_date
+    ,DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 7 DAY)         AS same_period_prv_week_report_date
+    ,DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 1 MONTH)       AS same_period_prv_month_report_date
+)
+SELECT
+   today_vn
+  ,report_date
+  ,same_period_prv_week_report_date
+  ,same_period_prv_month_report_date
+  ,DATE_SUB(DATE_TRUNC(DATE_ADD(report_date, INTERVAL 1 DAY), WEEK(MONDAY)), INTERVAL 7 DAY) AS cur_wk_start
+  ,DATE_SUB(DATE_TRUNC(DATE_ADD(report_date, INTERVAL 1 DAY), WEEK(MONDAY)), INTERVAL 1 DAY) AS cur_wk_end
+  ,DATE_SUB(DATE_TRUNC(DATE_ADD(report_date, INTERVAL 1 DAY), WEEK(MONDAY)), INTERVAL 14 DAY) AS prv_wk_start
+  ,DATE_SUB(DATE_TRUNC(DATE_ADD(report_date, INTERVAL 1 DAY), WEEK(MONDAY)), INTERVAL 8 DAY)  AS prv_wk_end
+  ,DATE_TRUNC(report_date, MONTH)                                       AS month_start
+  ,DATE_SUB(DATE_TRUNC(today_vn, WEEK(MONDAY)), INTERVAL 1 DAY)         AS last_sunday
+  ,DATE_DIFF(report_date, DATE_TRUNC(report_date, MONTH), DAY) + 1      AS mtd_days_elapsed
+  ,DATE_DIFF(LAST_DAY(report_date), DATE_TRUNC(report_date, MONTH), DAY) + 1 AS month_total_days
+  -- thresholds, kept here so they are visible and changed in ONE place
+  ,0.03   AS flat_band              -- +/- 3% counts as "~flat"
+  ,50e6   AS material_abs_vnd       -- highlight floor: 50m VND ...
+  ,0.05   AS material_pct           -- ... AND 5% move
+  ,20     AS x_overstock_units      -- X
+  ,182    AS y_overstock_cover_days -- Y = 26 weeks
+  ,28     AS z_understock_cover_days-- Z = 4 weeks
+  ,0.80   AS w_sell_through         -- W = 80% (binds above the ~76% structural floor at D=90)
+  ,60     AS i_days_range           -- window for fn_stats_product_v2
+  ,5      AS trending_min_base_units
+FROM b

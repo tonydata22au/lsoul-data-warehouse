@@ -1,7 +1,6 @@
--- 1) Define a temp function to strip Vietnamese accents
-CREATE FUNCTION sysdb.udf_remove_vn_accents(s STRING)
-RETURNS STRING
-AS ((
+CREATE OR REPLACE FUNCTION `marine-cycle-484213-b4`.sysdb.udf_remove_vn_accents(s STRING) RETURNS STRING
+AS (
+(
   WITH mapping AS (
     SELECT * FROM UNNEST([
       STRUCT('à' AS accent, 'a' AS latin), STRUCT('á', 'a'), STRUCT('ạ', 'a'), STRUCT('ả', 'a'), STRUCT('ã', 'a'),
@@ -64,7 +63,5 @@ AS ((
       ' ',
       '_'
     )
-));
-
-
-
+)
+);

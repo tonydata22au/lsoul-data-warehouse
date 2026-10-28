@@ -1,0 +1,64 @@
+config {
+  type:"table",
+  name:"dash_base_order_day",
+  dependencyTargets:[{
+    name:"dash_nmv_factor"
+  }],
+}
+WITH factors AS (
+  SELECT level_3, nmv_factor FROM ${ref("dash_nmv_factor")}
+),
+
+-- ---------- VN / TH : already net of canceled+returned => natively NMV ----------
+pancake AS (
+  SELECT DATE(order_date) AS period_date, * EXCEPT(order_date) FROM `marine-cycle-484213-b4.reportdb.fn_order_master`(0,0)
+    WHERE level_2 NOT LIKE 'TQ Ecommerce'
+),
+pancake_std AS (
+  -- NaN/NULL GUARD. Measured: 150 rows arrive with NULL revenue and 0 units (VN Online,
+  -- Facebook/Instagram). Left unguarded they become NULL nmv, and any NaN would propagate
+  -- through SUM and silently poison the trailing-range tests in the trend layer.
+  SELECT period_date, country, level_1, level_2, level_3, order_id, customer_id,
+         IF(IS_NAN(sales_revenue) OR sales_revenue IS NULL, 0, sales_revenue) AS gmv,   -- true GMV not recoverable; equal by construction
+         IF(IS_NAN(revenue) OR revenue IS NULL, 0, revenue) AS nmv,
+         IF(IS_NAN(units_sold) OR units_sold IS NULL, 0, units_sold) AS units_sold,
+         FALSE AS has_true_gmv,
+         'observed (natively net)' AS nmv_basis
+  FROM pancake
+),
+-- ---------- CHINA ECOM: raw tables, GMV gross + modelled NMV ----------
+china_ecom AS (
+ SELECT DATE(order_date) AS period_date,country, level_1, level_2, level_3, CAST(order_id AS STRING) order_id, customer_id,
+         IF(IS_NAN(sales_revenue) OR sales_revenue IS NULL, 0, sales_revenue) AS gmv,   -- true GMV not recoverable; equal by construction
+         IF(IS_NAN(revenue) OR revenue IS NULL, 0, revenue) AS nmv_observed,
+         IF(IS_NAN(units_sold) OR units_sold IS NULL, 0, units_sold) AS units_sold
+ FROM `marine-cycle-484213-b4.reportdb.fn_order_master`(0,0)
+ WHERE level_2 LIKE 'TQ Ecommerce'
+),
+cn_std AS (
+  SELECT c.period_date, c.country, c.level_1, c.level_2, c.level_3, c.order_id, c.customer_id,
+         c.gmv,
+         -- 30-DAY MATURATION SWITCH.
+         -- Older than 30 days: cancellations have fully flowed back from the
+         -- platform, so the observed net IS the true NMV -- use it, don't estimate.
+         -- Within 30 days: observed net is still inflating (80% kept at 0-7 days
+         -- vs ~40% settled), so model it off the stable GMV base instead.
+         CASE
+           WHEN c.period_date <= DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 30 DAY)
+             THEN c.nmv_observed
+           ELSE c.gmv * IFNULL(f.nmv_factor, 0.40)   -- 0.21 = measured blended fallback
+         END AS nmv,
+         c.units_sold,
+         TRUE AS has_true_gmv,
+         CASE
+           WHEN c.period_date <= DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 30 DAY)
+             THEN 'observed (matured)'
+           ELSE 'modelled (<30 days)'
+         END AS nmv_basis
+  FROM china_ecom c
+  LEFT JOIN factors f ON f.level_3 = c.level_3
+)
+SELECT * FROM pancake_std
+UNION ALL
+SELECT * FROM cn_std
+order by 1 desc

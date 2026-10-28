@@ -1,0 +1,9 @@
+config {
+  type:"table",
+  name:"sku_inventory_master",
+}
+SELECT 1 AS report_type, * FROM `marine-cycle-484213-b4.reportdb.fn_product_inventory_summary_v2`(1,0,60,NULL,NULL)
+
+UNION ALL
+
+SELECT 0 AS report_type, * FROM `marine-cycle-484213-b4.reportdb.fn_product_inventory_summary_v2`(0,0,60,NULL,NULL)

@@ -1,0 +1,482 @@
+config {
+  type:"table",
+  schema:"reportdb",
+  name:"dash_trend_monthly",
+  description:"Monthly channel trend at level_2 grain. Adds metric parity with dash_trend_weekly (gmv, units, aov, asp, customers, discount), MoM deltas, trailing 6-month shape, the full run-rate block (pro-rated target, projection, required daily NMV) and data-quality trust flags. All pre-existing columns are unchanged in name, type, order and value."
+}
+
+/* =============================================================================
+   dash_trend_monthly
+   -----------------------------------------------------------------------------
+   WHAT CHANGED, AND WHY
+
+   1. RUN-RATE. The table could say where the month stands but not where it is
+      heading. attainment_vs_full_month answers "how much of plan is banked";
+      it cannot answer "will we land". nmv_run_rate_full_month, projected_
+      attainment and required_daily_nmv close that, and required_vs_recent_ratio
+      states the ask in the only unit an ops team can act on: how much harder
+      each remaining day has to work than the days already traded.
+
+   2. THE PRO-RATED TARGET MOVES INTO SQL. v_dash_ai_facts_core computes
+      attainment against the pro-rated MTD target inline, and comments there warn
+      that pairing it with "day N of M" states the opposite of the truth. Both
+      denominators now live here as named columns, so the prompt reads them
+      rather than deriving them.
+
+   3. TARGET FAN-OUT HARDENED. The tgt CTE used SELECT DISTINCT together with
+      GROUP BY 1,2,3,4 where position 4 was month_target_revenue itself. It does
+      not duplicate today (60 rows, 60 keys), but grouping by the measure means
+      the day a single (month, country, level_2) ever carries two target values
+      the FULL OUTER JOIN silently doubles the actuals. MAX() removes that.
+
+   4. CUTOFF IS NOW COUNTRY-AWARE. cut grouped by level_2 alone, so a channel
+      name reused across countries - 'VN Online' exists under both VIETNAM and
+      THAILAND - let one country's late feed truncate another's. No-op on
+      current data; it stops being a no-op the first time a feed slips.
+
+   5. THE CUTOFF IS NOW VISIBLE. It is deliberately conservative: MIN() across a
+      channel, so TQ Ecommerce is read only through Tmall/Taobao's Sunday upload
+      even though Douyin and Xiaohongshu are current. In the first days of a
+      month that can show a channel at zero MTD against a full-month target, and
+      nothing in the old output said so. days_covered, is_month_data_complete and
+      nmv_excluded_by_cutoff now say it explicitly.
+
+   GRAIN: month_start x country x level_1 x level_2   (unchanged)
+   ========================================================================== */
+
+WITH p AS (SELECT * FROM ${ref("dash_run_params")}),
+
+cut AS (
+  SELECT
+     country
+    ,level_2
+    ,MIN(data_complete_through) AS cutoff
+    ,MAX(last_date_with_data)   AS last_data
+  FROM ${ref("dash_dq_platform_day")}
+  GROUP BY country, level_2
+),
+
+base AS (
+  SELECT
+     DATE_TRUNC(b.period_date, MONTH) AS month_start
+    ,b.country, b.level_1, b.level_2
+    ,b.period_date, b.order_id, b.customer_id
+    ,IF(IS_NAN(b.nmv)        OR b.nmv        IS NULL, 0, b.nmv)        AS nmv
+    ,IF(IS_NAN(b.gmv)        OR b.gmv        IS NULL, 0, b.gmv)        AS gmv
+    ,IF(IS_NAN(b.units_sold) OR b.units_sold IS NULL, 0, b.units_sold) AS units
+    ,IFNULL(b.has_true_gmv, FALSE)                    AS has_true_gmv
+    ,IFNULL(b.nmv_basis, '')                          AS nmv_basis
+    ,b.period_date <= IFNULL(c.cutoff, b.period_date) AS in_scope
+    ,c.cutoff                                         AS data_complete_through
+    ,c.last_data                                      AS last_date_with_data
+  FROM ${ref("dash_base_order_day")} b
+  LEFT JOIN cut c
+    ON c.country = b.country AND c.level_2 = b.level_2
+  CROSS JOIN p
+  WHERE b.period_date >= DATE_SUB(DATE_TRUNC(p.report_date, MONTH), INTERVAL 5 MONTH)
+    AND b.period_date <= p.report_date
+),
+
+/* ============================ DAYS-ELAPSED CAPPING ==========================
+   N = mtd_days_elapsed, the days elapsed in the current calendar month.
+
+   The month-on-month columns previously took the prior month IN FULL from the
+   `wprev` window, while `nmv` for the current row holds only N days. Measured on
+   2026-09-04 at day 3 of 30, that made every channel read as a collapse:
+
+     VIETNAM / VN Ecommerce      403m vs 4,746m   = -92%
+     VIETNAM / VN Offline Store  346m vs 6,607m   = -95%
+     CHINA   / TQ Ecommerce        0m vs 7,611m   = -100%
+
+   None of that is trade. It is 3 days measured against 30.
+
+   The current month is therefore compared against days 1..N of the PRIOR month.
+   A CLOSED month keeps full-vs-full, which is already like-for-like and is what
+   completed reporting depends on.
+   ========================================================================== */
+mom_window AS (
+  SELECT
+     p.mtd_days_elapsed                                            AS n_days
+    ,DATE_TRUNC(p.report_date, MONTH)                              AS cur_start
+    ,p.report_date                                                 AS cur_end
+    ,DATE_SUB(DATE_TRUNC(p.report_date, MONTH), INTERVAL 1 MONTH)  AS prv_start
+    -- clamped to the prior month's own last day: at N=31 against a 30-day prior
+    -- month the window would otherwise spill a day into the month before this one
+    ,LEAST(
+       DATE_ADD(DATE_SUB(DATE_TRUNC(p.report_date, MONTH), INTERVAL 1 MONTH),
+                INTERVAL p.mtd_days_elapsed - 1 DAY),
+       LAST_DAY(DATE_SUB(DATE_TRUNC(p.report_date, MONTH), INTERVAL 1 MONTH))
+     )                                                             AS prv_end
+  FROM p
+),
+
+-- Prior month capped to days 1..N. Same in_scope cutoff as `act`, so the two
+-- sides of the comparison are filtered identically.
+prev_capped AS (
+  SELECT
+     b.country, b.level_2
+    ,SUM(b.nmv)                                      AS nmv
+    ,SUM(b.units)                                    AS units
+    ,COUNT(DISTINCT IF(b.nmv > 0, b.order_id, NULL)) AS bills
+    ,SAFE_DIVIDE(SUM(b.nmv),
+       NULLIF(COUNT(DISTINCT IF(b.nmv > 0, b.order_id, NULL)),0))  AS aov
+  FROM base b CROSS JOIN mom_window mw
+  WHERE b.in_scope
+    AND b.period_date BETWEEN mw.prv_start AND mw.prv_end
+  GROUP BY 1,2
+),
+
+-- The trailing-6-month baseline has the same defect: a 3-day month compared to
+-- an average of full months is an outlier by construction. For the current row
+-- the baseline is rebuilt from the first N days of each prior month.
+prev6_capped AS (
+  SELECT
+     country, level_2
+    ,AVG(m_nmv)         AS nmv_avg_6m_same_elapsed
+    ,STDDEV_SAMP(m_nmv) AS nmv_stddev_6m_same_elapsed
+    ,MIN(m_nmv)         AS nmv_min_6m_same_elapsed
+    ,MAX(m_nmv)         AS nmv_max_6m_same_elapsed
+  FROM (
+    SELECT b.country, b.level_2, DATE_TRUNC(b.period_date, MONTH) AS m,
+           SUM(b.nmv) AS m_nmv
+    FROM base b CROSS JOIN mom_window mw
+    WHERE b.in_scope
+      AND DATE_TRUNC(b.period_date, MONTH) < mw.cur_start
+      AND EXTRACT(DAY FROM b.period_date) <= mw.n_days   -- first N days of each month
+    GROUP BY 1,2,3
+  )
+  GROUP BY 1,2
+),
+
+-- WHERE in_scope, not a conditional SUM. A month whose every row sits beyond the
+-- cutoff must produce NO act row, exactly as the original WHERE clause did, so
+-- that the row still arrives from the target side of the FULL OUTER JOIN with a
+-- NULL level_1 and a NULL attainment. Aggregating with IF(in_scope,...) instead
+-- would manufacture a zero row and silently turn seven NULL attainments into
+-- 0%, which dash_material_points would then flag as -100pp off pace.
+act AS (
+  SELECT
+     month_start, country, level_1, level_2
+    ,SUM(nmv)                                        AS nmv
+    ,SUM(gmv)                                        AS gmv
+    ,SUM(units)                                      AS units
+    ,COUNT(DISTINCT IF(nmv > 0, order_id, NULL))     AS bills
+    ,COUNT(DISTINCT order_id)                        AS bills_incl_zero
+    ,COUNT(DISTINCT NULLIF(customer_id,''))          AS customers
+    ,COUNT(DISTINCT period_date)                     AS days_covered
+    ,SUM(IF(has_true_gmv, gmv, 0))                   AS gmv_observed
+    ,SUM(IF(has_true_gmv, nmv, 0))                   AS nmv_on_observed_gmv
+    ,SUM(IF(STARTS_WITH(nmv_basis,'modelled'), nmv, 0)) AS nmv_modelled
+  FROM base
+  WHERE in_scope
+  GROUP BY 1,2,3,4
+),
+
+-- What the cutoff withheld, measured separately so it can be reported without
+-- creating a row that would not otherwise exist.
+excl AS (
+  SELECT month_start, country, level_2, SUM(nmv) AS nmv_excluded_by_cutoff
+  FROM base
+  WHERE NOT in_scope
+  GROUP BY 1,2,3
+),
+
+-- MAX() instead of grouping by the measure: month_target_revenue is constant
+-- within (month_start, country, level_2), and the moment it is not, grouping by
+-- it would fan the FULL OUTER JOIN out and double the actuals.
+tgt AS (
+  SELECT
+     t.month_start
+    ,t.country
+    ,t.level_2
+    ,MAX(t.level_1)                        AS level_1_target
+    ,MAX(t.month_target_revenue)           AS month_target
+    ,LOGICAL_OR(t.is_low_target)           AS is_low_target
+    ,LOGICAL_OR(t.is_target_invalid)       AS is_target_invalid
+    ,LOGICAL_OR(t.is_unmapped_channel)     AS is_unmapped_channel
+    ,LOGICAL_OR(t.is_multi_country_target) AS is_multi_country_target
+  FROM ${ref("dash_target_day")} t
+  CROSS JOIN p
+  WHERE t.sale_date >= DATE_SUB(DATE_TRUNC(p.report_date, MONTH), INTERVAL 5 MONTH)
+    AND t.sale_date <= LAST_DAY(p.report_date)
+  GROUP BY 1,2,3
+),
+
+j AS (
+  SELECT
+     COALESCE(a.month_start, t.month_start)   AS month_start
+    ,COALESCE(a.country, t.country)           AS country
+    ,a.level_1
+    ,COALESCE(a.level_1, t.level_1_target)    AS level_1_resolved
+    ,COALESCE(a.level_2, t.level_2)           AS level_2
+    -- nullable on purpose: a target-only month has no actual, and NULL is what
+    -- the attainment and pace columns have always been fed there
+    ,a.nmv                                    AS nmv_raw
+    ,IFNULL(a.nmv,   0)                       AS nmv
+    ,IFNULL(a.gmv,   0)                       AS gmv
+    ,IFNULL(a.units, 0)                       AS units
+    ,IFNULL(a.bills, 0)                       AS bills
+    ,IFNULL(a.bills_incl_zero, 0)             AS bills_incl_zero
+    ,IFNULL(a.customers, 0)                   AS customers
+    ,IFNULL(a.days_covered, 0)                AS days_covered
+    ,a.month_start IS NOT NULL                AS has_actuals
+    ,IFNULL(e.nmv_excluded_by_cutoff, 0)      AS nmv_excluded_by_cutoff
+    ,IFNULL(a.gmv_observed, 0)                AS gmv_observed
+    ,IFNULL(a.nmv_on_observed_gmv, 0)         AS nmv_on_observed_gmv
+    ,IFNULL(a.nmv_modelled, 0)                AS nmv_modelled
+    ,c.cutoff                                 AS data_complete_through
+    ,c.last_data                              AS last_date_with_data
+    ,t.month_target
+    ,IFNULL(t.is_low_target,           FALSE) AS is_low_target
+    ,IFNULL(t.is_target_invalid,       FALSE) AS is_target_invalid
+    ,IFNULL(t.is_unmapped_channel,     FALSE) AS is_unmapped_channel
+    ,IFNULL(t.is_multi_country_target, FALSE) AS is_multi_country_target
+  FROM act a
+  FULL OUTER JOIN tgt t
+    ON  a.month_start = t.month_start
+    AND a.country     = t.country
+    AND a.level_2     = t.level_2
+  LEFT JOIN excl e
+    ON  e.month_start = COALESCE(a.month_start, t.month_start)
+    AND e.country     = COALESCE(a.country,     t.country)
+    AND e.level_2     = COALESCE(a.level_2,     t.level_2)
+  LEFT JOIN cut c
+    ON  c.country     = COALESCE(a.country, t.country)
+    AND c.level_2     = COALESCE(a.level_2, t.level_2)
+),
+
+-- Dense month index so the trailing windows survive a month with no rows.
+-- Ordering on the raw date with RANGE would measure in days, not months.
+ix AS (
+  SELECT
+     j.*
+    ,EXTRACT(YEAR FROM DATE(j.month_start)) * 12
+       + EXTRACT(MONTH FROM DATE(j.month_start))            AS month_idx
+    ,DATE(j.month_start) = DATE_TRUNC(p.report_date, MONTH) AS is_current_month
+    ,IF(DATE(j.month_start) = DATE_TRUNC(p.report_date, MONTH),
+        p.mtd_days_elapsed,
+        DATE_DIFF(LAST_DAY(DATE(j.month_start)), DATE(j.month_start), DAY) + 1) AS days_elapsed
+    ,DATE_DIFF(LAST_DAY(DATE(j.month_start)), DATE(j.month_start), DAY) + 1     AS days_total
+    ,SAFE_DIVIDE(j.nmv,   NULLIF(j.bills,0))      AS aov
+    ,SAFE_DIVIDE(j.units, NULLIF(j.bills,0))      AS units_per_bill
+    ,SAFE_DIVIDE(j.nmv,   NULLIF(j.units,0))      AS asp
+    ,SAFE_DIVIDE(j.bills, NULLIF(j.customers,0))  AS bills_per_customer
+    ,IF(j.gmv_observed > 0,
+        1 - SAFE_DIVIDE(j.nmv_on_observed_gmv, j.gmv_observed), NULL) AS discount_rate
+    ,SAFE_DIVIDE(j.nmv_on_observed_gmv, NULLIF(j.nmv,0)) AS pct_gmv_observed
+    ,SAFE_DIVIDE(j.nmv_modelled,        NULLIF(j.nmv,0)) AS pct_nmv_modelled
+  FROM j CROSS JOIN p
+),
+
+w AS (
+  SELECT
+     ix.*
+    ,MAX(ix.nmv)        OVER wprev AS nmv_prev_month_full
+    ,MAX(ix.bills)      OVER wprev AS bills_prev_month_full
+    ,MAX(ix.aov)        OVER wprev AS aov_prev_month_full
+    ,MAX(ix.units)      OVER wprev AS units_prev_month_full
+    ,MIN(ix.nmv)        OVER w6    AS nmv_min_6m
+    ,MAX(ix.nmv)        OVER w6    AS nmv_max_6m
+    ,AVG(ix.nmv)        OVER w6    AS nmv_avg_6m
+    ,STDDEV_SAMP(ix.nmv) OVER w6   AS nmv_stddev_6m
+    ,COUNT(*)           OVER w6    AS months_available
+    ,AVG(ix.nmv)        OVER w3    AS nmv_ma3
+    ,SUM(ix.nmv) OVER (PARTITION BY ix.month_start, ix.country) AS nmv_country
+    ,SUM(ix.nmv) OVER (PARTITION BY ix.month_start)             AS nmv_group
+  FROM ix
+  WINDOW
+     wprev AS (PARTITION BY ix.country, ix.level_2 ORDER BY ix.month_idx
+               RANGE BETWEEN 1 PRECEDING AND 1 PRECEDING)
+    ,w6    AS (PARTITION BY ix.country, ix.level_2 ORDER BY ix.month_idx
+               RANGE BETWEEN 6 PRECEDING AND 1 PRECEDING)
+    ,w3    AS (PARTITION BY ix.country, ix.level_2 ORDER BY ix.month_idx
+               RANGE BETWEEN 3 PRECEDING AND 1 PRECEDING)
+),
+
+calc AS (
+  SELECT
+     w.*
+    ,SAFE_DIVIDE(w.days_elapsed, NULLIF(w.days_total,0))            AS elapsed_share
+    -- attainment is always against the FULL-MONTH target, so the series is comparable
+    ,IF(w.is_low_target OR w.is_target_invalid, NULL,
+        SAFE_DIVIDE(w.nmv_raw, NULLIF(w.month_target,0)))           AS attainment_vs_full_month
+    ,IF(w.is_current_month,
+        SAFE_DIVIDE(p.mtd_days_elapsed, p.month_total_days), 1.0)   AS expected_pace
+    -- daily rate measured on days actually READ, not days elapsed: a channel
+    -- held back by the completeness cutoff must not be projected as if it traded
+    -- and sold nothing
+    ,SAFE_DIVIDE(w.nmv, NULLIF(w.days_covered,0))                   AS recent_daily_nmv
+  FROM w CROSS JOIN p
+),
+
+proj AS (
+  SELECT
+     calc.*
+    ,calc.month_target * calc.elapsed_share                         AS mtd_target_prorated
+    ,IF(calc.is_low_target OR calc.is_target_invalid, NULL,
+        SAFE_DIVIDE(calc.nmv_raw, NULLIF(calc.month_target * calc.elapsed_share,0)))
+                                                                    AS attainment_vs_prorated
+    ,IF(calc.is_current_month,
+        calc.recent_daily_nmv * calc.days_total, calc.nmv)          AS nmv_run_rate_full_month
+    ,IF(calc.is_current_month AND calc.days_total > calc.days_elapsed,
+        SAFE_DIVIDE(calc.month_target - calc.nmv,
+                    NULLIF(calc.days_total - calc.days_elapsed,0)), NULL)
+                                                                    AS required_daily_nmv
+  FROM calc
+),
+
+-- Run of consecutive months that missed plan, ending at this month. The run
+-- breaks on a gap as well as on a hit, so a channel that stopped trading does
+-- not have two distant misses read as consecutive.
+streak AS (
+  SELECT
+     s.*
+    ,SUM(new_run) OVER (PARTITION BY country, level_2 ORDER BY month_idx
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS run_id
+  FROM (
+    SELECT
+       proj.*
+      ,IF(    IFNULL(attainment_vs_full_month, 1) < 1
+          AND IFNULL(LAG(attainment_vs_full_month)
+                       OVER (PARTITION BY country, level_2 ORDER BY month_idx), 1) < 1
+          AND LAG(month_idx) OVER (PARTITION BY country, level_2 ORDER BY month_idx)
+              = month_idx - 1,
+          0, 1) AS new_run
+    FROM proj
+  ) s
+)
+
+SELECT
+   -- ---------- EXISTING CONTRACT: names, types, order and values unchanged ----
+   s.month_start
+  ,s.country
+  ,s.level_1
+  ,s.level_2
+  ,s.nmv
+  ,s.bills
+  ,s.month_target
+  ,s.is_current_month
+  ,s.attainment_vs_full_month
+  ,s.expected_pace
+  ,IF(s.is_low_target OR s.is_target_invalid, NULL,
+      (s.attainment_vs_full_month - s.expected_pace) * 100) AS pace_gap_pp
+  ,s.is_low_target
+  ,s.is_target_invalid
+  ,s.is_unmapped_channel
+
+   -- ---------- NEW: metric parity with dash_trend_weekly ---------------------
+  ,s.gmv
+  ,s.units
+  ,s.bills_incl_zero
+  ,s.aov
+  ,s.units_per_bill
+  ,s.asp
+  ,s.customers
+  ,s.bills_per_customer
+  ,s.discount_rate
+  ,s.pct_gmv_observed
+  ,s.level_1_resolved                                       -- level_1 filled in on target-only rows
+  ,s.has_actuals                                            -- FALSE = plan exists, nothing traded/readable
+  ,s.is_multi_country_target
+
+   -- ---------- month-on-month, CAPPED TO THE SAME DAYS ELAPSED ---------------
+   -- >>> DAYS-ELAPSED CAPPING APPLIED HERE <<<
+   -- Current row: days 1..N of this month  vs  days 1..N of the prior month.
+   -- Closed row : full month vs full prior month, unchanged.
+  ,IF(s.is_current_month, pc.nmv,   s.nmv_prev_month_full)   AS nmv_prev_month
+  ,IF(s.is_current_month, pc.bills, s.bills_prev_month_full) AS bills_prev_month
+  ,IF(s.is_current_month, pc.aov,   s.aov_prev_month_full)   AS aov_prev_month
+  ,IF(s.is_current_month, pc.units, s.units_prev_month_full) AS units_prev_month
+   -- uncapped prior month kept alongside, so nothing that needed it is lost
+  ,s.nmv_prev_month_full
+  ,s.bills_prev_month_full
+  ,s.aov_prev_month_full
+  ,s.units_prev_month_full
+  ,s.nmv - IF(s.is_current_month, pc.nmv, s.nmv_prev_month_full)  AS nmv_mom_abs
+  ,SAFE_DIVIDE(s.nmv,
+     NULLIF(IF(s.is_current_month, pc.nmv,   s.nmv_prev_month_full),0))   - 1 AS nmv_mom_pct
+  ,SAFE_DIVIDE(s.bills,
+     NULLIF(IF(s.is_current_month, pc.bills, s.bills_prev_month_full),0)) - 1 AS bills_mom_pct
+  ,SAFE_DIVIDE(s.aov,
+     NULLIF(IF(s.is_current_month, pc.aov,   s.aov_prev_month_full),0))   - 1 AS aov_mom_pct
+   -- the two windows stated explicitly, so the comparison is auditable
+  ,s.is_current_month                                       AS mom_window_capped
+  ,IF(s.is_current_month, mw.n_days,
+      EXTRACT(DAY FROM LAST_DAY(DATE_SUB(DATE(s.month_start), INTERVAL 1 MONTH))))
+                                                            AS mom_compare_days
+  ,IF(s.is_current_month, mw.cur_start, DATE(s.month_start)) AS mom_cur_period_start
+  ,IF(s.is_current_month, mw.cur_end, LAST_DAY(DATE(s.month_start)))
+                                                            AS mom_cur_period_end
+  ,IF(s.is_current_month, mw.prv_start,
+      DATE_SUB(DATE(s.month_start), INTERVAL 1 MONTH))       AS mom_prv_period_start
+  ,IF(s.is_current_month, mw.prv_end,
+      LAST_DAY(DATE_SUB(DATE(s.month_start), INTERVAL 1 MONTH)))
+                                                            AS mom_prv_period_end
+
+   -- ---------- NEW: trailing 6-month shape -----------------------------------
+  ,s.nmv_ma3
+  ,s.nmv_min_6m
+  ,s.nmv_max_6m
+  ,s.nmv_avg_6m
+  ,s.nmv_stddev_6m
+  ,s.months_available
+   -- >>> DAYS-ELAPSED CAPPING APPLIED HERE <<<  the current partial month is
+   -- indexed against the prior months' FIRST N DAYS, not their full totals.
+  ,SAFE_DIVIDE(s.nmv,
+     NULLIF(IF(s.is_current_month, p6.nmv_avg_6m_same_elapsed, s.nmv_avg_6m),0))
+                                                            AS nmv_index_vs_6m_avg
+  ,SAFE_DIVIDE(
+     s.nmv - IF(s.is_current_month, p6.nmv_avg_6m_same_elapsed, s.nmv_avg_6m),
+     NULLIF(IF(s.is_current_month, p6.nmv_stddev_6m_same_elapsed, s.nmv_stddev_6m),0))
+                                                            AS nmv_zscore_6m
+  ,IF(s.is_current_month, s.nmv > p6.nmv_max_6m_same_elapsed, s.nmv > s.nmv_max_6m)
+                                                            AS is_6m_high
+  ,IF(s.is_current_month, s.nmv < p6.nmv_min_6m_same_elapsed, s.nmv < s.nmv_min_6m)
+                                                            AS is_6m_low
+  ,p6.nmv_avg_6m_same_elapsed
+  ,p6.nmv_stddev_6m_same_elapsed
+  ,p6.nmv_min_6m_same_elapsed
+  ,p6.nmv_max_6m_same_elapsed
+
+   -- ---------- NEW: pace, run-rate and the ask -------------------------------
+  ,s.days_elapsed
+  ,s.days_total
+  ,s.elapsed_share
+  ,s.mtd_target_prorated
+  ,s.attainment_vs_prorated
+  ,IF(s.is_low_target OR s.is_target_invalid, NULL,
+      s.nmv_raw - s.month_target)                           AS target_gap_vnd
+  ,s.recent_daily_nmv
+  ,s.nmv_run_rate_full_month
+  ,IF(s.is_low_target OR s.is_target_invalid, NULL,
+      SAFE_DIVIDE(s.nmv_run_rate_full_month, NULLIF(s.month_target,0)))
+                                                            AS projected_attainment
+  ,IF(s.is_low_target OR s.is_target_invalid, NULL,
+      s.nmv_run_rate_full_month - s.month_target)           AS projected_gap_vnd
+  ,s.required_daily_nmv
+   -- > 1 means every remaining day has to beat the days already traded
+  ,IF(s.is_low_target OR s.is_target_invalid, NULL,
+      SAFE_DIVIDE(s.required_daily_nmv, NULLIF(s.recent_daily_nmv,0)))
+                                                            AS required_vs_recent_ratio
+  ,IF(IFNULL(s.attainment_vs_full_month, 1) < 1,
+      ROW_NUMBER() OVER (PARTITION BY s.country, s.level_2, s.run_id
+                         ORDER BY s.month_idx), 0)          AS consecutive_months_missed
+
+   -- ---------- NEW: mix -------------------------------------------------------
+  ,SAFE_DIVIDE(s.nmv, NULLIF(s.nmv_country,0))              AS share_of_country_nmv
+  ,SAFE_DIVIDE(s.nmv, NULLIF(s.nmv_group,0))                AS share_of_group_nmv
+
+   -- ---------- NEW: trust and completeness -----------------------------------
+  ,s.data_complete_through
+  ,s.last_date_with_data
+  ,s.days_covered
+  ,s.days_covered >= s.days_elapsed                         AS is_month_data_complete
+  ,s.nmv_excluded_by_cutoff
+  ,s.pct_nmv_modelled
+  ,DATE_DIFF(p.report_date, s.last_date_with_data, DAY)     AS days_since_last_data
+  ,IFNULL(DATE_DIFF(p.report_date, s.last_date_with_data, DAY) > 14, FALSE) AS is_dormant
+FROM streak s
+CROSS JOIN p
+CROSS JOIN mom_window mw
+LEFT JOIN prev_capped  pc ON pc.country = s.country AND pc.level_2 = s.level_2
+LEFT JOIN prev6_capped p6 ON p6.country = s.country AND p6.level_2 = s.level_2

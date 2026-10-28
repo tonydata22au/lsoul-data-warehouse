@@ -1,0 +1,26 @@
+config {
+  type:"incremental",
+  name:"stg_ads_reporting_my",
+  dataset:"stg_meta",
+  dependencyTargets:[{
+    name:"raw_ads_reporting_my"
+  }],
+}
+SELECT
+  DATE(TIMESTAMP_TRUNC(_PARTITIONTIME, DAY)) AS proc_date,
+  CAST(date_start AS DATE) AS date_start,
+  CAST(date_stop AS DATE) AS date_stop, 
+  SAFE_CAST(campaign_id AS BIGNUMERIC) AS campaign_id, 
+  campaign_name, 
+  adset_name, 
+  ad_name, 
+  SAFE_CAST(spend AS FLOAT64) AS spend, 
+  SAFE_CAST(reach AS INT64) AS reach,
+  SAFE_CAST(actions_page_engagement AS FLOAT64) AS page_engagement, 
+  SAFE_CAST(actions_onsite_conversion_messaging_conversation_started_7d AS FLOAT64) AS conversion_messaging_conversation_started_7d,
+  SAFE_CAST(cost_per_action_type_onsite_conversion_messaging_conversation_started_7d AS FLOAT64) AS cost_conversion_messaging_conversation_started_7d, 
+  SAFE_CAST(clicks AS INT64) AS clicks, 
+  SAFE_CAST(cpc AS FLOAT64) AS cpc, 
+  SAFE_CAST(cpm AS FLOAT64) AS cpm
+FROM ${ref("raw_ads_reporting_my")}
+WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP(CURRENT_DATE("Asia/Ho_Chi_Minh"))

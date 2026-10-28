@@ -1,0 +1,231 @@
+config {
+  type:"view",
+  name:"v_wow_prompt",
+  dependencyTargets:[{
+    name:"performance_snapshot_v2_base"
+  }],
+}
+WITH
+p AS (
+SELECT
+   CURRENT_DATE('Asia/Ho_Chi_Minh') AS today_vn
+  ,DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 1 DAY)   AS report_date
+  ,DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 7 DAY)   AS same_period_prv_week_report_date
+  ,DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 1 MONTH) AS same_period_prv_month_report_date
+  ,DATE_SUB(DATE_TRUNC(DATE_ADD(report_date, INTERVAL 1 DAY), WEEK(MONDAY)), INTERVAL 7 DAY) AS cur_wk_start
+  ,DATE_SUB(DATE_TRUNC(DATE_ADD(report_date, INTERVAL 1 DAY), WEEK(MONDAY)), INTERVAL 1 DAY) AS cur_wk_end
+  ,DATE_SUB(DATE_TRUNC(DATE_ADD(report_date, INTERVAL 1 DAY), WEEK(MONDAY)), INTERVAL 14 DAY) AS prv_wk_start
+  ,DATE_SUB(DATE_TRUNC(DATE_ADD(report_date, INTERVAL 1 DAY), WEEK(MONDAY)), INTERVAL 8 DAY)  AS prv_wk_end
+  ,DATE_TRUNC(report_date, MONTH)                                       AS month_start
+  ,DATE_SUB(DATE_TRUNC(today_vn, WEEK(MONDAY)), INTERVAL 1 DAY)         AS last_sunday
+  ,DATE_DIFF(report_date, DATE_TRUNC(report_date, MONTH), DAY) + 1      AS mtd_days_elapsed
+  ,DATE_DIFF(LAST_DAY(report_date), DATE_TRUNC(report_date, MONTH), DAY) + 1 AS month_total_days
+  -- thresholds, kept here so they are visible and changed in ONE place
+  ,0.03   AS flat_band              -- +/- 3% counts as "~flat"
+  ,50e6   AS material_abs_vnd       -- highlight floor: 50m VND ...
+  ,0.05   AS material_pct           -- ... AND 5% move
+  ,20     AS x_overstock_units      -- X
+  ,182    AS y_overstock_cover_days -- Y = 26 weeks
+  ,28     AS z_understock_cover_days-- Z = 4 weeks
+  ,0.80   AS w_sell_through         -- W = 80% (binds above the ~76% structural floor at D=90)
+  ,60     AS i_days_range           -- window for fn_stats_product_v2
+  ,5      AS trending_min_base_units
+  FROM (
+    SELECT
+     CURRENT_DATE('Asia/Ho_Chi_Minh')                                   AS today_vn
+    ,DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 1 DAY)         AS report_date
+    ,DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 7 DAY)         AS same_period_prv_week_report_date
+    ,DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 1 MONTH)       AS same_period_prv_month_report_date
+  ) b
+  ),
+
+/* The reporting window. cur_wk_end is not used directly: the full week end is
+   rebuilt from cur_wk_start so this stays correct whether dash_run_params caps
+   cur_wk_end at report_date or carries the calendar Sunday. */
+wow_week AS (
+  SELECT
+     p.report_date
+    ,p.cur_wk_start                                            AS wow_week_start
+    ,LEAST(p.report_date, DATE_ADD(p.cur_wk_start, INTERVAL 6 DAY)) AS wow_through
+    ,p.prv_wk_start
+    ,p.prv_wk_end
+    ,DATE_DIFF(LEAST(p.report_date, DATE_ADD(p.cur_wk_start, INTERVAL 6 DAY)),
+               p.cur_wk_start, DAY) + 1                        AS wtd_days_elapsed
+    ,7                                                         AS week_total_days
+  FROM p
+),
+
+wow_rows AS (
+  SELECT b.*
+  FROM ${ref("performance_snapshot_v2_base")} b, wow_week w
+  WHERE b.week_start = w.wow_week_start
+    AND b.period_date <= w.report_date          -- NEW: never read future rows
+),
+
+wow_overall AS (
+  SELECT
+    ANY_VALUE(weekly_revenue)          AS wow_revenue,
+    ANY_VALUE(prev_weekly_revenue)     AS prior_week_revenue,
+    ANY_VALUE(target_revenue_weekly)   AS wow_target,
+    ANY_VALUE(pct_achievement_weekly)  AS pct_achievement,
+    ANY_VALUE(wow_growth_pct)          AS wow_growth,
+    ANY_VALUE(aov_weekly)              AS aov
+  FROM wow_rows
+),
+
+/* NEW: pace, computed here so the model never has to. */
+wow_pace AS (
+  SELECT
+     o.*
+    ,w.week_total_days - w.wtd_days_elapsed                            AS days_left
+    ,IFNULL(o.wow_target,0) - IFNULL(o.wow_revenue,0)                  AS gap_to_target
+    ,SAFE_DIVIDE(o.wow_revenue, NULLIF(w.wtd_days_elapsed,0))          AS achieved_daily
+    ,SAFE_DIVIDE(IFNULL(o.wow_target,0) - IFNULL(o.wow_revenue,0),
+                 NULLIF(w.week_total_days - w.wtd_days_elapsed,0))     AS required_daily
+  FROM wow_overall o, wow_week w
+),
+
+wow_country_level3 AS (
+  SELECT DISTINCT country, level_3,
+    weekly_revenue_by_country_level_3          AS revenue,
+    prev_weekly_revenue_country_level_3        AS prior_revenue,
+    aov_weekly_country_level_3                 AS aov
+  FROM wow_rows
+),
+
+wow_by_country AS (
+  SELECT country,
+    SUM(IFNULL(revenue, 0))       AS revenue,
+    SUM(IFNULL(prior_revenue, 0)) AS prior_revenue
+  FROM wow_country_level3
+  GROUP BY 1
+),
+
+wow_by_level1 AS (
+  SELECT DISTINCT level_1,
+    weekly_revenue_by_level_1      AS revenue,
+    prev_weekly_revenue_level_1    AS prior_revenue
+  FROM wow_rows
+),
+
+/* Each line now also carries the ABSOLUTE change. Without it the model has to
+   subtract to say "fell by X", which HARD RULE 1 forbids. */
+wow_country_lines AS (
+  SELECT STRING_AGG(
+    CONCAT(
+      '- ', country, ': revenue ', FORMAT("%'d", CAST(ROUND(revenue) AS INT64)),
+      ', prior week ', FORMAT("%'d", CAST(ROUND(prior_revenue) AS INT64)),
+      ', change ', FORMAT("%'d", CAST(ROUND(revenue - prior_revenue) AS INT64)),
+      ' (', IFNULL(CAST(ROUND(SAFE_DIVIDE(revenue - prior_revenue, NULLIF(prior_revenue, 0)) * 100, 1) AS STRING), 'n/a'), '%)'
+    ), '\n' ORDER BY revenue DESC
+  ) AS text
+  FROM wow_by_country
+),
+
+wow_level1_lines AS (
+  SELECT STRING_AGG(
+    CONCAT(
+      '- ', level_1, ': revenue ', FORMAT("%'d", CAST(ROUND(IFNULL(revenue, 0)) AS INT64)),
+      ', prior week ', FORMAT("%'d", CAST(ROUND(IFNULL(prior_revenue, 0)) AS INT64)),
+      ', change ', FORMAT("%'d", CAST(ROUND(IFNULL(revenue,0) - IFNULL(prior_revenue,0)) AS INT64)),
+      ' (', IFNULL(CAST(ROUND(SAFE_DIVIDE(revenue - prior_revenue, NULLIF(prior_revenue, 0)) * 100, 1) AS STRING), 'n/a'), '%)'
+    ), '\n' ORDER BY revenue DESC
+  ) AS text
+  FROM wow_by_level1
+),
+
+wow_channel_lines AS (
+  SELECT STRING_AGG(
+    CONCAT(
+      '- ', country, ' / ', IFNULL(level_3, 'n/a'),
+      ': revenue ', FORMAT("%'d", CAST(ROUND(IFNULL(revenue, 0)) AS INT64)),
+      ', prior week ', FORMAT("%'d", CAST(ROUND(IFNULL(prior_revenue, 0)) AS INT64)),
+      ', change ', FORMAT("%'d", CAST(ROUND(IFNULL(revenue,0) - IFNULL(prior_revenue,0)) AS INT64)),
+      ' (', IFNULL(CAST(ROUND(SAFE_DIVIDE(revenue - prior_revenue, NULLIF(prior_revenue, 0)) * 100, 1) AS STRING), 'n/a'), '%)',
+      ', AOV ', FORMAT("%'d", CAST(ROUND(IFNULL(aov, 0)) AS INT64))
+    ), '\n' ORDER BY revenue DESC
+  ) AS text
+  FROM wow_country_level3
+)
+
+SELECT
+  'WoW' AS report_type,
+
+  /* period_label now matches dash_page_summary PAGE1_WOW:
+     "2026-08-31 to 2026-09-06 vs 2026-08-24 to 2026-08-30" */
+  CONCAT(CAST(w.wow_week_start AS STRING), ' to ', CAST(w.wow_through AS STRING),
+         ' vs ', CAST(w.prv_wk_start AS STRING), ' to ', CAST(w.prv_wk_end AS STRING))
+    AS period_label,
+
+  CONCAT(
+'You write board-level retail performance commentary for LSOUL (fashion retail; Vietnam, Thailand, China).\n',
+'This is the Week-over-Week review. All figures are VND.\n\n',
+
+'REPORTING WINDOW\n',
+'  This week:  ', CAST(w.wow_week_start AS STRING), ' to ', CAST(w.wow_through AS STRING),
+                  ' (day ', CAST(w.wtd_days_elapsed AS STRING), ' of 7)\n',
+'  Prior week: ', CAST(w.prv_wk_start AS STRING), ' to ', CAST(w.prv_wk_end AS STRING), '\n\n',
+
+'HARD RULES\n',
+'1. Use ONLY the numbers supplied below. NEVER compute, re-derive, infer or estimate a number.\n',
+'   Every figure you need - including the gap to target and the per-day rates - is already given.\n',
+'2. If a fact is not supplied, say nothing about it. Refuse to speculate. Do not mention\n',
+'   traffic, sessions, footfall, advertising spend or stock: none of it is supplied here.\n',
+'3. Country names, level_1 channel types and level_3 platform and store names stay EXACTLY as\n',
+'   written. Never translate or transliterate them (Shopee, TikTok, Xiaohongshu, VN Ecommerce).\n',
+  IF(w.wtd_days_elapsed >= w.week_total_days,
+    CONCAT(
+'4. PERIOD COMPLETENESS. This week is COMPLETE: 7 days against the 7 days of the prior week.\n',
+'   The WoW comparison is like-for-like and may be described as growth or decline.\n'),
+    CONCAT(
+'4. PERIOD COMPLETENESS - THIS WEEK IS PARTIAL.\n',
+'   This week covers ', CAST(w.wtd_days_elapsed AS STRING), ' of 7 days. The prior-week figures\n',
+'   below are a FULL 7 days. Every "change" number is therefore ',
+     CAST(w.wtd_days_elapsed AS STRING), ' days measured against 7\n',
+'   and is NOT like-for-like. Do NOT call any of it a decline, a drop or underperformance -\n',
+'   most of the gap is days that have not been traded yet. Whenever you quote one of these\n',
+'   figures, attach the words "', CAST(w.wtd_days_elapsed AS STRING), ' of 7 days vs a full prior week".\n')),
+'5. Achievement is revenue this week over the FULL-week target. State it as a share of the\n',
+'   week target at day ', CAST(w.wtd_days_elapsed AS STRING), ' of 7. Never as bare underperformance.\n\n',
+
+'OVERALL\n',
+'- Revenue this week: ', FORMAT("%'d", CAST(ROUND(IFNULL(o.wow_revenue, 0)) AS INT64)), '\n',
+'- Revenue prior week: ', FORMAT("%'d", CAST(ROUND(IFNULL(o.prior_week_revenue, 0)) AS INT64)), '\n',
+'- WoW change: ', IFNULL(CAST(ROUND(o.wow_growth * 100, 1) AS STRING), 'n/a'), '%\n',
+'- Week target: ', FORMAT("%'d", CAST(ROUND(IFNULL(o.wow_target, 0)) AS INT64)), '\n',
+'- Achievement vs full-week target: ', IFNULL(CAST(ROUND(o.pct_achievement * 100, 1) AS STRING), 'n/a'), '%\n',
+  /* gap_to_target is negative when the target is beaten. Printing that as
+     "still needed: -1,769,912,787" invites the model to write a shortfall
+     sentence about a week that came in 129% of target, so the sign decides the
+     wording and required/day is suppressed once the target is met. */
+  IF(o.gap_to_target > 0,
+     CONCAT('- Still needed to reach the week target: ', FORMAT("%'d", CAST(ROUND(o.gap_to_target) AS INT64)), '\n'),
+     CONCAT('- Week target already exceeded by: ', FORMAT("%'d", CAST(ROUND(-o.gap_to_target) AS INT64)), '\n')),
+'- Days left in the week: ', CAST(o.days_left AS STRING), '\n',
+'- Revenue per day achieved so far: ', FORMAT("%'d", CAST(ROUND(IFNULL(o.achieved_daily,0)) AS INT64)), '\n',
+'- Revenue per day required over the days left: ',
+   CASE WHEN o.days_left <= 0        THEN 'n/a (week complete)'
+        WHEN o.gap_to_target <= 0    THEN '0 (target already met)'
+        ELSE FORMAT("%'d", CAST(ROUND(o.required_daily) AS INT64)) END, '\n',
+'- Average Order Value: ', FORMAT("%'d", CAST(ROUND(IFNULL(o.aov, 0)) AS INT64)), '\n\n',
+
+'BY COUNTRY\n', IFNULL(cl.text, 'No data'), '\n\n',
+'BY CHANNEL TYPE (level_1)\n', IFNULL(l1.text, 'No data'), '\n\n',
+'BY CHANNEL (country / level_3)\n', IFNULL(chl.text, 'No data'), '\n\n',
+
+'OUTPUT - return EXACTLY these three sections, in this order, and nothing else:\n',
+'  SUMMARY   - one sentence on overall performance for this week. If the week is not complete,\n',
+'              also state how much revenue is still needed to reach the week target and the\n',
+'              per-day rate that implies over the days left. Both figures are supplied above.\n',
+'  HIGHLIGHT - one sentence naming the strongest country and level_3 platform, with its figures.\n',
+'  LOWLIGHT  - one sentence naming the weakest country and level_3 platform needing attention,\n',
+'              with its figures.\n',
+'Do NOT add any other section, category, heading, recommendation list or commentary.\n\n',
+
+'LANGUAGE\n',
+'Write all three sections in natural, professional Vietnamese with full diacritics - not a\n',
+'word-for-word translation. Use standard retail trade vocabulary (doanh thu, chỉ tiêu, tiến độ,\n',
+'giá trị đơn hàng trung bình, kênh bán, tăng trưởng). Numbers, country names and platform names\n',
+'stay exactly as written above; do not localise digit separators.\n'
+  ) AS prompt_text
+FROM wow_pace o, wow_country_lines cl, wow_level1_lines l1, wow_channel_lines chl, wow_week w

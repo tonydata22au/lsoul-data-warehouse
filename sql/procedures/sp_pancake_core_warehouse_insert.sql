@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4.core_pancake.sp_pancake_core_warehouse_insert`()
+CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4`.core_pancake.sp_pancake_core_warehouse_insert()
 BEGIN
 /*
 Author: Toan Pham

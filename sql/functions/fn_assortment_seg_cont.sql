@@ -1,24 +1,5 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_assortment_seg_cont`(
-  i_type INT64 -- 0: bao cao theo chung loai, 1: bao cao theo BST
-  ,i_exclude_sale_end INT64 --0: included, 1: exclude
-)
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_assortment_seg_cont(i_type INT64, i_exclude_sale_end INT64)
 AS
-/*
-Author: Toan Pham
-Date: 29/05/2026
-Comment: Assortment Segmentation & Contribution Report
-
-Sell‑through rate (%) = Units sold in period / Units received or opening stock for that period ×100.
-
-A. Segmentation by Product CategoryCo-ord Sets: Pre-styled top-and-bottom combinations (e.g., LSOUL's famous hoodie + mini skirt sets).  Dresses: Bodycon, mini, bubble, and statement occasion dresses.  Corsets & Tops: Signature bustiers, asymmetrical cut-out tops, and cropped hoodies.Bottoms: Pleated mini-skirts, cargo pants, and baggy denim.Accessories & Capsules: Bags, footwear, and experimental runway pieces.  
-
-B. Segmentation by Strategic Role (The Fashion Matrix)Hero / Viral Pieces (Trend-Led): High-margin, ultra-trendy items pushed via celebrity endorsements (e.g., items worn by K-pop or Chinese idols). Characterized by rapid sell-through but shorter lifecycles.Core / Volume Anchors (Basics with a Twist): Repeatable, lower-risk styles that generate steady cash flow (e.g., solid-color pleated mini-skirts or basic black corsets).Statement / Halo Pieces: Limited-edition or high-end couture items used primarily for runway, campaigns, and brand positioning rather than massive sales volume.
-
-TESTING:
-SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_assortment_seg_cont`(1,0)   --bao cao theo chung loai
-
-*/
-(
 WITH sku_performance AS (
 SELECT
 d_date
@@ -112,6 +93,4 @@ FROM
 CROSS JOIN 
   company_totals t
 WHERE i_type = 1
-GROUP BY 1,2,global_sku_count,global_units_sold,global_revenue
-)
-
+GROUP BY 1,2,global_sku_count,global_units_sold,global_revenue;

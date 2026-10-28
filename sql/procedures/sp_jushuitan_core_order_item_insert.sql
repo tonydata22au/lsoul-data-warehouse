@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4.jushuitan.sp_jushuitan_core_order_item_insert`()
+CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4`.jushuitan.sp_jushuitan_core_order_item_insert()
 BEGIN
 /*
 Author: Toan Pham

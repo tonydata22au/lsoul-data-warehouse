@@ -1,0 +1,10 @@
+CREATE VIEW `marine-cycle-484213-b4.reportdb.v_dash_ai_cost`
+AS WITH rates AS (SELECT 0.30 AS usd_per_1m_input, 2.50 AS usd_per_1m_output)
+SELECT
+   n.page, n.period_label, n.model_endpoint, n.gen_status
+  ,n.prompt_tokens, n.output_tokens
+  ,ROUND(n.prompt_tokens/1e6 * r.usd_per_1m_input
+       + n.output_tokens/1e6 * r.usd_per_1m_output, 6) AS usd_this_generation
+  ,n.generated_at
+FROM `marine-cycle-484213-b4.reportdb.dash_ai_narrative` n
+CROSS JOIN rates r;

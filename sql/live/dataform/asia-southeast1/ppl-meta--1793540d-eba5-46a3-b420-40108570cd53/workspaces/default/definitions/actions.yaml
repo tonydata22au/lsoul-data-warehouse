@@ -1,0 +1,13 @@
+actions:
+- operation:
+    name: log_core_ads_reporting_my
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_ads_reporting_my
+    filename: query_1776854634763.sql
+- operation:
+    name: log_core_ads_reporting_a
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_ads_reporting_a
+    filename: query_1776853796447.sql

@@ -1,0 +1,10 @@
+config {
+  type:"table",
+  name:"report_order_product_inventory_summary",
+  dataset:"reportdb",
+}
+SELECT 1 AS report_type,* FROM `marine-cycle-484213-b4.reportdb.fn_stats_product`(1,0,90,9,date_trunc(CURRENT_DATE(), YEAR),null)   --90-day sales 
+
+union all
+
+SELECT 0 AS report_type,* FROM `marine-cycle-484213-b4.reportdb.fn_stats_product`(0,0,90,9,date_trunc(CURRENT_DATE(), YEAR),null)   --90-day sales 

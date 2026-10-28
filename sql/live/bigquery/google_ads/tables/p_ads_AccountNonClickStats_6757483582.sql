@@ -1,0 +1,33 @@
+CREATE TABLE `marine-cycle-484213-b4.google_ads.p_ads_AccountNonClickStats_6757483582`
+(
+  customer_id INT64 OPTIONS(description="The ID of the customer."),
+  metrics_all_conversions FLOAT64 OPTIONS(description="The total number of conversions. This only includes conversion actions which include_in_conversions_metric attribute is set to true."),
+  metrics_all_conversions_from_interactions_rate FLOAT64 OPTIONS(description="All conversions from interactions (as oppose to view through conversions) divided by the number of ad interactions."),
+  metrics_all_conversions_value FLOAT64 OPTIONS(description="The total value of all conversions."),
+  metrics_average_cpe FLOAT64 OPTIONS(description="The average amount that you've been charged for an ad engagement. This amount is the total cost of all ad engagements divided by the total number of ad engagements."),
+  metrics_content_budget_lost_impression_share FLOAT64 OPTIONS(description="The estimated percent of times that your ad was eligible to show on the Display Network but didn't because your budget was too low. Note: Content budget lost impression share is reported in the range of 0 to 0.9. Any value above 0.9 is reported as 0.9001."),
+  metrics_content_impression_share FLOAT64 OPTIONS(description="The impressions you've received on the Display Network divided by the estimated number of impressions you were eligible to receive. Note: Content impression share is reported in the range of 0.1 to 1. Any value below 0.1 is reported as 0.0999."),
+  metrics_content_rank_lost_impression_share FLOAT64 OPTIONS(description="The estimated percentage of impressions on the Display Network that your ads didn't receive due to poor Ad Rank. Note: Content rank lost impression share is reported in the range of 0 to 0.9. Any value above 0.9 is reported as 0.9001."),
+  metrics_cost_per_all_conversions FLOAT64 OPTIONS(description="The cost of ad interactions divided by all conversions."),
+  metrics_cross_device_conversions FLOAT64 OPTIONS(description="Conversions from when a customer clicks on a Google Ads ad on one device, then converts on a different device or browser. Cross-device conversions are already included in all_conversions."),
+  metrics_engagement_rate FLOAT64 OPTIONS(description="How often people engage with your ad after it's shown to them. This is the number of ad expansions divided by the number of times your ad is shown."),
+  metrics_engagements INT64 OPTIONS(description="The number of engagements. An engagement occurs when a viewer expands your Lightbox ad. Also, in the future, other ad types may support engagement metrics."),
+  metrics_invalid_click_rate FLOAT64 OPTIONS(description="The percentage of clicks filtered out of your total number of clicks (filtered + non-filtered clicks) during the reporting period."),
+  metrics_invalid_clicks INT64 OPTIONS(description="Number of clicks Google considers illegitimate and doesn't charge you for."),
+  metrics_search_budget_lost_impression_share FLOAT64 OPTIONS(description="The estimated percent of times that your ad was eligible to show on the Search Network but didn't because your budget was too low. Note: Search budget lost impression share is reported in the range of 0 to 0.9. Any value above 0.9 is reported as 0.9001."),
+  metrics_search_exact_match_impression_share FLOAT64 OPTIONS(description="The impressions you've received divided by the estimated number of impressions you were eligible to receive on the Search Network for search terms that matched your keywords exactly (or were close variants of your keyword), regardless of your keyword match types. Note: Search exact match impression share is reported in the range of 0.1 to 1. Any value below 0.1 is reported as 0.0999."),
+  metrics_search_impression_share FLOAT64 OPTIONS(description="The impressions you've received on the Search Network divided by the estimated number of impressions you were eligible to receive. Note: Search impression share is reported in the range of 0.1 to 1. Any value below 0.1 is reported as 0.0999."),
+  metrics_search_rank_lost_impression_share FLOAT64 OPTIONS(description="The estimated percentage of impressions on the Search Network that your ads didn't receive due to poor Ad Rank. Note: Search rank lost impression share is reported in the range of 0 to 0.9. Any value above 0.9 is reported as 0.9001."),
+  metrics_trueview_average_cpv FLOAT64 OPTIONS(description="The average amount you pay each time someone views your ad. The average CPV is defined by the total cost of all ad views divided by the number of TrueView views."),
+  metrics_value_per_all_conversions FLOAT64 OPTIONS(description="The value of all conversions divided by the number of all conversions."),
+  metrics_video_trueview_view_rate FLOAT64 OPTIONS(description="The number of TrueView views your video ad receives divided by its number of impressions, including thumbnail impressions for TrueView in-display ads."),
+  metrics_video_trueview_views INT64 OPTIONS(description="The number of TrueView views your video ads received."),
+  segments_ad_network_type STRING OPTIONS(description="Ad network type."),
+  segments_date DATE OPTIONS(description="Date to which metrics apply. yyyy-MM-dd format, e.g., 2018-04-17."),
+  segments_day_of_week STRING OPTIONS(description="Day of the week, e.g., MONDAY."),
+  segments_month DATE OPTIONS(description="Month as represented by the date of the first day of a month. Formatted as yyyy-MM-dd."),
+  segments_quarter DATE OPTIONS(description="Quarter as represented by the date of the first day of a quarter. Uses the calendar year for quarters, e.g., the second quarter of 2018 starts on 2018-04-01. Formatted as yyyy-MM-dd."),
+  segments_week DATE OPTIONS(description="Week as defined as Monday through Sunday, and represented by the date of Monday. Formatted as yyyy-MM-dd."),
+  segments_year INT64 OPTIONS(description="Year, formatted as yyyy.")
+)
+PARTITION BY DATE(_PARTITIONTIME);

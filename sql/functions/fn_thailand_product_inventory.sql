@@ -1,18 +1,5 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_thailand_product_inventory`(
-  i_type  INT64 --0: Group by variation code , 1: loc theo ngay cuoi cung
-  ,i_number_year_back INT64 -- number of years back from current year
-  
-)
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_thailand_product_inventory(i_type INT64, i_number_year_back INT64)
 AS
-/*
-Author: Toan Pham
-Date: 18/07/2026
-Comment: get inventory of each variation/product in each warehouses
-call:
-    SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_thailand_product_inventory`(1,0) 
-
-*/
-( 
 WITH CTE AS (
 SELECT DISTINCT
 parameter_date
@@ -55,6 +42,4 @@ WHERE DATE_TRUNC(parameter_date, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YE
 SELECT * FROM master WHERE i_type = 0
 union all
 SELECT * FROM master WHERE i_type = 1 AND sort_num = 1
-ORDER BY 3,1
-
-)
+ORDER BY 3,1;

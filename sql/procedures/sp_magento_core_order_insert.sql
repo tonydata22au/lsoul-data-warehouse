@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4.magento.sp_magento_core_order_insert`()
+CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4`.magento.sp_magento_core_order_insert()
 BEGIN
 /*
 Author: Toan Pham

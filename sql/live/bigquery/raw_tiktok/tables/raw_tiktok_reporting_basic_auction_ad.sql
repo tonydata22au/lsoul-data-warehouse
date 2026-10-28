@@ -1,0 +1,48 @@
+CREATE TABLE `marine-cycle-484213-b4.raw_tiktok.raw_tiktok_reporting_basic_auction_ad`
+(
+  ad_id STRING,
+  country_code STRING,
+  stat_time_day STRING,
+  spend STRING,
+  cpc STRING,
+  cpm STRING,
+  impressions STRING,
+  gross_impressions STRING,
+  clicks STRING,
+  ctr STRING,
+  reach STRING,
+  frequency STRING,
+  result STRING,
+  cost_per_result STRING,
+  result_rate STRING,
+  real_time_result STRING,
+  real_time_cost_per_result STRING,
+  real_time_result_rate STRING,
+  video_play_actions STRING,
+  video_watched_2s STRING,
+  video_watched_6s STRING,
+  average_video_play STRING,
+  video_views_p25 STRING,
+  video_views_p50 STRING,
+  video_views_p75 STRING,
+  video_views_p100 STRING,
+  engaged_view STRING,
+  engaged_view_15s STRING,
+  follows STRING,
+  likes STRING,
+  comments STRING,
+  shares STRING,
+  profile_visits STRING,
+  profile_visits_rate STRING,
+  live_product_clicks STRING,
+  total_landing_page_view STRING,
+  cost_per_landing_page_view STRING,
+  landing_page_view_rate STRING,
+  onsite_on_web_detail STRING,
+  cost_per_onsite_on_web_detail STRING,
+  onsite_on_web_detail_rate STRING
+)
+PARTITION BY DATE(_PARTITIONTIME)
+OPTIONS(
+  require_partition_filter=true
+);

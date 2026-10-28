@@ -1,5 +1,6 @@
-CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4.reportdb.sp_dash_submit_feedback`(i_submitted_by STRING, i_page STRING, i_period_key STRING, i_rating INT64, i_feedback_text STRING, i_proposed_guidance STRING)
-OPTIONS (description="Records feedback as PROPOSED. Never activates it. Screens for attempts to relax the hard rules or inject instructions.")
+CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4`.reportdb.sp_dash_submit_feedback(i_submitted_by STRING, i_page STRING, i_period_key STRING, i_rating INT64, i_feedback_text STRING, i_proposed_guidance STRING)
+OPTIONS(
+  description="Records feedback as PROPOSED. Never activates it. Screens for attempts to relax the hard rules or inject instructions.")
 BEGIN
   DECLARE v_flag STRING DEFAULT NULL;
 

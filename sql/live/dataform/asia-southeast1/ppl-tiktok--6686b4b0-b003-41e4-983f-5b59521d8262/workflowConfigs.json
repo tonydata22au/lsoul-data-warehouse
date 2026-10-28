@@ -1,0 +1,12 @@
+[
+  {
+    "name": "projects/marine-cycle-484213-b4/locations/asia-southeast1/repositories/6686b4b0-b003-41e4-983f-5b59521d8262/workflowConfigs/ppl_tiktok",
+    "releaseConfig": "projects/marine-cycle-484213-b4/locations/asia-southeast1/repositories/6686b4b0-b003-41e4-983f-5b59521d8262/releaseConfigs/default",
+    "invocationConfig": {
+      "queryPriority": "INTERACTIVE",
+      "executionMode": "DEFAULT"
+    },
+    "cronSchedule": "45 7 * * *",
+    "timeZone": "Asia/Saigon"
+  }
+]

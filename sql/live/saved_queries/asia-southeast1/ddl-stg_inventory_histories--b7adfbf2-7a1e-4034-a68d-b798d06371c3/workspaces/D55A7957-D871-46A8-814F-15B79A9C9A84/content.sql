@@ -1,0 +1,47 @@
+--truncate table `marine-cycle-484213-b4.stg_pancake.stg_inventory_histories`
+CREATE OR REPLACE TABLE `marine-cycle-484213-b4.stg_pancake.stg_inventory_histories`
+PARTITION BY DATE(proc_date)
+AS
+SELECT
+TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) AS proc_date,
+DATETIME(PARSE_TIMESTAMP('%Y%m%d%H%M%S', inserted_at))  AS inserted_at,
+inventory_history_id,
+record_id,
+ref_display_id,
+table_name,
+SAFE_CAST(note_type AS NUMERIC) AS note_type,
+type,
+warehouse_id,
+warehouse_name,
+SAFE_CAST(avg_price AS FLOAT64) AS avg_price,
+SAFE_CAST(quantity AS NUMERIC) AS quantity,
+SAFE_CAST(remain_quantity AS NUMERIC) AS remain_quantity,
+SAFE_CAST(is_actual_remain_quantity AS NUMERIC) is_actual_remain_quantity,
+supplier_products_id,
+user_id,
+user_name,
+DATETIME(PARSE_TIMESTAMP('%Y%m%d%H%M%S', variation_inserted_at))  AS variation_inserted_at,
+DATETIME(PARSE_TIMESTAMP('%Y%m%d%H%M%S', variation_updated_at))  AS variation_updated_at,
+variation_product_id,
+variation_id,
+variation_display_id,
+variation_name,
+SAFE_CAST(variation_remain_quantity AS NUMERIC) AS variation_remain_quantity,
+SAFE_CAST(variation_total_quantity AS NUMERIC) AS variation_total_quantity,
+SAFE_CAST(variation_is_composite AS NUMERIC) AS variation_is_composite,
+SAFE_CAST(variation_is_hidden AS NUMERIC) AS variation_is_hidden,
+SAFE_CAST(variation_is_locked AS NUMERIC) AS variation_is_locked,
+SAFE_CAST(variation_is_removed AS NUMERIC) AS variation_is_removed,
+SAFE_CAST(variation_is_sell_negative_variation AS NUMERIC) AS variation_is_sell_negative_variation,
+SAFE_CAST(variation_last_imported_price AS FLOAT64) AS variation_last_imported_price,
+SAFE_CAST(variation_price_at_counter AS FLOAT64) AS variation_price_at_counter,
+SAFE_CAST(variation_retail_price AS FLOAT64) AS variation_retail_price,
+SAFE_CAST(variation_retail_price_after_discount AS FLOAT64) AS variation_retail_price_after_discount,
+SAFE_CAST(variation_wholesale_price AS FLOAT64) AS variation_wholesale_price,
+current_inventory_warehouse_id,
+current_inventory_name,
+SAFE_CAST(current_inventory_actual_remain_quantity AS NUMERIC) AS current_inventory_actual_remain_quantity,
+SAFE_CAST(current_inventory_remain_quantity AS NUMERIC) AS current_inventory_remain_quantity,
+SAFE_CAST(current_inventory_total_quantity AS NUMERIC) AS current_inventory_total_quantity
+FROM `marine-cycle-484213-b4.raw_pancake.raw_inventory_histories`
+WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP("2026-06-02");

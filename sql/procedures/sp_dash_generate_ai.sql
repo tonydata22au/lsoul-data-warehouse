@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4.reportdb.sp_dash_generate_ai`(i_force BOOL)
+CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4`.reportdb.sp_dash_generate_ai(i_force BOOL)
 BEGIN
   DECLARE v_pending INT64;
 

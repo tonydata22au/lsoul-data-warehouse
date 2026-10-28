@@ -1,0 +1,26 @@
+CREATE TABLE `marine-cycle-484213-b4.reportdb.dash_page2_mtd`
+(
+  month_start DATE,
+  data_as_of DATE,
+  mtd_days_elapsed INT64,
+  month_total_days INT64,
+  country STRING,
+  level_1 STRING,
+  level_2 STRING,
+  mtd_actual_nmv FLOAT64,
+  mtd_actual_gmv FLOAT64,
+  mtd_bills INT64,
+  mtd_basket FLOAT64,
+  mtd_target FLOAT64,
+  full_month_target FLOAT64,
+  gap_to_target FLOAT64,
+  attainment_pct FLOAT64,
+  attainment_note STRING,
+  target_status STRING,
+  is_low_target BOOL,
+  is_target_invalid BOOL,
+  is_unmapped_channel BOOL,
+  is_multi_country_target BOOL,
+  month_elapsed_share FLOAT64,
+  period_note STRING
+);

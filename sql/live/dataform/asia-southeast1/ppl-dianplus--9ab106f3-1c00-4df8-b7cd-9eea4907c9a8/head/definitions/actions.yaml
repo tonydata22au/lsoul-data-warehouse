@@ -1,0 +1,43 @@
+actions:
+- operation:
+    name: log_core_inventory
+    dataset: dianplus
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_dianplus_inventory
+    filename: query_1780557307465.sql
+- operation:
+    name: log_core_order
+    dataset: dianplus
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_dianplus_order
+    filename: query_1777446003523.sql
+- operation:
+    name: log_core_order_item
+    dataset: dianplus
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_dianplus_order_item
+    filename: query_1777865380017.sql
+- operation:
+    name: log_core_order_item_refund
+    dataset: dianplus
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_dianplus_order_item_refund
+    filename: query_1777865599919.sql
+- operation:
+    name: log_core_order_refund
+    dataset: dianplus
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_dianplus_order_refund
+    filename: query_1777865536928.sql
+- operation:
+    name: log_core_product
+    dataset: dianplus
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_dianplus_product
+    filename: query_1777865021091.sql

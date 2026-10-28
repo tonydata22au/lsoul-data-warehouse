@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4.reportdb.sp_dash_run_dashboard`()
+CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4`.reportdb.sp_dash_run_dashboard()
 BEGIN
   -- N7: every "what happened in this run" lookup below is scoped to v_t0, the moment this
   -- procedure started, instead of CURRENT_TIMESTAMP() - 10 MINUTE. The old wall-clock window

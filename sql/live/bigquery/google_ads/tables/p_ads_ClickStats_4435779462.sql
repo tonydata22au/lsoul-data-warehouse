@@ -1,0 +1,31 @@
+CREATE TABLE `marine-cycle-484213-b4.google_ads.p_ads_ClickStats_4435779462`
+(
+  ad_group_id INT64 OPTIONS(description="The ID of the ad group."),
+  campaign_id INT64 OPTIONS(description="The ID of the campaign."),
+  click_view_gclid STRING OPTIONS(description="The Google Click ID."),
+  customer_id INT64 OPTIONS(description="The ID of the customer."),
+  ad_group_status STRING OPTIONS(description="The status of the ad group."),
+  click_view_ad_group_ad STRING OPTIONS(description="The associated ad."),
+  click_view_area_of_interest_city STRING OPTIONS(description="The city location criterion associated with the impression."),
+  click_view_area_of_interest_country STRING OPTIONS(description="The country location criterion associated with the impression."),
+  click_view_area_of_interest_metro STRING OPTIONS(description="The metro location criterion associated with the impression."),
+  click_view_area_of_interest_most_specific STRING OPTIONS(description="The most specific location criterion associated with the impression."),
+  click_view_area_of_interest_region STRING OPTIONS(description="The region location criterion associated with the impression."),
+  click_view_keyword STRING OPTIONS(description="The associated keyword, if one exists and the click corresponds to the SEARCH channel."),
+  click_view_keyword_info_match_type STRING OPTIONS(description="The match type of the keyword."),
+  click_view_keyword_info_text STRING OPTIONS(description="The text of the keyword (at most 80 characters and 10 words)."),
+  click_view_location_of_presence_city STRING OPTIONS(description="The city location criterion associated with the impression."),
+  click_view_location_of_presence_country STRING OPTIONS(description="The country location criterion associated with the impression."),
+  click_view_location_of_presence_metro STRING OPTIONS(description="The metro location criterion associated with the impression."),
+  click_view_location_of_presence_most_specific STRING OPTIONS(description="The most specific location criterion associated with the impression."),
+  click_view_location_of_presence_region STRING OPTIONS(description="The region location criterion associated with the impression."),
+  click_view_page_number INT64 OPTIONS(description="Page number in search results where the ad was shown."),
+  customer_descriptive_name STRING OPTIONS(description="Optional, non-unique descriptive name of the customer."),
+  metrics_clicks INT64 OPTIONS(description="The number of clicks."),
+  segments_ad_network_type STRING OPTIONS(description="Ad network type."),
+  segments_click_type STRING OPTIONS(description="Click type."),
+  segments_date DATE OPTIONS(description="Date to which metrics apply. yyyy-MM-dd format, e.g., 2018-04-17."),
+  segments_device STRING OPTIONS(description="Device to which metrics apply."),
+  segments_slot STRING OPTIONS(description="Position of the ad.")
+)
+PARTITION BY DATE(_PARTITIONTIME);

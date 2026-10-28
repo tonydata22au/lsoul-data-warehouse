@@ -1,0 +1,34 @@
+CREATE VIEW `marine-cycle-484213-b4.reportdb.v_dash_trend_page1`
+AS SELECT
+   w.country
+  ,CASE w.country WHEN 'VIETNAM' THEN 'Việt Nam' WHEN 'THAILAND' THEN 'Thái Lan'
+                  WHEN 'CHINA' THEN 'Trung Quốc' ELSE w.country END AS country_vi
+  ,w.level_1, w.level_2
+  ,w.nmv_prv, w.nmv_cur, w.delta_nmv, w.pct_nmv
+  ,w.bills_prv, w.bills_cur, w.pct_bills
+  ,w.basket_prv, w.basket_cur, w.pct_basket
+  ,w.driver
+  ,CASE w.driver WHEN 'bills' THEN 'số lượng hóa đơn'
+                 WHEN 'basket' THEN 'giá trị giỏ hàng'
+                 WHEN 'mixed' THEN 'hỗn hợp' ELSE w.driver END AS driver_vi
+  ,w.diagnosis
+  ,CASE w.diagnosis
+     WHEN 'Fewer customers'                                   THEN 'Sụt giảm lượng khách'
+     WHEN 'Weak cross-sell / upsell'                          THEN 'Bán kèm/bán thêm chưa hiệu quả'
+     WHEN 'Volume loss masked by mix'                         THEN 'Mất sản lượng bị che lấp bởi cơ cấu hàng'
+     WHEN 'Growth is fragile - fewer, bigger baskets'         THEN 'Tăng trưởng thiếu bền vững - ít đơn hơn nhưng giá trị đơn cao hơn'
+     WHEN 'Growth via discounting'                            THEN 'Tăng trưởng nhờ giảm giá'
+     WHEN 'No material revenue movement'                      THEN 'Doanh thu không biến động đáng kể'
+     WHEN 'Growth driven by transaction volume'               THEN 'Tăng trưởng nhờ số lượng đơn hàng'
+     WHEN 'Growth driven by basket size'                      THEN 'Tăng trưởng nhờ giá trị giỏ hàng'
+     WHEN 'Growth from both volume and basket - driver is mixed' THEN 'Tăng trưởng từ cả sản lượng và giá trị đơn - yếu tố hỗn hợp'
+     WHEN 'Decline driven by fewer transactions'              THEN 'Sụt giảm do số lượng đơn hàng giảm'
+     WHEN 'Decline driven by smaller baskets'                 THEN 'Sụt giảm do giá trị giỏ hàng giảm'
+     WHEN 'Decline from both volume and basket - driver is mixed' THEN 'Sụt giảm từ cả sản lượng và giá trị đơn - yếu tố hỗn hợp'
+     WHEN 'Insufficient comparison data'                      THEN 'Không đủ dữ liệu so sánh'
+     ELSE w.diagnosis END AS diagnosis_vi
+  ,w.diagnosis_source
+  ,w.traffic_note
+  ,IF(w.traffic_note IS NULL, NULL,
+     'Không có dữ liệu lưu lượng khách/traffic trong nguồn - chưa thể tách biệt sụt giảm lượng khách và sụt giảm tỷ lệ chuyển đổi. Cần kiểm tra traffic trước tiên.') AS traffic_note_vi
+FROM `marine-cycle-484213-b4.reportdb.dash_page1_wow` w;

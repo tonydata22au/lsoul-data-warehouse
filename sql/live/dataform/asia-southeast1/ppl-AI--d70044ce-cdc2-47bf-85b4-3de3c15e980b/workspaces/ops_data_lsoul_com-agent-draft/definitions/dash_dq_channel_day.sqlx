@@ -1,0 +1,38 @@
+config {
+  type:"table",
+  name:"dash_dq_platform_day",
+  dependencyTargets:[{
+    name:"dash_base_order_day"
+  }],
+}
+WITH params AS (
+  SELECT
+     DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 1 DAY) AS t_minus_1
+    -- most recent completed Sunday
+    ,DATE_SUB(DATE_TRUNC(CURRENT_DATE('Asia/Ho_Chi_Minh'), WEEK(MONDAY)), INTERVAL 1 DAY) AS last_sunday
+),
+platforms AS (
+  SELECT DISTINCT country, level_1, level_2, level_3
+  FROM ${ref("dash_base_order_day")}
+  WHERE period_date >= DATE_SUB(CURRENT_DATE('Asia/Ho_Chi_Minh'), INTERVAL 120 DAY)
+),
+last_data AS (
+  SELECT level_3, MAX(period_date) AS last_date_with_data
+  FROM ${ref("dash_base_order_day")}
+  WHERE nmv > 0
+  GROUP BY level_3
+)
+SELECT
+   p.country, p.level_1, p.level_2, p.level_3
+  ,l.last_date_with_data
+  ,p.level_3 IN ('Tmall','Taobao')                          AS is_weekly_load
+  ,CASE WHEN p.level_3 IN ('Tmall','Taobao') THEN l.last_date_with_data
+        ELSE par.t_minus_1 END                              AS data_complete_through
+  ,par.t_minus_1                                            AS t_minus_1
+  ,par.last_sunday                                          AS last_sunday
+  ,CASE WHEN p.level_3 IN ('Tmall','Taobao')
+         THEN 'Manual weekly upload (Mon AM). Complete only through last Sunday.'
+        ELSE 'Daily load. Complete through T-1.' END        AS load_note
+FROM platforms p
+CROSS JOIN params par
+LEFT JOIN last_data l USING (level_3)

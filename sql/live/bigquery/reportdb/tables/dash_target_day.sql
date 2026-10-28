@@ -1,0 +1,28 @@
+CREATE TABLE `marine-cycle-484213-b4.reportdb.dash_target_day`
+(
+  sale_date DATE,
+  week_start DATETIME,
+  month_start DATETIME,
+  year_start DATETIME,
+  country STRING,
+  level_1 STRING,
+  level_2 STRING,
+  target_by_date FLOAT64,
+  target_by_date_country FLOAT64,
+  target_by_date_level_1 FLOAT64,
+  target_by_week FLOAT64,
+  target_by_week_country FLOAT64,
+  target_by_week_level_1 FLOAT64,
+  target_by_month FLOAT64,
+  target_by_month_country FLOAT64,
+  target_by_month_level_1 FLOAT64,
+  target_by_year FLOAT64,
+  day_target_revenue FLOAT64,
+  week_target_revenue FLOAT64,
+  month_target_revenue FLOAT64,
+  year_target_revenue FLOAT64,
+  is_unmapped_channel BOOL,
+  is_multi_country_target BOOL,
+  is_low_target BOOL,
+  is_target_invalid BOOL
+);

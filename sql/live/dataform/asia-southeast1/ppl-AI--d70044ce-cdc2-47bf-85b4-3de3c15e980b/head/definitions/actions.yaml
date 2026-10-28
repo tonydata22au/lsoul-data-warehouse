@@ -1,0 +1,8 @@
+actions:
+- operation:
+    name: ai_exec_run
+    dataset: reportdb
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: v_dash_ai_facts
+    filename: query_1786612214363.sql

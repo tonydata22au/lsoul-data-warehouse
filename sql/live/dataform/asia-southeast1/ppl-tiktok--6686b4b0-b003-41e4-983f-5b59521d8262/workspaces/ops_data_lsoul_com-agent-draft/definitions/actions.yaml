@@ -1,0 +1,37 @@
+actions:
+- operation:
+    name: log_core_ads
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_ads
+    filename: query_1776413264058.sql
+- operation:
+    name: log_core_gmv_max_report
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_tiktok_gmv_max_report
+    filename: query_1781256515898.sql
+- operation:
+    name: log_core_reporting_basic_auction_ad
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_reporting_basic_auction_ad
+    filename: query_1788624236704.sql
+- operation:
+    name: log_core_thai_ads
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_thai_ads
+    filename: query_1788620407221.sql
+- operation:
+    name: log_core_thai_reporting_basic_auction_ad
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_thai_reporting_basic_auction_ad
+    filename: query_1788624193434.sql
+- operation:
+    name: log_core_tiktok_gmv_max_report
+    project: marine-cycle-484213-b4
+    dependencyTargets:
+    - name: core_tiktok_thai_gmv_max_report
+    filename: query_1788620680481.sql

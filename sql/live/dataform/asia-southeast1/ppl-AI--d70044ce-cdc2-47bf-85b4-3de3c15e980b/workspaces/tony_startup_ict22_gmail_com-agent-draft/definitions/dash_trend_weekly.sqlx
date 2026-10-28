@@ -1,0 +1,471 @@
+config {
+  type:"table",
+  schema:"reportdb",
+  name:"dash_trend_weekly",
+  description:"Weekly channel trend at level_3 grain. Carries the full target block (target, attainment, pace, gap) mirroring dash_trend_monthly, plus WoW deltas, trailing shape, basket economics, mix share and data-quality trust flags. All pre-existing columns are unchanged in name, type, order and value so dash_material_points and v_dash_ai_facts_core keep working."
+}
+
+/* =============================================================================
+   dash_trend_weekly
+   -----------------------------------------------------------------------------
+   WHAT CHANGED, AND WHY
+
+   1. TARGETS. The weekly table had none, so a channel could only ever be judged
+      against its own past, never against plan. dash_target_day already carries
+      week_target_revenue built from the same sale_plan_2026_daily rows that feed
+      month_target_revenue, so the weekly target block is now the exact mirror of
+      the monthly one: target, attainment, expected_pace, pace_gap_pp, gap in VND
+      and the same four target-quality flags.
+
+   2. LEVEL_3 ALLOCATION. sale_plan_2026_daily only carries targets at
+      channel_level = 2 (the 10 level_2 channels). There is no level_3 plan
+      anywhere. fn_order_target_master exposes target_revenue_per_level_3, but
+      its divisor is computed inside a GROUP BY that lists all 14 columns, so
+      every group is a single row and the divisor is always 1 - the column is a
+      verbatim copy of target_revenue_per_level_2. Summing it over level_3
+      overstates the week's target by ~2.1x (12,557m vs 5,949m on w/c 2026-08-24).
+      That column is therefore NOT used here. Instead the level_2 target is
+      allocated across its level_3 rows by trailing-8-week NMV share, which is
+      non-circular (the current week's performance cannot move its own target)
+      and sums back to the level_2 target exactly.
+
+   3. DATA-QUALITY CUTOFF. The monthly build truncates at
+      dash_dq_platform_day.data_complete_through; the weekly build did not, so a
+      late Monday upload from Tmall/Taobao would silently under-report the live
+      week with nothing to flag it. The same conservative channel-level cutoff is
+      now applied here, and nmv_excluded_by_cutoff quantifies what it withholds.
+      On current data the cutoff is a no-op for the weekly window (all cutoffs
+      are >= 2026-08-30 = cur_wk_end), so existing values are unchanged.
+
+   4. The cutoff is keyed on (country, level_2), not level_2 alone. Channel names
+      are reused across countries - 'VN Online' exists under both VIETNAM and
+      THAILAND - so a level_2-only MIN() would let one country's late feed
+      truncate another's.
+
+   GRAIN: week_start x country x level_1 x level_2 x level_3   (unchanged)
+   ========================================================================== */
+
+WITH p AS (SELECT * FROM ${ref("dash_run_params")}),
+
+-- Conservative completeness cutoff, taken at channel level so that a level_2
+-- rollup stays internally consistent: if one platform in a channel is only
+-- complete through Sunday, the whole channel is read through Sunday.
+cut AS (
+  SELECT
+     country
+    ,level_2
+    ,MIN(data_complete_through) AS cutoff
+    ,MAX(last_date_with_data)   AS last_data
+  FROM ${ref("dash_dq_platform_day")}
+  GROUP BY country, level_2
+),
+
+base AS (
+  SELECT
+     DATE_TRUNC(b.period_date, WEEK(MONDAY)) AS week_start
+    ,b.country, b.level_1, b.level_2, b.level_3
+    ,b.period_date, b.order_id, b.customer_id
+    ,IF(IS_NAN(b.nmv)        OR b.nmv        IS NULL, 0, b.nmv)        AS nmv
+    ,IF(IS_NAN(b.gmv)        OR b.gmv        IS NULL, 0, b.gmv)        AS gmv
+    ,IF(IS_NAN(b.units_sold) OR b.units_sold IS NULL, 0, b.units_sold) AS units
+    ,IFNULL(b.has_true_gmv, FALSE)                    AS has_true_gmv
+    ,IFNULL(b.nmv_basis, '')                          AS nmv_basis
+    ,b.period_date <= IFNULL(c.cutoff, b.period_date) AS in_scope
+    ,c.cutoff                                         AS data_complete_through
+    ,c.last_data                                      AS last_date_with_data
+  FROM ${ref("dash_base_order_day")} b
+  LEFT JOIN cut c
+    ON c.country = b.country AND c.level_2 = b.level_2
+  CROSS JOIN p
+  WHERE b.period_date >= DATE_SUB(p.cur_wk_start, INTERVAL 8 WEEK)
+    AND b.period_date <= p.cur_wk_end
+),
+
+/* ============================ DAYS-ELAPSED CAPPING ==========================
+   M = days of the reporting week that are actually READABLE for this channel.
+
+   cur_wk_start..cur_wk_end is always a COMPLETED Monday-Sunday week - cur_wk_end
+   is the last Sunday before report_date - so the week-over-week comparison is
+   full-vs-full and carries none of the partial-period distortion the monthly
+   comparison had. The week-start convention is untouched.
+
+   The one way a partial current week can arise is the completeness cutoff: a
+   channel on a weekly manual upload (Tmall, Taobao) reads only through its own
+   data_complete_through, so if that upload is late the current week holds M < 7
+   days while the prior week still holds 7. M is therefore measured per channel
+   from the readable end of the week, and where M < 7 the PRIOR week is capped to
+   its first M days so both sides cover the same number of days.
+
+   MEASURED 2026-09-04: every channel has M = 7 (all cutoffs >= cur_wk_end), so
+   this is currently a no-op and no existing value moves. It engages the first
+   Monday a manual upload slips.
+   ========================================================================== */
+wow_window AS (
+  SELECT
+     country, level_2, cur_start, cur_end_eff AS cur_end, prv_start
+    ,DATE_DIFF(cur_end_eff, cur_start, DAY) + 1                                AS m_days
+    ,DATE_ADD(prv_start, INTERVAL DATE_DIFF(cur_end_eff, cur_start, DAY) DAY)  AS prv_end
+  FROM (
+    SELECT
+       c.country, c.level_2
+      ,p.cur_wk_start                                        AS cur_start
+      ,LEAST(p.cur_wk_end, IFNULL(c.cutoff, p.cur_wk_end))   AS cur_end_eff
+      ,DATE_SUB(p.cur_wk_start, INTERVAL 7 DAY)              AS prv_start
+    FROM cut c CROSS JOIN p
+  )
+),
+
+-- Prior week restricted to its first M days. Same in_scope filter as `wk`, so
+-- both sides of the comparison are cut identically.
+prev_wk_capped AS (
+  SELECT
+     b.country, b.level_2, b.level_3
+    ,SUM(b.nmv)                                      AS nmv
+    ,SUM(b.units)                                    AS units
+    ,COUNT(DISTINCT IF(b.nmv > 0, b.order_id, NULL)) AS bills
+    ,COUNT(DISTINCT NULLIF(b.customer_id,''))        AS customers
+    ,SAFE_DIVIDE(SUM(b.nmv),
+       NULLIF(COUNT(DISTINCT IF(b.nmv > 0, b.order_id, NULL)),0)) AS aov
+  FROM base b
+  JOIN wow_window ww ON ww.country = b.country AND ww.level_2 = b.level_2
+  WHERE b.in_scope
+    AND b.period_date BETWEEN ww.prv_start AND ww.prv_end
+  GROUP BY 1,2,3
+),
+
+wk AS (
+  SELECT
+     week_start, country, level_1, level_2, level_3
+    -- headline metrics (cutoff applied)
+    ,SUM(IF(in_scope, nmv,   0))                                 AS nmv
+    ,SUM(IF(in_scope, gmv,   0))                                 AS gmv
+    ,SUM(IF(in_scope, units, 0))                                 AS units
+    -- bills counted only where the order carried value (see defect 2)
+    ,COUNT(DISTINCT IF(in_scope AND nmv > 0, order_id, NULL))    AS bills
+    ,COUNT(DISTINCT IF(in_scope, order_id, NULL))                AS bills_incl_zero
+    -- new: reach and coverage
+    ,COUNT(DISTINCT IF(in_scope AND NULLIF(customer_id,'') IS NOT NULL,
+                       customer_id, NULL))                       AS customers
+    ,COUNT(DISTINCT IF(in_scope, period_date, NULL))             AS days_with_data
+    -- new: what the completeness cutoff is holding back
+    ,SUM(IF(NOT in_scope, nmv, 0))                               AS nmv_excluded_by_cutoff
+    -- new: markdown pressure, computed only on orders with a real gross value
+    ,SUM(IF(in_scope AND has_true_gmv, gmv, 0))                  AS gmv_observed
+    ,SUM(IF(in_scope AND has_true_gmv, nmv, 0))                  AS nmv_on_observed_gmv
+    -- new: how much of NMV is a returns model rather than settled fact
+    ,SUM(IF(in_scope AND STARTS_WITH(nmv_basis,'modelled'), nmv, 0)) AS nmv_modelled
+    ,ANY_VALUE(data_complete_through)                            AS data_complete_through
+    ,ANY_VALUE(last_date_with_data)                              AS last_date_with_data
+  FROM base
+  GROUP BY 1,2,3,4,5
+),
+
+m AS (
+  SELECT
+     wk.*
+    ,SAFE_DIVIDE(nmv,   NULLIF(bills,0))      AS aov              -- = basket value
+    ,SAFE_DIVIDE(units, NULLIF(bills,0))      AS units_per_bill
+    ,SAFE_DIVIDE(nmv,   NULLIF(units,0))      AS asp              -- price per unit
+    ,SAFE_DIVIDE(bills, NULLIF(customers,0))  AS bills_per_customer
+    ,IF(gmv_observed > 0,
+        1 - SAFE_DIVIDE(nmv_on_observed_gmv, gmv_observed), NULL) AS discount_rate
+    ,SAFE_DIVIDE(nmv_on_observed_gmv, NULLIF(nmv,0))              AS pct_gmv_observed
+    ,SAFE_DIVIDE(nmv_modelled,        NULLIF(nmv,0))              AS pct_nmv_modelled
+  FROM wk
+),
+
+-- Week targets at level_2. MAX() rather than grouping by the value itself:
+-- week_target_revenue is constant within (week_start, level_2), and putting it
+-- in the GROUP BY would fan the join out the moment that ever stopped being true.
+tgt AS (
+  SELECT
+     DATE(t.week_start)                     AS week_start
+    ,t.country
+    ,t.level_2
+    ,MAX(t.week_target_revenue)             AS week_target_level_2
+    ,LOGICAL_OR(t.is_low_target)            AS is_low_target
+    ,LOGICAL_OR(t.is_target_invalid)        AS is_target_invalid
+    ,LOGICAL_OR(t.is_unmapped_channel)      AS is_unmapped_channel
+    ,LOGICAL_OR(t.is_multi_country_target)  AS is_multi_country_target
+  FROM ${ref("dash_target_day")} t
+  CROSS JOIN p
+  WHERE DATE(t.week_start) >= DATE_SUB(p.cur_wk_start, INTERVAL 8 WEEK)
+    AND DATE(t.week_start) <= p.cur_wk_start
+  GROUP BY 1,2,3
+),
+
+j AS (
+  SELECT
+     m.*
+    ,g.week_target_level_2
+    ,IFNULL(g.is_low_target,           FALSE) AS is_low_target
+    ,IFNULL(g.is_target_invalid,       FALSE) AS is_target_invalid
+    ,IFNULL(g.is_unmapped_channel,     FALSE) AS is_unmapped_channel
+    ,IFNULL(g.is_multi_country_target, FALSE) AS is_multi_country_target
+  FROM m
+  LEFT JOIN tgt g
+    ON  g.week_start = m.week_start
+    AND g.country    = m.country
+    AND g.level_2    = m.level_2
+),
+
+-- Trailing-window features. w8 is the ORIGINAL frame, unchanged: the eight weeks
+-- strictly before the row's own week, so the current week never sits inside its
+-- own comparison range.
+w AS (
+  SELECT
+     j.*
+    ,MIN(j.nmv)         OVER w8    AS nmv_min_8wk
+    ,MAX(j.nmv)         OVER w8    AS nmv_max_8wk
+    ,AVG(j.nmv)         OVER w8    AS nmv_avg_8wk
+    ,MIN(j.bills)       OVER w8    AS bills_min_8wk
+    ,MAX(j.bills)       OVER w8    AS bills_max_8wk
+    ,MIN(j.aov)         OVER w8    AS aov_min_8wk
+    ,MAX(j.aov)         OVER w8    AS aov_max_8wk
+    ,COUNT(*)           OVER w8    AS hist_weeks_available
+    ,STDDEV_SAMP(j.nmv) OVER w8    AS nmv_stddev_8wk
+    ,SUM(j.nmv)         OVER w8    AS nmv_trail_8wk
+    ,AVG(j.nmv)         OVER w4    AS nmv_ma4
+    -- prior week by DATE, not by row position, so a week with no rows produces
+    -- NULL instead of silently reaching back to whatever row came before it
+    ,MAX(j.nmv)         OVER wprev AS nmv_prev_wk_full
+    ,MAX(j.bills)       OVER wprev AS bills_prev_wk_full
+    ,MAX(j.aov)         OVER wprev AS aov_prev_wk_full
+    ,MAX(j.units)       OVER wprev AS units_prev_wk_full
+    ,MAX(j.customers)   OVER wprev AS customers_prev_wk_full
+    -- capped alternative + the explicit window bounds, resolved in `wr` below
+    ,ww.m_days
+    ,ww.cur_start AS wow_cur_period_start
+    ,ww.cur_end   AS wow_cur_period_end
+    ,ww.prv_start AS wow_prv_period_start
+    ,ww.prv_end   AS wow_prv_period_end
+    ,pw.nmv       AS nmv_prev_wk_capped
+    ,pw.bills     AS bills_prev_wk_capped
+    ,pw.aov       AS aov_prev_wk_capped
+    ,pw.units     AS units_prev_wk_capped
+    ,pw.customers AS customers_prev_wk_capped
+  FROM j
+  LEFT JOIN wow_window ww
+    ON ww.country = j.country AND ww.level_2 = j.level_2
+  LEFT JOIN prev_wk_capped pw
+    ON pw.country = j.country AND pw.level_2 = j.level_2 AND pw.level_3 = j.level_3
+  WINDOW
+     w8    AS (PARTITION BY j.country, j.level_2, j.level_3
+               ORDER BY UNIX_DATE(j.week_start) RANGE BETWEEN 56 PRECEDING AND  7 PRECEDING)
+    ,w4    AS (PARTITION BY j.country, j.level_2, j.level_3
+               ORDER BY UNIX_DATE(j.week_start) RANGE BETWEEN 28 PRECEDING AND  7 PRECEDING)
+    ,wprev AS (PARTITION BY j.country, j.level_2, j.level_3
+               ORDER BY UNIX_DATE(j.week_start) RANGE BETWEEN  7 PRECEDING AND  7 PRECEDING)
+),
+
+-- >>> DAYS-ELAPSED CAPPING APPLIED HERE <<<
+-- The prior week is capped ONLY on the current-week row and ONLY where the
+-- cutoff actually shortened it (m_days < 7). Historical rows compare complete
+-- week to complete week, exactly as before, so nothing already published moves.
+wr AS (
+  SELECT
+     w.*
+    ,(w.week_start = (SELECT cur_wk_start FROM p) AND IFNULL(w.m_days,7) < 7) AS wow_window_capped
+    ,IF(w.week_start = (SELECT cur_wk_start FROM p) AND IFNULL(w.m_days,7) < 7,
+        w.nmv_prev_wk_capped,       w.nmv_prev_wk_full)       AS nmv_prev_wk
+    ,IF(w.week_start = (SELECT cur_wk_start FROM p) AND IFNULL(w.m_days,7) < 7,
+        w.bills_prev_wk_capped,     w.bills_prev_wk_full)     AS bills_prev_wk
+    ,IF(w.week_start = (SELECT cur_wk_start FROM p) AND IFNULL(w.m_days,7) < 7,
+        w.aov_prev_wk_capped,       w.aov_prev_wk_full)       AS aov_prev_wk
+    ,IF(w.week_start = (SELECT cur_wk_start FROM p) AND IFNULL(w.m_days,7) < 7,
+        w.units_prev_wk_capped,     w.units_prev_wk_full)     AS units_prev_wk
+    ,IF(w.week_start = (SELECT cur_wk_start FROM p) AND IFNULL(w.m_days,7) < 7,
+        w.customers_prev_wk_capped, w.customers_prev_wk_full) AS customers_prev_wk
+  FROM w
+),
+
+-- Cross-sectional shares. Separate pass because these partition across level_3
+-- within a week, not along time.
+x AS (
+  SELECT
+     wr.*
+    ,SUM(wr.nmv_trail_8wk) OVER l2 AS nmv_trail_8wk_level_2
+    ,COUNT(*)              OVER l2 AS n_level_3_in_level_2
+    ,SUM(wr.nmv)           OVER l2 AS nmv_level_2
+    ,SUM(wr.nmv)           OVER (PARTITION BY wr.week_start, wr.country) AS nmv_country
+    ,SUM(wr.nmv)           OVER (PARTITION BY wr.week_start)             AS nmv_group
+  FROM wr
+  WINDOW l2 AS (PARTITION BY wr.week_start, wr.country, wr.level_2)
+),
+
+-- Allocate the level_2 plan down to level_3 by trailing-8-week NMV share.
+-- Non-circular: the divisor and numerator both exclude the row's own week, so a
+-- store cannot earn itself an easier target by having a bad week. The shares sum
+-- to 1 within (week_start, country, level_2), therefore SUM(week_target) over a
+-- channel reconciles exactly to week_target_level_2.
+alloc AS (
+  SELECT
+     x.*
+    ,CASE WHEN x.n_level_3_in_level_2 = 1            THEN 'single_level_3'
+          WHEN IFNULL(x.nmv_trail_8wk_level_2,0) > 0 THEN 'trailing_8wk_nmv_share'
+          ELSE 'even_split' END                      AS target_alloc_method
+    ,COALESCE(
+        SAFE_DIVIDE(x.nmv_trail_8wk, NULLIF(x.nmv_trail_8wk_level_2,0)),
+        SAFE_DIVIDE(1, NULLIF(x.n_level_3_in_level_2,0))
+     )                                               AS target_alloc_share
+    -- a completed week is measured whole; a live week is pro-rated on the days
+    -- actually readable, which is the cutoff date, not today
+    ,LEAST(1.0, GREATEST(0.0, SAFE_DIVIDE(
+        DATE_DIFF(
+          LEAST(p.report_date,
+                DATE_ADD(x.week_start, INTERVAL 6 DAY),
+                IFNULL(x.data_complete_through, p.report_date)),
+          x.week_start, DAY) + 1, 7)))               AS expected_pace
+  FROM x CROSS JOIN p
+),
+
+tg AS (
+  SELECT
+     alloc.*
+    ,alloc.week_target_level_2 * alloc.target_alloc_share AS week_target
+  FROM alloc
+),
+
+-- Direction and streak. A step only extends a streak when the prior week really
+-- exists (nmv_prev_wk IS NOT NULL), so a dormant channel's gap breaks the run
+-- instead of joining two distant weeks together.
+d AS (
+  SELECT
+     tg.*
+    ,SAFE_DIVIDE(tg.nmv,       NULLIF(tg.nmv_prev_wk,0))       - 1 AS nmv_wow_pct
+    ,SAFE_DIVIDE(tg.bills,     NULLIF(tg.bills_prev_wk,0))     - 1 AS bills_wow_pct
+    ,SAFE_DIVIDE(tg.aov,       NULLIF(tg.aov_prev_wk,0))       - 1 AS aov_wow_pct
+    ,SAFE_DIVIDE(tg.units,     NULLIF(tg.units_prev_wk,0))     - 1 AS units_wow_pct
+    ,SAFE_DIVIDE(tg.customers, NULLIF(tg.customers_prev_wk,0)) - 1 AS customers_wow_pct
+    ,tg.nmv - tg.nmv_prev_wk                                       AS nmv_wow_abs
+  FROM tg
+),
+
+dir AS (
+  SELECT
+     d.*
+    ,CASE
+       WHEN d.nmv_prev_wk IS NULL                        THEN 'NEW'
+       WHEN ABS(IFNULL(d.nmv_wow_pct,0)) < p.flat_band   THEN 'FLAT'
+       WHEN d.nmv_wow_pct > 0                            THEN 'UP'
+       ELSE 'DOWN'
+     END AS nmv_wow_direction
+  FROM d CROSS JOIN p
+),
+
+streak AS (
+  SELECT
+     dir.*
+    ,SUM(new_run) OVER (PARTITION BY country, level_2, level_3
+                        ORDER BY week_start
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS run_id
+  FROM (
+    SELECT
+       dir.*
+      ,IF(nmv_wow_direction = LAG(nmv_wow_direction)
+            OVER (PARTITION BY country, level_2, level_3 ORDER BY week_start)
+          AND nmv_prev_wk IS NOT NULL, 0, 1) AS new_run
+    FROM dir
+  ) dir
+)
+
+SELECT
+   -- ---------- EXISTING CONTRACT: names, types, order and values unchanged ----
+   s.week_start
+  ,s.country
+  ,s.level_1
+  ,s.level_2
+  ,s.level_3
+  ,s.nmv
+  ,s.gmv
+  ,s.units
+  ,s.bills
+  ,s.bills_incl_zero
+  ,s.aov
+  ,s.units_per_bill
+  ,p.cur_wk_start
+  ,s.week_start = p.cur_wk_start                        AS is_current_week
+  ,s.nmv_min_8wk
+  ,s.nmv_max_8wk
+  ,s.nmv_avg_8wk
+  ,s.bills_min_8wk
+  ,s.bills_max_8wk
+  ,s.aov_min_8wk
+  ,s.aov_max_8wk
+  ,s.hist_weeks_available
+
+   -- ---------- NEW: target block, mirroring dash_trend_monthly ---------------
+  ,s.week_target_level_2                              -- plan for the whole channel
+  ,s.target_alloc_method
+  ,s.target_alloc_share
+  ,s.week_target                                      -- this row's share of plan
+  ,s.expected_pace
+  ,IF(s.is_low_target OR s.is_target_invalid, NULL,
+      SAFE_DIVIDE(s.nmv, NULLIF(s.week_target,0)))    AS attainment_vs_full_week
+  ,IF(s.is_low_target OR s.is_target_invalid, NULL,
+      (SAFE_DIVIDE(s.nmv, NULLIF(s.week_target,0)) - s.expected_pace) * 100)
+                                                      AS pace_gap_pp
+  ,IF(s.is_low_target OR s.is_target_invalid, NULL,
+      s.nmv - s.week_target)                          AS target_gap_vnd
+  ,s.is_low_target
+  ,s.is_target_invalid
+  ,s.is_unmapped_channel
+  ,s.is_multi_country_target
+
+   -- ---------- NEW: momentum -------------------------------------------------
+  ,s.nmv_prev_wk
+  ,s.nmv_prev_wk_full                      -- uncapped prior week, kept alongside
+  ,s.wow_window_capped
+  ,s.m_days                  AS wow_compare_days
+  ,s.wow_cur_period_start
+  ,s.wow_cur_period_end
+  ,s.wow_prv_period_start
+  ,s.wow_prv_period_end
+  ,s.bills_prev_wk
+  ,s.aov_prev_wk
+  ,s.units_prev_wk
+  ,s.customers_prev_wk
+  ,s.nmv_wow_abs
+  ,s.nmv_wow_pct
+  ,s.bills_wow_pct
+  ,s.aov_wow_pct
+  ,s.units_wow_pct
+  ,s.customers_wow_pct
+  ,s.nmv_wow_direction
+  ,ROW_NUMBER() OVER (PARTITION BY s.country, s.level_2, s.level_3, s.run_id
+                      ORDER BY s.week_start)          AS nmv_direction_run_weeks
+
+   -- ---------- NEW: trailing shape ------------------------------------------
+  ,s.nmv_ma4
+  ,SAFE_DIVIDE(s.nmv, NULLIF(s.nmv_ma4,0))     - 1    AS nmv_vs_ma4_pct
+  ,SAFE_DIVIDE(s.nmv, NULLIF(s.nmv_avg_8wk,0))        AS nmv_index_vs_8wk_avg
+  ,s.nmv_stddev_8wk
+  ,SAFE_DIVIDE(s.nmv - s.nmv_avg_8wk, NULLIF(s.nmv_stddev_8wk,0)) AS nmv_zscore_8wk
+  ,s.nmv > s.nmv_max_8wk                              AS is_8wk_high
+  ,s.nmv < s.nmv_min_8wk                              AS is_8wk_low
+
+   -- ---------- NEW: basket economics and mix ---------------------------------
+  ,s.asp
+  ,s.customers
+  ,s.bills_per_customer
+  ,s.discount_rate
+  ,s.pct_gmv_observed
+  ,SAFE_DIVIDE(s.nmv, NULLIF(s.nmv_level_2,0))        AS share_of_level_2_nmv
+  ,SAFE_DIVIDE(s.nmv, NULLIF(s.nmv_country,0))        AS share_of_country_nmv
+  ,SAFE_DIVIDE(s.nmv, NULLIF(s.nmv_group,0))          AS share_of_group_nmv
+
+   -- ---------- NEW: trust and completeness -----------------------------------
+  ,s.data_complete_through
+  ,s.last_date_with_data
+  ,s.days_with_data
+  ,DATE_DIFF(LEAST(p.report_date, DATE_ADD(s.week_start, INTERVAL 6 DAY)),
+             s.week_start, DAY) + 1                   AS days_expected
+  ,s.days_with_data >= DATE_DIFF(
+       LEAST(p.report_date, DATE_ADD(s.week_start, INTERVAL 6 DAY)),
+       s.week_start, DAY) + 1                         AS is_week_complete
+  ,s.nmv_excluded_by_cutoff
+  ,s.pct_nmv_modelled
+  ,DATE_DIFF(p.report_date, s.last_date_with_data, DAY) AS days_since_last_data
+  ,IFNULL(DATE_DIFF(p.report_date, s.last_date_with_data, DAY) > 14, FALSE) AS is_dormant
+FROM streak s
+CROSS JOIN p

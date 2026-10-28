@@ -1,0 +1,9 @@
+config {
+  type:"declaration",
+  name:"raw_tiktok_ads",
+  dataset:"raw_tiktok",
+}
+SELECT
+*
+FROM ${ref("raw_tiktok_ads")}
+WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP(CURRENT_DATE())

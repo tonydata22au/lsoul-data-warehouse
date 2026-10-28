@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4.jushuitan.sp_jushuitan_taobao_tmall_order_manual_core_order_item_insert`()
+CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4`.jushuitan.sp_jushuitan_taobao_tmall_order_manual_core_order_item_insert()
 BEGIN
 /*
 Author: Toan Pham
@@ -11,16 +11,7 @@ Run syntax:
   DECLARE data_proc_date DATE DEFAULT
                                       (SELECT MAX(DATE(proc_date)) FROM `marine-cycle-484213-b4.jushuitan.stg_jushuitan_taobao_tmall_order_manual`);
 
-  DECLARE data_insert_to_date DATE DEFAULT
-                                              (SELECT MAX(DATE(vn_order_date)) 
-                                              FROM `marine-cycle-484213-b4.jushuitan.stg_jushuitan_taobao_tmall_order_manual`
-                                              WHERE DATE(proc_date) = data_proc_date);
-  DECLARE data_insert_from_date DATE DEFAULT
-                                              (SELECT MIN(DATE(vn_order_date))
-                                              FROM `marine-cycle-484213-b4.jushuitan.stg_jushuitan_taobao_tmall_order_manual`
-                                              WHERE DATE(proc_date) = data_proc_date);
-
-  IF data_proc_date = DATE(CURRENT_DATE()) THEN
+  IF data_proc_date = DATE(CURRENT_DATE("Asia/Ho_Chi_Minh")) THEN
 
   DELETE `marine-cycle-484213-b4.jushuitan.core_jushuitan_taobao_tmall_order_manual` WHERE o_id IN (SELECT DISTINCT o_id
                                                                                 FROM `marine-cycle-484213-b4.jushuitan.stg_jushuitan_taobao_tmall_order_manual`

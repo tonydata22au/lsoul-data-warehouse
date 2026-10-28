@@ -1,0 +1,35 @@
+CREATE TABLE `marine-cycle-484213-b4.jushuitan.core_jushuitan_taobao_tmall_order_manual`
+(
+  proc_date TIMESTAMP,
+  o_id INT64,
+  order_date DATETIME,
+  vn_order_date DATETIME,
+  oo_id STRING,
+  shop_id NUMERIC,
+  shop_name STRING,
+  shop_account_no STRING,
+  buyer_account STRING,
+  payment_date STRING,
+  freights NUMERIC,
+  shop_status STRING,
+  platform_site STRING,
+  so_id NUMERIC,
+  raw_oo_id STRING,
+  product_code STRING,
+  items_sku_id STRING,
+  items_qty NUMERIC,
+  items_price NUMERIC,
+  items_amount NUMERIC,
+  items_base_price NUMERIC,
+  items_status STRING,
+  items_category STRING,
+  items_group_name STRING,
+  items_raw_sku_id STRING,
+  items_refund_status STRING,
+  items_buyer_paid_amount NUMERIC,
+  items_registered_qty NUMERIC,
+  items_refund_qty NUMERIC,
+  items_refund_amount NUMERIC
+)
+PARTITION BY DATE(vn_order_date)
+CLUSTER BY o_id, vn_order_date;

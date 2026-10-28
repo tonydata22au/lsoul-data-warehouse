@@ -1,0 +1,28 @@
+config {
+  type:"table",
+  name:"report_performance_snapshot_ai_generated_v2",
+  dependencyTargets:[{
+    name:"v_ai_report_prompts"
+  }],
+}
+WITH generated AS (
+  SELECT
+    report_type,
+    period_label,
+    prompt_text,
+    AI.GENERATE(
+      prompt_text,
+      -- connection_id => 'us.your_vertex_connection',  -- uncomment + set if not using end-user credentials
+      endpoint       => 'gemini-3.5-flash',--'gemini-3.5-pro',
+      output_schema  => 'summary STRING, highlights ARRAY<STRING>, lowlights ARRAY<STRING>'
+    ) AS ai_result
+  FROM  ${ref("v_ai_report_prompts")}
+)
+SELECT
+  report_type,
+  period_label,
+  ai_result.summary    AS summary,
+  '- ' || ARRAY_TO_STRING(ai_result.highlights, CHR(10) || '- ') AS Highlights,
+  '- ' || ARRAY_TO_STRING(ai_result.lowlights, CHR(10) || '- ') AS Lowlights,
+  CURRENT_TIMESTAMP()  AS generated_at
+FROM generated

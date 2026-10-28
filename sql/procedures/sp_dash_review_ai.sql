@@ -1,4 +1,4 @@
-CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4.reportdb.sp_dash_review_ai`(i_attempt_no INT64)
+CREATE OR REPLACE PROCEDURE `marine-cycle-484213-b4`.reportdb.sp_dash_review_ai(i_attempt_no INT64)
 BEGIN
   DECLARE v_gver INT64 DEFAULT (
     SELECT IFNULL(MAX(guidance_version), 0)

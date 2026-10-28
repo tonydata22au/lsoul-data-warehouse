@@ -1,0 +1,29 @@
+--DROP TABLE `marine-cycle-484213-b4.core_tiktok.core_thai_ads`
+CREATE OR REPLACE TABLE `marine-cycle-484213-b4.core_tiktok.core_thai_ads`
+AS
+SELECT
+proc_date,
+create_time,
+modify_time,
+ad_id,
+ad_name,
+operation_status,
+secondary_status,
+app_name,
+advertiser_id,
+campaign_id,
+campaign_name,
+adgroup_id,
+adgroup_name,
+display_name,
+optimization_event,
+ad_format,
+creative_type,
+ad_text,
+tiktok_item_id,
+identity_type,
+campaign_automation_type
+FROM `marine-cycle-484213-b4.stg_tiktok.stg_ads`
+WHERE proc_date = '2026-09-05'
+
+

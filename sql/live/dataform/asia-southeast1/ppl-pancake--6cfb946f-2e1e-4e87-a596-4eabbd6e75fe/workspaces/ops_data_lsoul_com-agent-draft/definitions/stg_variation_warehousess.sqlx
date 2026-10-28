@@ -1,0 +1,24 @@
+config {
+  type:"incremental",
+  name:"stg_variation_warehouses",
+  dataset:"stg_pancake",
+  dependencyTargets:[{
+    name:"raw_product_variations"
+  }],
+}
+SELECT DISTINCT
+  TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) AS proc_date,
+  DATETIME(PARSE_TIMESTAMP('%Y%m%d%H%M%S', inserted_at))  AS inserted_at,
+  DATETIME(PARSE_TIMESTAMP('%Y%m%d%H%M%S', updated_at))  AS updated_at,
+  product_id,
+  product_tags,
+  variation_id,
+  variations_warehouses_warehouse_id AS warehouse_id,
+  SAFE_CAST(variations_warehouses_actual_remain_quantity AS FLOAT64) AS actual_remain_qty,
+  SAFE_CAST(variations_warehouses_pending_quantity AS INT64) AS pending_qty,
+  SAFE_CAST(variations_warehouses_remain_quantity AS INT64) AS remain_qty,
+  SAFE_CAST(variations_warehouses_total_quantity AS INT64) AS total_qty,
+  SAFE_CAST(variations_warehouses_returning_quantity AS INT64) AS returning_qty,
+  SAFE_CAST(variations_warehouses_waiting_quantity AS INT64) AS waiting_qty
+FROM ${ref("raw_product_variations")}
+WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP(CURRENT_DATE("Asia/Ho_Chi_Minh"))

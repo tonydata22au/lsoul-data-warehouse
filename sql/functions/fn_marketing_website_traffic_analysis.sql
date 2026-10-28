@@ -1,20 +1,6 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_marketing_website_traffic_analysis`()
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_marketing_website_traffic_analysis()
 AS
-/*
-Author: Toan Pham
-Date: 03/03/2026
-Comment: 
-Old GA4 Account: 529084033 (cut-off date 2026-04-16)
-New GA4 Account: 529084033
-
-Metrics/KPIs:
-- New vs returning fashion shoppers
-
-Testing:
-  SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_marketing_website_traffic_analysis`() ORDER BY 1 DESC
-*/
-(
-  WITH users AS (
+WITH users AS (
   SELECT
     pseudo_user_id,
     DATETIME_TRUNC(TIMESTAMP_MICROS(user_info. user_first_touch_timestamp_micros),DAY) AS first_seen_date,
@@ -70,5 +56,4 @@ event_day AS (
   traffic_medium, traffic_source, traffic_type
   FROM event_day ed
   LEFT JOIN user_tag ut ON ed.user_pseudo_id = ut.pseudo_user_id
-  ORDER BY 1,2
-)
+  ORDER BY 1,2;

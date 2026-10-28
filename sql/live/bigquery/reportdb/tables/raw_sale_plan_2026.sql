@@ -1,0 +1,18 @@
+CREATE TABLE `marine-cycle-484213-b4.reportdb.raw_sale_plan_2026`
+(
+  KENH STRING,
+  Y2025 FLOAT64,
+  Y2026 FLOAT64,
+  M1 INT64,
+  M2 INT64,
+  M3 INT64,
+  M4 INT64,
+  M5 INT64,
+  M6 INT64,
+  M7 INT64,
+  M8 INT64,
+  M9 INT64,
+  M10 INT64,
+  M11 INT64,
+  M12 INT64
+);

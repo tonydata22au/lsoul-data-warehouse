@@ -1,0 +1,48 @@
+CREATE VIEW `marine-cycle-484213-b4.reportdb.v_dash_consistency_check`
+AS WITH pts AS (
+  SELECT point_id, ABS(delta_nmv) AS abs_impact
+  FROM `marine-cycle-484213-b4.reportdb.dash_material_points`
+),
+top3 AS (SELECT point_id FROM pts ORDER BY abs_impact DESC LIMIT 3),
+n AS (
+  SELECT page, period_key, exec_summary_en, narrative_en FROM (
+    SELECT page, period_key, exec_summary_en, narrative_en,
+           ROW_NUMBER() OVER (PARTITION BY page ORDER BY generated_at DESC) rn
+    FROM `marine-cycle-484213-b4.reportdb.dash_ai_narrative`
+  ) WHERE rn = 1
+),
+cover AS (
+  SELECT n.page, n.period_key, p.point_id,
+         REGEXP_CONTAINS(IFNULL(n.narrative_en,''),    p.point_id) AS in_narrative,
+         REGEXP_CONTAINS(IFNULL(n.exec_summary_en,''), p.point_id) AS in_exec,
+         p.point_id IN (SELECT point_id FROM top3)                 AS is_top3
+  FROM n CROSS JOIN pts p
+),
+fab AS (
+  SELECT n.page, ARRAY_AGG(DISTINCT x) AS fabricated_point_ids
+  FROM n, UNNEST(REGEXP_EXTRACT_ALL(
+         CONCAT(IFNULL(n.exec_summary_en,''),' ',IFNULL(n.narrative_en,'')), r'\b[PM][0-9]{2}\b')) x
+  WHERE x NOT IN (SELECT point_id FROM pts)
+  GROUP BY n.page
+),
+agg AS (
+  SELECT page,
+         ANY_VALUE(period_key) AS period_key,
+         COUNT(*) AS material_points,
+         IFNULL(ARRAY_AGG(IF(NOT in_narrative, point_id, NULL) IGNORE NULLS),
+                ARRAY<STRING>[]) AS missing_from_highlights,
+         IFNULL(ARRAY_AGG(IF(is_top3 AND NOT in_exec, point_id, NULL) IGNORE NULLS),
+                ARRAY<STRING>[]) AS missing_from_exec_summary_top3
+  FROM cover GROUP BY page
+)
+SELECT
+   a.page
+  ,a.period_key
+  ,a.material_points
+  ,a.missing_from_highlights
+  ,a.missing_from_exec_summary_top3
+  ,IFNULL(f.fabricated_point_ids, ARRAY<STRING>[]) AS fabricated_point_ids
+  ,ARRAY_LENGTH(a.missing_from_highlights) = 0
+   AND ARRAY_LENGTH(IFNULL(f.fabricated_point_ids, ARRAY<STRING>[])) = 0 AS consistency_pass
+FROM agg a
+LEFT JOIN fab f USING (page);

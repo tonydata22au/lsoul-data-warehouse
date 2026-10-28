@@ -1,59 +1,6 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_performance_snapshot_v2`(
-  i_type INT64                    -- reserved, not currently used by any branch below
-  ,i_number_year_back INT64       -- 0: current year
-  ,i_date_from DATE  -- NEW: optional lower bound on order_date, enables pruning. NULL = no lower bound
-  ,i_date_to   DATE  -- NEW: optional upper bound on order_date. NULL = no upper bound
-)
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_performance_snapshot_v2(i_type INT64, i_number_year_back INT64, i_date_from DATE, i_date_to DATE)
 AS
-/*
-Author: Toan Pham
-Rewritten: 2026-08-06 (v2 review)
-Comment:
-Metrics/KPIs:
-Total Revenue Weekly
-% Achievement Weekly / Monthly
-% Tang truong doanh thu theo tuan (Revenue Growth WoW %) / MoM %
-Average Order Value (AOV) -- NEW: now computed in-function
-Channels
-Target vs Achievement
-
-CHANGES vs v1:
-1. BUG FIX: weekly window functions previously partitioned by `order_week` (an INT64, 1-53),
-   which merges week 1 of every year together once the function spans more than one year.
-   All weekly aggregates now partition by `week_start` (a DATE), which is unique per calendar week.
-2. PERFORMANCE: replaced ~20 row-level SUM()/LAG() OVER(...) window columns computed on
-   product-grain data (product_code x variation_code x warehouse_id) with pre-aggregated
-   GROUP BY summary CTEs, joined back onto the product-grain rows. Same output columns,
-   far less redundant computation and shuffling -- previously every product row within a
-   week recomputed an identical weekly total.
-3. PERFORMANCE / ROBUSTNESS: replaced the ROW_NUMBER()=1 trick for de-duplicating the daily
-   target during the FULL OUTER JOIN with a pre-aggregated one-row-per-(date, channel) target CTE.
-4. DATA TYPE: order_id and customer_id are now explicitly CAST to STRING in every branch of the
-   UNION ALL, to avoid implicit-coercion or type-mismatch risk if any source function returns INT64.
-5. NEW COLUMNS: pct_achievement_weekly, pct_achievement_monthly, wow_growth_pct, mom_growth_pct,
-   aov_weekly, aov_weekly_country_level_3 -- avoids re-deriving these ratios in every downstream
-   dashboard/report.
-6. NEW PARAMS: i_date_from / i_date_to (both optional, default NULL) filter order_date as early
-   as possible in the pipeline, to help BigQuery prune scanned data on large lookbacks.
-
-CAUTION FOR CONSUMERS:
-- `order_confirmed` and `customers` on the output are COUNT(DISTINCT ...) computed at the
-  product/variation/warehouse grain. Do NOT SUM them further to get a daily/weekly order or
-  customer count -- that will double-count orders/customers that span multiple products.
-  Use the new weekly_order_confirmed-based aov_* columns (or a fresh COUNT DISTINCT at the
-  grain you need) instead.
-- channel_target assumes `sale_plan_2026_daily` has at most one target value per
-  (sale_date, channel); country/level_1 are pulled via ANY_VALUE() under the assumption a
-  channel maps to exactly one country/level_1. Validate this holds for your data.
-- This is a structural rewrite. Validate output against the v1 function on a sample date
-  range before switching dashboards over.
-
-Testing:
-  SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_performance_snapshot_v2`(0, 1, DATE("2026-07-01"), DATE_SUB(CURRENT_DATE(),INTERVAL 1 DAY)) 
-  ORDER BY 1 DESC
-*/
-(
-  WITH base_daily AS (
+WITH base_daily AS (
      SELECT
       period_date,
       DATE_TRUNC(period_date,MONTH) AS month_start,
@@ -272,5 +219,4 @@ Testing:
   LEFT JOIN weekly_orders               wo    ON b.week_start = wo.week_start
   LEFT JOIN weekly_orders_country_level3 woc  ON b.week_start = woc.week_start AND b.country = woc.country AND b.level_3 = woc.level_3
 
-  ORDER BY 1 DESC, country, level_1, level_2, level_3
-);
+  ORDER BY 1 DESC, country, level_1, level_2, level_3;

@@ -1,11 +1,6 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_product_inventory_overseas_shipment`(
-  number_year_back INT64 -- number of years back from current year
-)
-AS 
---Xuat hang toi Kho Thailand va Kho Trung Quoc
--- SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_product_inventory_overseas_shipment`(0)
-(
- SELECT 
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_product_inventory_overseas_shipment(number_year_back INT64)
+AS
+SELECT 
       oi.order_id,
       order_date,
       CASE 
@@ -48,5 +43,4 @@ AS
     --AND DATE(o.inserted_at) >= '2026-03-31' 
     AND status_name NOT IN ('canceled')
     AND o.warehouse_id IN ('878504e9-fb75-4870-8504-b2ecdbc097ba','76be7836-6dc5-4b1c-9e48-b18e43127453')
-    ORDER BY 2 DESC
-)
+    ORDER BY 2 DESC;
