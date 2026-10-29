@@ -2,10 +2,11 @@
 
 All BigQuery SQL for the LSOUL warehouse. Everything targets the GCP project
 `marine-cycle-484213-b4` (location `asia-southeast1`). Nothing in this repo runs these
-files automatically: they are deployed by pasting/running them in BigQuery (console,
-`bq query`, or Dataform for the two SQLX-style staging files). **Running any file here is a
-BigQuery write** (`CREATE OR REPLACE TABLE`, `CREATE OR REPLACE PROCEDURE/FUNCTION`,
-`DELETE`/`INSERT`). Read the file first; never run one just to "test" it.
+files automatically: DDL/DML files are deployed through BigQuery or Dataform.
+**Most files here write to BigQuery** (`CREATE OR REPLACE TABLE`,
+`CREATE OR REPLACE PROCEDURE/FUNCTION`, `DELETE`/`INSERT`). The monitoring connector
+queries and most ad-hoc queries are SELECT-only, but still incur external query usage.
+Read each file first; never run deployment SQL just to "test" it.
 
 | Folder | Contents | Object types |
 |---|---|---|
@@ -13,6 +14,7 @@ BigQuery write** (`CREATE OR REPLACE TABLE`, `CREATE OR REPLACE PROCEDURE/FUNCTI
 | [`core/`](core/) | `core_*`: build/backfill scripts for core tables | `CREATE OR REPLACE TABLE … PARTITION BY … CLUSTER BY …` (one `INSERT`) |
 | [`procedures/`](procedures/) | `sp_*`: incremental staging → core loads, logging, dashboard jobs | `CREATE OR REPLACE PROCEDURE` |
 | [`functions/`](functions/) | `fn_*` reporting table functions (`reportdb`), `sys-*` shared scalar UDFs | `CREATE OR REPLACE TABLE FUNCTION` / `FUNCTION` |
+| [`monitoring/`](monitoring/) | Read-only Looker Studio connector queries, examples and synthetic test fixtures | `SELECT`; see [dashboard guide](../docs/warehouse-operations-dashboard.md) |
 | [`marts/`](marts/), [`checks/`](checks/) | Placeholders (empty today) | — |
 | [`ad_hoc/`](ad_hoc/) | `q-*` one-off analysis and monitoring queries | Mostly `SELECT`; `q-ai_performance_snapshot.sql` also creates views |
 | [`working_files/`](working_files/) | Numbered deployment set for the AI performance dashboard (`01`–`08`) plus scratch (`00-*`) | Mixed DDL/DML; see file headers for run order |

@@ -7,7 +7,7 @@ Verified by reading the code on 2026-10-18 (nothing was executed against APIs or
 - **Project:** the client's default project unless noted. The warehouse SQL uses `marine-cycle-484213-b4`.
 - **WA:** `load_table_from_dataframe` with `WRITE_APPEND`, `ALLOW_FIELD_ADDITION`/`RELAXATION`, every column cast to STRING. Raw tables are ingestion-time partitioned.
 - **VN yesterday:** 00:00:00–23:59:59 yesterday in `Asia/Ho_Chi_Minh`.
-- **Schedule:** **unknown for every pipeline** except `cloud-run-pancake-order`: Cloud Scheduler job `pancake-insert-raw_order` sends `GET /` daily at 07:20 ICT (details in its docstring). No Cloud Scheduler, cron, CI or service URLs are in the repo. The SQL implies a daily run (see [architecture.md](architecture.md#runtime-and-deployment)).
+- **Schedule:** **unknown for every pipeline** except `cloud-run-pancake-order` and `cloud-run-pancake-product_variations`: Cloud Scheduler jobs `pancake-insert-raw_order` and `pancake-insert-raw_product_variations` send `GET /` daily at 07:20 ICT (details in their docstrings). No Cloud Scheduler, cron, CI or service URLs are in the repo. The SQL implies a daily run (see [architecture.md](architecture.md#runtime-and-deployment)).
 - **Dry run** (where it exists) **still calls the source API**; it only skips the BigQuery load.
 
 ## Cloud Run services: `src/cloud_run/<service>/`
@@ -22,7 +22,7 @@ with the default window below. The CLI is `python cr-<name>.py [flags]` in the s
 | cloud-run-dianplus-order-refund | Dianplus `order/getRefundOrder` | VN yesterday | `--start-date --end-date --project-id --dry-run` | `dianplus.raw_dianplus_order_refund` | WA |
 | cloud-run-dianplus-product | Dianplus `sku/getSku` | Full snapshot | `--project-id --dry-run` | `dianplus.raw_dianplus_product` | WA (full catalogue appended each run) |
 | cloud-run-jushuitan-order | Jushuitan `/open/orders/single/query` | Yesterday by container clock (UTC on Cloud Run); 7-day chunks | `--start-date --end-date --project-id --all --dry-run` | `jushuitan.raw_jushuitan_order` | WA |
-| cloud-run-magento-order | Magento `/rest/V1/orders` | VN yesterday (sent as UTC), 30-day chunks; routes `/`, `/run`, `/healthz`; `?all=1` or `?start_date&end_date` | none: running the file starts Flask on `$PORT`; no dry run | `${BQ_PROJECT:-marine-cycle-484213-b4}.${BQ_DATASET:-magento}.${BQ_TABLE:-raw_magento_order}` | WA |
+| cloud-run-magento-order | Magento `/rest/V1/orders` | VN yesterday (sent as UTC), 30-day chunks; routes `/`, `/run`, `/health`; `?all=1` or `?start_date&end_date` | none: running the file starts Flask on `$PORT`; no dry run | `${BQ_PROJECT:-marine-cycle-484213-b4}.${BQ_DATASET:-magento}.${BQ_TABLE:-raw_magento_order}` | WA |
 | cloud-run-meta-ads-reporting-a | Meta Graph v24.0 `/{account}/insights` (ad level, daily) | `date_preset=yesterday` | `--project-id --dataset-id --table-id --date-preset --all`; no dry run | `raw_meta.raw_ads_reporting_a` (creates dataset if missing) | WA |
 | cloud-run-meta-ads-reporting-ecom | Same, plus impressions/frequency | `date_preset=yesterday` | same as above | `raw_meta.raw_ads_reporting_ecom` | WA |
 | cloud-run-pancake-customer | Pancake `/customers` | VN yesterday | `--project-id --All --start-date --end-date --max-pages --dry-run` | `raw_pancake.raw_customer` | WA |
@@ -31,14 +31,14 @@ with the default window below. The CLI is `python cr-<name>.py [flags]` in the s
 | cloud-run-pancake-order | Pancake `/orders` (`updateStatus=updated_at`: orders **updated** in the window) | VN yesterday; GET or POST; `?start_date&end_date` (VN time) re-runs a window | Pancake flags + `--30days` (30 days ago to VN yesterday) | `raw_pancake.raw_order` | WA |
 | cloud-run-pancake-order_returned | **Older copy of pancake-order's code** (`/orders`; no `updateStatus`, old column set) ⚠ | Last 30 days | Pancake flags | **`raw_pancake.raw_order`** ⚠ (see [known issues](troubleshooting.md#known-issues)) | WA |
 | cloud-run-pancake-product | Pancake `/products` | VN yesterday | Pancake flags | `raw_pancake.raw_product` | WA |
-| cloud-run-pancake-product_variations | Pancake `/products/variations` | VN yesterday | Pancake flags + `--yesterday` (ignored) | `raw_pancake.raw_product_variations` | WA |
+| cloud-run-pancake-product_variations | Pancake `/products/variations` | VN yesterday; GET or POST; `?start_date&end_date` (VN time); `/health` checks startup only | Pancake flags + `--yesterday` (ignored) | `raw_pancake.raw_product_variations` | WA |
 | cloud-run-pancake-stats_inventory_product | Pancake `/inventory_analytics/inventory_by_product` | VN yesterday | Pancake flags | `raw_pancake.raw_stats_inventory_product` | WA |
 | cloud-run-pancake-stats_inventory_variations | Pancake `/inventory_analytics/inventory` | VN yesterday | Pancake flags | `raw_pancake.raw_stats_inventory_variations` | WA |
 | cloud-run-pancake-stats_order | Pancake `/analytics/sale` | VN yesterday | Pancake flags | `raw_pancake.raw_stats_order` | WA |
 | cloud-run-pancake-stats_product | Same endpoint/params as stats_inventory_product | VN yesterday | Pancake flags | `raw_pancake.raw_stats_product` | WA |
 | cloud-run-pancake-variations | Pancake `/variations` | **Full snapshot** over HTTP (CLI default filters to yesterday client-side) | Pancake flags | `raw_pancake.raw_variations` | WA |
 | cloud-run-pancake-warehouse_transfer | Pancake `/transfers` | VN yesterday | Pancake flags | `raw_pancake.raw_warehouse_transfers_completed` | WA |
-| cloud-run-surfosm-inventory | Surfosm `/openapi/inventory` | Yesterday by container clock; routes `/`, `/run`, `/healthz`; `?date`, `?start_date&end_date`, `?dry_run=1`. `main.py` is a Cloud Functions entry point (`export_inventory`) | `--date --start_date --end_date --dry_run --project_id` | `${BQ_DATASET:-surfosm}.${BQ_TABLE:-raw_surfosm_inventory}`; project from `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT` | WA |
+| cloud-run-surfosm-inventory | Surfosm `/openapi/inventory` | Yesterday by container clock; routes `/`, `/run`, `/health`; `?date`, `?start_date&end_date`, `?dry_run=1`. `main.py` is a Cloud Functions entry point (`export_inventory`) | `--date --start_date --end_date --dry_run --project_id` | `${BQ_DATASET:-surfosm}.${BQ_TABLE:-raw_surfosm_inventory}`; project from `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT` | WA |
 | cloud-run-surfosm-order | Surfosm `/orders/list` + `/order/{n}/price-details` | **31 days** to yesterday (container clock) | `--project_id --yesterday --date --start_date --end_date --dry_run --http` | `surfosm.raw_surfosm_order` | WA |
 | cloud-run-surfosm-order_return | Surfosm `/return-documents/list` + return details | 31 days to yesterday | same as surfosm-order | `surfosm.raw_surfosm_order_return` | WA |
 | cloud-run-tiktok-ads | TikTok `/ad/get/` (VN account) | **Full snapshot** of all ads | `--start-date --end-date --dry-run` | `raw_tiktok.raw_tiktok_ads` | WA |
@@ -181,6 +181,13 @@ No schema script exists for the VN TikTok ads/ad_group/campaign/GMV tables, the 
 or `raw_meta.raw_ads_reporting_ecom`/`_my`; load jobs create those tables (unpartitioned) on first load.
 
 ## Downstream SQL
+
+The local and Cloud Run product-variation importers serialize `images` lists as JSON
+strings (including `[]` for an empty list); missing values remain blank. The column
+remains STRING. Existing raw rows may contain Python-list strings with single quotes;
+staging must handle both formats until those historical rows are no longer needed.
+CSV exporters retain their existing serialization. Spreadsheet image rendering belongs
+in the spreadsheet, using a URL extracted by staging.
 
 Raw tables feed staging → core → reporting. See [../sql/README.md](../sql/README.md) for layers and
 example chains (e.g. `raw_pancake.raw_order` → `stg_pancake.stg_order` → `sp_core_order_insert` →

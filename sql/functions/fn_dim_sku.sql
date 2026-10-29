@@ -1,5 +1,62 @@
-CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_dim_sku()
-AS
+CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4.reportdb.fn_dim_sku`()
+AS 
+/* =============================================================================
+   LSOUL · SKU MASTER & CATEGORY CLASSIFIER   (driven by the product code)
+   -----------------------------------------------------------------------------
+   Rewritten 2026-08-25.  Replaces the product_tree-driven classifier.
+
+   LSOUL's own style code is the most reliable product attribute we hold:
+
+        <PREFIX><YYMM><SEQ>[-<VARIANT>]          e.g.  V25071685-2
+         |      |    |     └ colour / size variant of the same style
+         |      |    └────── running style number inside that prefix
+         |      └─────────── month the style code was created (2507 = Jul-2025)
+         └────────────────── merchandising category  (V = Váy / Dress)
+
+   Precedence, in order:
+     1. NON-RETAIL name overrides (staff uniform, giveaway) — never in an OTB buy
+     2. PREFIX   -> category + default sub-category            (authoritative)
+     3. NAME     -> refines the sub-category INSIDE the prefix family only
+     4. TREE     -> fallback for codes whose prefix we do not know (QA only)
+     5. UNMAPPED -> surfaced with a reason, never silently dropped
+
+   Grain: one row per variation_code (SKU).
+
+   WHY THIS IS SPLIT IN TWO PARTS
+   ------------------------------
+   Part 1 is a pure dimension over the product master — no sales, no TVF.
+   Part 2 joins it to sales. Keep them apart: fn_order_sku_master expands into
+   11 nested table functions, and inlining this classifier on top of it fails
+   with "Resources exceeded ... too many subqueries or query is too complex".
+   Create the Part 1 view once, then every report joins to it for free.
+
+   WHAT WAS WRONG WITH THE PREVIOUS VERSION  (all verified on Aug-2026 data)
+   ------------------------------------------------------------------------
+   a) sysdb.udf_remove_vn_accents() returns UNDERSCORE_JOINED text with digits
+      removed: 'KIRSI DRESS' -> 'KIRSI_DRESS'. '_' is a regex word character, so
+      \b(DRESS|GOWN)\b no longer matches. EVERY name rule in the old script was
+      dead: Dresses, Skirts, Trousers, Denim, Outerwear, Knitwear, Bodysuits,
+      Jumpsuits, Sets, Shirts, Lingerie all returned ZERO rows. sub_category fell
+      through to the raw tree labels — the delivered output was ĐẦM / CV /
+      CLOTHING / QUẦN JEAN / SET, not the English buckets it looks like it makes.
+      (That UDF is also a per-row correlated sub-query over a 130-row map, which
+      is what makes big joins fall over. TRANSLATE + NORMALIZE below is exact,
+      keeps spaces and digits, and costs nothing.)
+   b) Name-first ordering put fabric before silhouette: 108 skirt SKUs named
+      "CV JEAN ..." and 29 dresses named "VÁY ... JEAN" scored as 'Denim'.
+      Here the prefix fixes the silhouette and is_denim carries the fabric.
+   c) cat_l2 = 'Accessories' never matched — the tree stores 'PHỤ KIỆN'. Those
+      SKUs landed in UNMAPPED.
+   d) The final SELECT had a stray REGEXP_CONTAINS(...) with no comma before
+      sub_category, so it returned a boolean aliased 'sub_category' and the real
+      sub_category never reached the output.
+   e) LEFT JOIN from the master dropped 18 SKUs that actually trade
+      (~2.6 bn VND on fn_order_sku_master; ~363 mn on the revenue summary) —
+      Xiaohongshu / Taobao codes with no LSOUL code. Part 2 keeps them visible.
+   ============================================================================= */
+--SELECT variation_code,product_name, category,sub_category,code_prefix,prefix_meaning,code_created_ym,code_age_months,style_seq,size_label,color_label,is_sale_end,is_removed,is_hidden FROM `marine-cycle-484213-b4.reportdb.fn_dim_sku`()
+--SELECT  * EXCEPT(is_sale_end,is_hidden,is_removed,tree_cat_l1,tree_cat_l2,tree_conflict) FROM `marine-cycle-484213-b4.reportdb.fn_dim_sku`() where is_sale_end = 0
+
 WITH
 /* ------------------------------------------------------------------ reference
    The internal prefix dictionary — the ONLY place to edit when merchandising
@@ -59,6 +116,7 @@ prefix_ref AS (
     ,ANY_VALUE(p.product_launch_date)                       AS product_launch_date
     ,ANY_VALUE(NULLIF(UPPER(TRIM(v.size_value )), ''))      AS size_label
     ,ANY_VALUE(NULLIF(UPPER(TRIM(v.color_value)), ''))      AS color_label
+    ,ANY_VALUE(NULLIF(TRIM(images),''))                     AS images
     ,ANY_VALUE(v.retail_price)                              AS retail_price
     ,MAX(v.remain_quantity)                                 AS remain_quantity
     ,MAX(IFNULL(v.is_removed,0))                            AS is_removed
@@ -229,6 +287,7 @@ SELECT
   ,size_type
   ,size_order
   ,color_label
+  ,images
   ,retail_price
   ,remain_quantity
   ,is_sale_end
@@ -246,4 +305,63 @@ SELECT
           ELSE FALSE
         END)                       AS tree_conflict
 FROM classified
-ORDER BY category, sub_category, product_code;
+ORDER BY category, sub_category, product_code
+;
+
+
+/* =============================================================================
+   PART 2 — reporting example.  Uses the Part 1 view; keeps SKUs that trade but
+   are missing from the master instead of dropping them (RIGHT-side COALESCE).
+   Swap fn_order_sku_master(0,4) for (0,0) when you need country / channel.
+   ============================================================================= */
+/*
+WITH sales AS (
+  SELECT
+     COALESCE(NULLIF(UPPER(TRIM(variation_code)),''), '(NO CODE)') AS variation_code
+    ,SUM(units_sold)       AS units_sold
+    ,SUM(revenue_vn)       AS revenue          -- net, VND-normalised
+    ,SUM(sales_revenue_vn) AS sales_revenue    -- gross
+    ,SUM(total_orders)     AS orders
+  FROM `marine-cycle-484213-b4.reportdb.fn_order_sku_master`(0, 4)
+  GROUP BY 1
+)
+SELECT
+   COALESCE(d.category,
+     CASE WHEN REGEXP_CONTAINS(s.variation_code, r'^(XHS-|[0-9]{6,})') THEN 'EXTERNAL SKU'
+          ELSE 'UNMAPPED' END)                       AS category
+  ,COALESCE(d.sub_category,'Not in product master')  AS sub_category
+  ,COUNT(*)                                          AS skus
+  ,SUM(s.units_sold)                                 AS units
+  ,ROUND(SUM(s.revenue)/1e6)                         AS rev_mn
+  ,ROUND(100 * SUM(s.revenue) / SUM(SUM(s.revenue)) OVER (), 2) AS pct_rev
+FROM sales s
+LEFT JOIN `marine-cycle-484213-b4.reportdb.dim_sku` d USING (variation_code)
+GROUP BY 1,2
+ORDER BY rev_mn DESC;
+*/
+
+
+/* =============================================================================
+   QA — run after any edit to prefix_ref
+   -----------------------------------------------------------------------------
+   -- 1) coverage: expect 0 rows with source = 'TREE' or 'UNMAPPED'
+   SELECT classification_source, code_prefix, COUNT(*) skus
+   FROM `marine-cycle-484213-b4.reportdb.dim_sku`
+   WHERE classification_source IN ('TREE','UNMAPPED')
+   GROUP BY 1,2 ORDER BY skus DESC;
+
+   -- 2) new prefixes merchandising created since the map was written
+   SELECT REGEXP_EXTRACT(UPPER(product_code), r'^([A-Z]+)') AS code_prefix,
+          COUNT(*) skus, STRING_AGG(DISTINCT product_name, ' | ' LIMIT 5) examples
+   FROM `marine-cycle-484213-b4.core_pancake.core_variations` v
+   JOIN `marine-cycle-484213-b4.core_pancake.core_product` p ON v.product_id = p.raw_product_id
+   WHERE REGEXP_EXTRACT(UPPER(product_code), r'^([A-Z]+)') NOT IN (
+     'A','V','CV','B','J','Q','M','K','S','L','OQ','G','Z','LJG','TUI','VI','VO','SG','BT','PK',
+     'DT','NH','X','HQ','HHT','HTG','HNQA','TDG','TGN','TGL','HT','DOIHANG')
+   GROUP BY 1 ORDER BY skus DESC;
+
+   -- 3) fix-at-source worklist for the product tree
+   SELECT tree_cat_l2, category, sub_category, COUNT(*) skus
+   FROM `marine-cycle-484213-b4.reportdb.dim_sku`
+   WHERE tree_conflict GROUP BY 1,2,3 ORDER BY skus DESC;
+   ============================================================================= */

@@ -8,6 +8,7 @@ CREATE TABLE `marine-cycle-484213-b4.raw_pancake.raw_product_variations`
   size_value STRING,
   color_name STRING,
   color_value STRING,
+  images STRING,
   retail_price STRING,
   retail_price_after_discount STRING,
   average_imported_price STRING,

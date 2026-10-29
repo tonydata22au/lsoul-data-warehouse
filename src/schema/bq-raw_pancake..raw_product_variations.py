@@ -6,7 +6,7 @@ Default: Creates empty table with schema only.
 
 Usage:
     python3 local-run/DDL/bq-create-schema-bigquery.py              # Create empty table with schema
-    python3 versions/bq-raw_pancake..raw_product_variations.py              # Create empty table with schema
+    python3 src/schema/bq-raw_pancake..raw_product_variations.py    # Create empty table with schema
 """
 import os
 from pathlib import Path
@@ -24,9 +24,10 @@ TABLE_ID = 'raw_product_variations'  # Change this to your desired table name
 LOCATION = 'asia-southeast1'
 
 
-BASE_DIR = Path(__file__).resolve().parents[1] / "local-run"
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 # Partitioning Configuration
@@ -67,7 +68,7 @@ BASE_HEADERS = [
     #"barcode": "variation_barcode",
     #"price_table": "variation_price_table",
     #"weight": "product_weight",
-    #"images": "images",
+    "images",
     #"videos": "variation_videos",
     #"composite_products": "composite_components",
     #"bonus_variations": "bonus_variations",

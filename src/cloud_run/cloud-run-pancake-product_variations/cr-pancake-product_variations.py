@@ -4,13 +4,26 @@ Script to load product variation data from Pancake API, flatten nested structure
 Runs as a Flask HTTP service (Cloud Run) or as a CLI tool.
 Default: Get yesterday's product variations from T00:00:00 to T23:59:59 in Vietnam time (UTC+7).
 
-Usage (CLI):
-    gcloud run deploy pancake-product-variations --source versions/cloud-run-pancake-product_variations --region asia-southeast1 --project marine-cycle-484213-b4 --no-allow-unauthenticated --quiet
+Deploy from the repository root (updates the existing service):
+    gcloud run deploy pancake-product-variations --source src/cloud_run/cloud-run-pancake-product_variations \
+        --project marine-cycle-484213-b4 --billing-project marine-cycle-484213-b4 --region asia-southeast1 \
+        --update-secrets PANCAKE_API_KEY=pancake_pos:latest \
+        --service-account 266174294882-compute@developer.gserviceaccount.com \
+        --timeout 1800 --concurrency 1 --max-instances 1 --memory 1Gi --cpu 1
+    Existing invoker settings are preserved, as for pancake-order.
+    BigQuery uses the runtime service identity; no credential file is uploaded.
+
+Schedule: existing pancake-insert-raw_product_variations job, daily 07:20 Asia/Saigon.
+    Attempt deadline 1800s, three retries with a minimum 600s backoff (matches live pancake-order).
+    Runs append to raw_pancake.raw_product_variations; repeated windows can duplicate rows.
 
 Usage (Cloud Run HTTP):
-    GET /    # Triggers yesterday's export
+    GET or POST /    # Triggers yesterday's export
+    /?start_date=2026-10-01T00:00:00&end_date=2026-10-01T23:59:59
+    GET /health     # Startup check only; no API calls or BigQuery writes
 """
 import argparse
+import json
 import logging
 import warnings
 from datetime import datetime, timedelta
@@ -19,7 +32,7 @@ import pandas as pd
 import pytz
 import requests
 import urllib3
-from flask import Flask
+from flask import Flask, request
 from google.cloud import bigquery
 from pandas import json_normalize
 import os
@@ -52,7 +65,7 @@ COLUMN_RENAME_MAP = {
     "last_imported_price": "last_imported_price",
     "total_purchase_price": "total_purchase_price",
     "price_at_counter": "price_at_counter",
-    "wholesale_price": "variation_wholesale_price",
+    "wholesale_price": "wholesale_price",
     # --- Stock & Status ---
     "remain_quantity": "remain_quantity",
     "is_hidden": "is_hidden",
@@ -63,7 +76,7 @@ COLUMN_RENAME_MAP = {
     #"barcode": "variation_barcode",
     #"price_table": "variation_price_table",
     #"weight": "product_weight",
-    #"images": "images",
+    "images": "images",
     #"videos": "variation_videos",
     #"composite_products": "composite_components",
     #"bonus_variations": "bonus_variations",
@@ -361,8 +374,14 @@ def clean_empty_json(df):
     # Replace NaN with empty string and remove empty JSON objects
     # Only process object/string columns to preserve numeric types
     for col in df.columns:
-        if df[col].dtype == 'object':
-            df[col] = df[col].astype(str).replace(['nan', '{}','[]','None','null'], '')
+        if col == 'images':
+            # Keep every image URL as JSON, including an empty list as [].
+            df[col] = df[col].apply(
+                lambda value: json.dumps(value) if isinstance(value, list) else value
+            ).fillna('').astype(str).replace(['nan', 'None', 'null'], '')
+            continue
+        if pd.api.types.is_object_dtype(df[col]) or pd.api.types.is_string_dtype(df[col]):
+            df[col] = df[col].fillna('').astype(str).replace(['nan', '{}','[]','None','null'], '')
     return df
 
 def insert_to_bigquery(df, project_id=None, dataset_id="raw_pancake", table_id="raw_product_variations"):
@@ -406,7 +425,7 @@ def insert_to_bigquery(df, project_id=None, dataset_id="raw_pancake", table_id="
         
         # Convert all columns to string to match BigQuery STRING schema
         for col in df.columns:
-            df[col] = df[col].astype(str).replace('nan', '').replace('None', '')
+            df[col] = df[col].fillna('').astype(str).replace('nan', '').replace('None', '')
         
         # Load data from DataFrame to BigQuery
         load_job = client.load_table_from_dataframe(
@@ -498,11 +517,22 @@ def main(argv=None):
     
 app = Flask(__name__)
 
-@app.route("/")
+@app.route("/health")
+def health():
+    return "OK", 200
+
+@app.route("/", methods=["GET", "POST"])
 def run():
-    logging.info("Triggering Pancake warehouse transfer data export (HTTP)...")
+    start_date = request.args.get("start_date")
+    end_date = request.args.get("end_date")
     try:
-        message, status = run_export()
+        parse_date_to_unix(start_date)
+        parse_date_to_unix(end_date)
+    except ValueError as exc:
+        return f"Error: {exc}", 400
+    logging.info("Triggering Pancake product variations data export (HTTP)...")
+    try:
+        message, status = run_export(start_date=start_date, end_date=end_date)
         return message, status
     except Exception as exc:
         logging.exception("Export failed")

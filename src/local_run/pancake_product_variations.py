@@ -12,6 +12,7 @@ Usage:
     python3 src/local_run/pancake_product_variations.py --All      # Get all product variations with no date filter (use with caution)
 """
 import argparse
+import json
 import os
 import warnings
 import requests
@@ -68,7 +69,7 @@ COLUMN_RENAME_MAP = {
     #"barcode": "variation_barcode",
     #"price_table": "variation_price_table",
     #"weight": "product_weight",
-    #"images": "images",
+    "images": "images",
     #"videos": "variation_videos",
     #"composite_products": "composite_components",
     #"bonus_variations": "bonus_variations",
@@ -363,6 +364,12 @@ def clean_empty_json(df):
     # Replace NaN with empty string and remove empty JSON objects
     # Only process object/string columns to preserve numeric types
     for col in df.columns:
+        if col == 'images':
+            # Keep every image URL as JSON, including an empty list as [].
+            df[col] = df[col].apply(
+                lambda value: json.dumps(value) if isinstance(value, list) else value
+            ).fillna('').astype(str).replace(['nan', 'None', 'null'], '')
+            continue
         if df[col].dtype == 'object':
             df[col] = df[col].astype(str).replace(['nan', '{}','[]','None','null'], '')
     return df
