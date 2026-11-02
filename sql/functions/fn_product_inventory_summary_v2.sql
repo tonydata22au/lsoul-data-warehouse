@@ -1,21 +1,15 @@
 CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_product_inventory_summary_v2(i_type INT64, i_number_year_back INT64, i_days_range INT64, i_FromDate DATE, i_ToDate DATE)
 OPTIONS(
-  description="Product / SKU inventory + sales fact table.\ni_type = 0 -> one row per (period_date, variation_code, warehouse_id).\ni_type = 1 -> one row per variation_code at its latest period_date, stock summed across warehouses,\n              sales accumulated to lifetime totals.")
+  description="Product / SKU inventory + sales fact table.\ni_type = 0 -> one row per (period_date, variation_code, warehouse_id).\ni_type = 1 -> one row per variation_code at its latest period_date, stock summed across warehouses,\n              sales accumulated to lifetime totals.\nRefactor of fn_product_inventory_summary (v2). See CODE_REVIEW.md for the change log.")
 AS
 WITH
 -------------------------------------------------------------------------------
--- 0. Constants. One place to edit warehouse IDs and cutover dates.
+-- 0. Shared SKU exclusions and day-range configuration.
 -------------------------------------------------------------------------------
 const AS (
   SELECT
-     '76be7836-6dc5-4b1c-9e48-b18e43127453' AS wh_china_backup_id
-    ,'878504e9-fb75-4870-8504-b2ecdbc097ba' AS wh_thai_backup_id
-    ,DATE '2026-06-01'                      AS china_relabel_from
-    ,DATE '2026-02-13'                      AS thai_relabel_from
-    ,'Kho Trung Quốc (nguồn Pancake + Dianplus + Jushuitan)' AS wh_china_label
-    ,'Kho Thái Lan (nguồn Pancake + Scale-Up Fulfilment)'    AS wh_thai_label
     -- SKU prefixes that are not sellable finished goods (gifts, samples, packaging...)
-    ,['TG','HT','HN','HH','TD']             AS excluded_sku_prefixes
+     ['TG','HT','HN','HH','TD']             AS excluded_sku_prefixes
     ,GREATEST(IFNULL(i_days_range, 30), 1)  AS days_range_param
 )
 
@@ -28,12 +22,9 @@ const AS (
      variation_code
     ,product_code
     ,product_name
-    ,TRIM(CONCAT(product_name, ' ', product_attributes)) AS variation_attributes
-    ,COALESCE(category,
-     CASE WHEN REGEXP_CONTAINS(variation_code, r'^(XHS-|[0-9]{6,})') THEN 'EXTERNAL SKU'
-          ELSE 'UNMAPPED' END)                       AS category
-    ,COALESCE(sub_category,'Not in product master')  AS sub_category
     ,collection_bst
+    ,TRIM(CONCAT(product_name, ' ', product_attributes)) AS variation_attributes
+    ,images
     ,product_launch_date
     ,retail_price
     ,is_sale_end
@@ -43,33 +34,18 @@ const AS (
 -------------------------------------------------------------------------------
 -- 2. SKU x warehouse dimension: on-hand fallback when the fact stream has no row.
 -------------------------------------------------------------------------------
-,variation_wh AS (
+,dim_variation_wh AS (
     SELECT
-     variation_display_id         
+     variation_code
     ,DATE(vw.updated_at)          AS updated_at
     ,vw.warehouse_id
     ,w.warehouse_name
     ,w.warehouse_type
-    ,w.country
-    ,SUM(IFNULL(vw.actual_remain_qty, 0)) AS actual_remain_qty
-  FROM `marine-cycle-484213-b4.core_pancake.core_variations` v
-  LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variation_warehouses` vw ON v.variation_id = vw.variation_id
-  LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_warehouse` w ON w.warehouse_id = vw.warehouse_id
-  GROUP BY 1,2,3,4,5,6
-)
-
-,dim_variation_wh AS (
-    SELECT
-     v.variation_code
-    ,vw.updated_at
-    ,vw.warehouse_id
-    ,vw.warehouse_name
-    ,vw.warehouse_type
-    ,vw.country
     ,SUM(IFNULL(vw.actual_remain_qty, 0)) AS actual_remain_qty
   FROM dim_variation v
-  LEFT JOIN variation_wh vw ON v.variation_code = vw.variation_display_id
-  GROUP BY 1,2,3,4,5,6
+  LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variation_warehouses` vw ON v.variation_code = vw.variation_id
+  LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_warehouse` w ON w.warehouse_id = vw.warehouse_id
+  GROUP BY 1,2,3,4,5
 )
 
 -------------------------------------------------------------------------------
@@ -81,22 +57,20 @@ const AS (
 ,src_union AS (
   -- 3a. Pancake / local warehouses
   SELECT
-    DATE(i.inserted_at) AS period_date
+    IFNULL(DATE(i.inserted_at),updated_at)  AS period_date
     ,1                            AS src_priority
-    ,variation_code
-    ,CAST(NULL AS STRING) AS product_name
-    ,CAST(NULL AS FLOAT64) AS retail_price
-    ,i.warehouse_id
-    ,i.warehouse_name
-    ,i.country AS warehouse_country
+    ,IFNULL(v.variation_code,i.variation_code) AS variation_code
+    ,CAST(NULL AS STRING)         AS product_name
+    ,CAST(NULL AS FLOAT64)        AS retail_price
+    ,IFNULL(i.warehouse_id,v.warehouse_id) AS warehouse_id
+    ,IFNULL(i.warehouse_name,v.warehouse_name) AS warehouse_name
     ,IFNULL(i.sl_nhap_moi_tu_sx,0) AS sl_nhap_moi_tu_sx
     ,IFNULL(i.sl_nhap_kho,0) AS sl_nhap_kho
     ,CASE
-    WHEN LAG(sl_ton_kho) OVER (PARTITION BY variation_code, i.warehouse_id ORDER BY DATE(i.inserted_at)) <> sl_ton_kho
-    THEN sl_ton_kho - LAG(sl_ton_kho) OVER (PARTITION BY variation_code, i.warehouse_id ORDER BY DATE(i.inserted_at))
-    WHEN LAG(sl_ton_kho) OVER (PARTITION BY variation_code, i.warehouse_id ORDER BY DATE(i.inserted_at)) IS NULL
-    THEN sl_ton_kho
-    ELSE 0 END AS stock_level_raw   -- absolute level, not a delta
+        WHEN LAG(sl_ton_kho) OVER (PARTITION BY v.variation_code, i.warehouse_id ORDER BY DATE(i.inserted_at)) IS NULL AND sl_ton_kho IS NOT NULL THEN sl_ton_kho
+        WHEN LAG(sl_ton_kho) OVER (PARTITION BY v.variation_code, i.warehouse_id ORDER BY DATE(i.inserted_at)) <> sl_ton_kho AND sl_ton_kho IS NOT NULL
+        THEN sl_ton_kho - LAG(sl_ton_kho) OVER (PARTITION BY v.variation_code, i.warehouse_id ORDER BY DATE(i.inserted_at))
+    ELSE actual_remain_qty END                    AS stock_level_raw   -- absolute level, not a delta
     ,CAST(NULL AS STRING)         AS order_sources_name
     ,CAST(NULL AS STRING)         AS sale_channel
     ,CAST(NULL AS STRING)         AS sale_channel_details
@@ -104,10 +78,9 @@ const AS (
     ,0                            AS sales_revenue
     ,0                            AS revenue
     ,0                            AS units_sold
-  FROM `marine-cycle-484213-b4.reportdb.fn_product_variations_warehouse_summary`(1, 0, '') i 
-  WHERE (i.warehouse_type NOT IN ('NONE','M') or  i.warehouse_type IS NULL 
-  -- OR i.warehouse_id = '1a21d42d-d648-4fdd-9095-932fceb08a2d' --Thêm Kho hàng lỗi
-  )
+  FROM dim_variation_wh v
+  LEFT JOIN `marine-cycle-484213-b4.reportdb.fn_product_variations_warehouse_summary`(1, 0, '') i ON v.variation_code = i.variation_code
+  WHERE IFNULL(i.warehouse_type,v.warehouse_type) NOT IN ('NONE','M') or  IFNULL(i.warehouse_type,v.warehouse_type) IS NULL
 
   UNION ALL
 
@@ -120,7 +93,6 @@ const AS (
     ,i.retail_price
     ,i.pancake_warehouse_id
     ,i.warehouse_name
-    ,country
     ,0
     ,i.sl_nhap_kho
     ,CASE 
@@ -144,7 +116,6 @@ const AS (
     ,i.retail_price
     ,i.warehouse_id
     ,i.warehouse_name
-    ,country
     ,0
     ,i.sl_nhap_kho
     ,CASE 
@@ -168,7 +139,6 @@ const AS (
     ,o.retail_price
     ,o.warehouse_id
     ,o.warehouse_name
-    ,o.country
     ,0
     ,0
     ,CAST(NULL AS INT64)
@@ -183,7 +153,7 @@ const AS (
 )
 
 -------------------------------------------------------------------------------
--- 4. Filter + warehouse relabelling. Filters run before any window function.
+-- 4. Filter + current warehouse names. Preserve the existing source/window grain.
 -------------------------------------------------------------------------------
 ,src_filtered AS (
   SELECT
@@ -193,12 +163,7 @@ const AS (
     ,s.product_name
     ,s.retail_price
     ,s.warehouse_id
-    ,CASE
-       WHEN s.period_date >= c.china_relabel_from AND s.warehouse_id = c.wh_china_backup_id THEN c.wh_china_label
-       WHEN s.period_date >= c.thai_relabel_from  AND s.warehouse_id = c.wh_thai_backup_id  THEN c.wh_thai_label
-       ELSE s.warehouse_name
-     END AS warehouse_name
-    ,s.warehouse_country
+    ,cw.canonical_warehouse_name AS warehouse_name
     ,s.sl_nhap_moi_tu_sx
     ,s.sl_nhap_kho
     ,SUM(s.stock_level_raw) OVER (PARTITION BY variation_code,warehouse_id ORDER BY period_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS stock_level_raw
@@ -210,6 +175,10 @@ const AS (
     ,s.revenue
     ,s.units_sold
   FROM src_union s
+  LEFT JOIN (
+    SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
+    FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+  ) cw ON cw.canonical_warehouse_id = s.warehouse_id
   CROSS JOIN const c
   WHERE SUBSTR(s.variation_code, 1, 2) NOT IN UNNEST(c.excluded_sku_prefixes)
     AND (s.retail_price IS NULL OR s.retail_price <> 0)
@@ -230,7 +199,6 @@ const AS (
     ,variation_code
     ,warehouse_id
     ,MAX(warehouse_name)         AS warehouse_name
-    ,MAX(warehouse_country)      AS warehouse_country
     ,MAX(product_name)           AS product_name
     ,MAX(retail_price)           AS retail_price
     ,MAX(order_sources_name)     AS order_sources_name
@@ -262,7 +230,6 @@ const AS (
         ,SAFE_CAST(0 AS NUMERIC)
       ,0                                        -- negative on-hand is meaningless
      ) AS sl_ton_kho
-     ,dw.country
   FROM daily_agg a
   LEFT JOIN dim_variation_wh dw
     ON a.variation_code = dw.variation_code
@@ -281,8 +248,6 @@ const AS (
     ,d.product_code
     ,IFNULL(s.product_name, d.product_name)   AS product_name
     ,d.variation_attributes
-    ,d.category
-    ,d.sub_category
     ,d.collection_bst
     ,IFNULL(s.retail_price, d.retail_price)   AS retail_price
     ,d.product_launch_date
@@ -299,7 +264,6 @@ const AS (
      ) AS days_range
     ,s.warehouse_id
     ,s.warehouse_name
-    ,s.warehouse_country
     ,s.sl_nhap_moi_tu_sx
     ,s.sl_nhap_kho
     ,s.sl_ton_kho
@@ -331,8 +295,6 @@ const AS (
     ,ANY_VALUE(product_code)            AS product_code
     ,ANY_VALUE(product_name)            AS product_name
     ,ANY_VALUE(variation_attributes)    AS variation_attributes
-    ,ANY_VALUE(category)                AS category 
-    ,ANY_VALUE(sub_category)            AS sub_category 
     ,ANY_VALUE(collection_bst)          AS collection_bst 
     ,ANY_VALUE(product_days_since_launch) AS product_days_since_launch
     ,ANY_VALUE(days_range)              AS days_range
@@ -340,7 +302,6 @@ const AS (
     ,MAX(retail_price)                  AS retail_price
     ,IF(i_type = 1, '', ANY_VALUE(warehouse_id))          AS warehouse_id
     ,IF(i_type = 1, '', ANY_VALUE(warehouse_name))        AS warehouse_name
-    ,IF(i_type = 1, '', ANY_VALUE(warehouse_country))     AS warehouse_country
     ,IF(i_type = 1, CAST(NULL AS STRING), MAX(order_sources_name))   AS order_sources_name
     ,IF(i_type = 1, CAST(NULL AS STRING), MAX(sale_channel))         AS sale_channel
     ,IF(i_type = 1, CAST(NULL AS STRING), MAX(sale_channel_details)) AS sale_channel_details
@@ -454,8 +415,6 @@ const AS (
     ,product_code
     ,variation_code
     ,variation_attributes
-    ,category
-    ,sub_category
     ,collection_bst
     ,product_days_since_launch
     ,days_range
@@ -464,7 +423,6 @@ const AS (
     ,retail_price
     ,warehouse_id
     ,warehouse_name
-    ,warehouse_country
     ,sl_nhap_moi_tu_sx
     ,sl_nhap_kho
     ,sl_ton_kho
@@ -514,8 +472,6 @@ SELECT
   ,product_code
   ,variation_code
   ,variation_attributes
-  ,category
-  ,sub_category
   ,collection_bst
   ,product_days_since_launch
   ,days_range
@@ -524,7 +480,6 @@ SELECT
   ,retail_price
   ,warehouse_id
   ,warehouse_name
-  ,warehouse_country
   ,sl_nhap_moi_tu_sx
   ,sl_nhap_kho
   ,sl_ton_kho

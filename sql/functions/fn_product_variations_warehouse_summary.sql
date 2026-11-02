@@ -27,7 +27,7 @@ FROM
   SELECT DISTINCT
   i.inserted_at
   ,i.inv_warehouse_id
-  ,i.inv_warehouse_name
+  ,cw.canonical_warehouse_name AS inv_warehouse_name
   ,i.product_code 
   ,i.variation_display_id
   ,variation_name
@@ -46,6 +46,10 @@ FROM
   ,i.table_name
   ,i.record_id
   FROM `marine-cycle-484213-b4.core_pancake.core_inventory_histories` i
+  LEFT JOIN (
+    SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
+    FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+  ) cw ON cw.canonical_warehouse_id = i.inv_warehouse_id
   WHERE 1=1
   AND LEFT(i.variation_display_id,2) NOT IN ('TG','HT','HN','HH','TD')
   ORDER BY 1 DESC,4
@@ -117,7 +121,7 @@ TIMESTAMP_TRUNC(i.inserted_at, DAY) AS inserted_at
 ,variation_name
 ,product_launch_date
 ,inv_warehouse_id AS warehouse_id
-,inv_warehouse_name AS warehouse_name
+,w.warehouse_name AS warehouse_name
 ,w.warehouse_code
 ,w.country
 ,w.is_active
@@ -137,7 +141,7 @@ TIMESTAMP_TRUNC(i.inserted_at, DAY) AS inserted_at
     ELSE 0
   END AS tong_gia_tri_hang_ton_kho_theo_gia_ban 
 FROM stats_variations_by_warehouse_insertedat i
-JOIN `marine-cycle-484213-b4.core_pancake.core_warehouse` w ON i.inv_warehouse_id = w.warehouse_id
+LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_warehouse` w ON i.inv_warehouse_id = w.warehouse_id
 WHERE i_country = '' OR w.country = i_country
 )
 

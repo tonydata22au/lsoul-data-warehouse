@@ -12,9 +12,9 @@ WITH stage AS (
       'VN Offline Store' AS level_2,
       --Level 3
       CASE
-        WHEN o.warehouse_name LIKE 'Kho Nguyễn Trãi' THEN 'Store Nguyễn Trãi'
-        WHEN o.warehouse_name LIKE 'POP-UP OFFICE' THEN 'VN Pop-up'
-        ELSE o.warehouse_name
+        WHEN o.warehouse_id = '4a93fada-d892-4bbd-8547-ec505e6104df' THEN 'Store Nguyễn Trãi'
+        WHEN o.warehouse_id = 'c9aea4ce-e71e-404e-b7c1-8d6ff342d748' THEN 'VN Pop-up'
+        ELSE header_warehouse.canonical_warehouse_name
       END AS level_3,
       SAFE_CAST(customer_id AS STRING) AS customer_id,
       CASE 
@@ -40,8 +40,7 @@ WITH stage AS (
       
       --WAREHOUSE
       oi.warehouse_id,
-      oi.warehouse_name,
-     
+      warehouse.canonical_warehouse_name AS warehouse_name,
       --SALE
       customer_currency,
      CASE 
@@ -90,11 +89,19 @@ WITH stage AS (
     JOIN `marine-cycle-484213-b4.core_pancake.core_order` AS o ON oi.order_id = o.order_id
     LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_product` AS p ON oi.product_id = p.raw_product_id
     LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON oi.variation_id = v.variation_id
+    LEFT JOIN (
+      SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
+      FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+    ) AS warehouse ON warehouse.canonical_warehouse_id = oi.warehouse_id
+    LEFT JOIN (
+      SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
+      FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+    ) AS header_warehouse ON header_warehouse.canonical_warehouse_id = o.warehouse_id
     WHERE 1=1
       AND is_received_at_shop = 1
       AND o.order_id NOT IN (SELECT CAST(order_id AS STRING) FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` WHERE is_duplicate = 1) 
       AND o.order_sources_name IN (null,'')
-      AND o.warehouse_name IN ('Kho Nguyễn Trãi','POP-UP OFFICE')  
+      AND o.warehouse_id IN ('4a93fada-d892-4bbd-8547-ec505e6104df','c9aea4ce-e71e-404e-b7c1-8d6ff342d748')  --Kho Nguyen Tra, Kho POP-UP
 )
 ,core AS (
   SELECT

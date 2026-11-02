@@ -24,8 +24,7 @@ WITH stage AS (
 
       --WAREHOUSE
       oi.warehouse_id,
-      oi.warehouse_name,
-      
+      warehouse.canonical_warehouse_name AS warehouse_name,
       --SALE
       customer_currency,
       CASE 
@@ -83,12 +82,16 @@ WITH stage AS (
     JOIN `marine-cycle-484213-b4.core_pancake.core_order` AS o ON oi.order_id = o.order_id
     LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_product` AS p ON oi.product_id = p.raw_product_id
     LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON oi.variation_id = v.variation_id
+    LEFT JOIN (
+      SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
+      FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+    ) AS warehouse ON warehouse.canonical_warehouse_id = oi.warehouse_id
     WHERE 1=1   
       AND o.order_id NOT IN (SELECT order_to_returned_id FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` WHERE is_duplicate = 1)
 
       AND status_name NOT IN ('canceled','returned','packing','returning')
       AND o.order_sources_name IN ('Tiktok', 'Shopee', 'Lazada')
-      AND o.warehouse_name = 'Kho Ecommerce Việt Nam'
+      AND o.warehouse_id = '3fb24787-3208-4fb7-9580-24a3754e51d6'
 )
 ,core AS (
   SELECT

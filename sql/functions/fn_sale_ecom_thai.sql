@@ -37,7 +37,7 @@ WITH dim_product AS (
 
       --WAREHOUSE
       '878504e9-fb75-4870-8504-b2ecdbc097ba' AS warehouse_id,
-      'Kho Ecommerce Thailand' AS warehouse_name,
+      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '878504e9-fb75-4870-8504-b2ecdbc097ba') AS warehouse_name,
 
       --SALE
       oi.original_price AS sales_revenue_thai_gmv,

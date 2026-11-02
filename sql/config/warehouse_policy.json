@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "verified_on": "2026-11-02",
+  "provenance": "Read-only core_warehouse and 120-day core_inventory_histories mapping; see tasks/plan.md. Head-office remains VIETNAM/P; overseas backup warehouses retain historical reporting country.",
+  "defaults": {
+    "country": "VIETNAM",
+    "warehouse_type": "P"
+  },
+  "warehouses": [
+    {
+      "warehouse_id": "115e6258-72f0-468a-9743-731d06a771fa",
+      "country": "THAILAND",
+      "warehouse_type": "M",
+      "evidence_aliases": "Kho Offfice Thailand → TH – Office Stock"
+    },
+    {
+      "warehouse_id": "133983a4-ff7d-4861-805c-0a1bdd51795f",
+      "country": "THAILAND",
+      "warehouse_type": "P",
+      "evidence_aliases": "Kho Central World (current dimension)"
+    },
+    {
+      "warehouse_id": "1a21d42d-d648-4fdd-9095-932fceb08a2d",
+      "country": "VIETNAM",
+      "warehouse_type": "NONE",
+      "evidence_aliases": "Kho hàng lỗi → VN – Defective Stock"
+    },
+    {
+      "warehouse_id": "28fc9c4c-6ad6-4dd3-8dda-bc44397c9e0f",
+      "country": "VIETNAM",
+      "warehouse_type": "B",
+      "evidence_aliases": "Kho Tổng 480F → VN – Central Warehouse (480F)"
+    },
+    {
+      "warehouse_id": "3c86e018-936a-4f33-8dda-7a0ad4f038db",
+      "country": "VIETNAM",
+      "warehouse_type": "B",
+      "evidence_aliases": "Kho Nguyễn Trãi (Back-up) → VN – Nguyễn Trãi Backup"
+    },
+    {
+      "warehouse_id": "3fb24787-3208-4fb7-9580-24a3754e51d6",
+      "country": "VIETNAM",
+      "warehouse_type": "P",
+      "evidence_aliases": "Kho Ecommerce Việt Nam → VN – E-commerce Stock"
+    },
+    {
+      "warehouse_id": "490ded40-64ba-4424-aaed-399abbf13fbb",
+      "country": "THAILAND",
+      "warehouse_type": "P",
+      "evidence_aliases": "Central Ladprao (current dimension)"
+    },
+    {
+      "warehouse_id": "4a93fada-d892-4bbd-8547-ec505e6104df",
+      "country": "VIETNAM",
+      "warehouse_type": "P",
+      "evidence_aliases": "Kho Nguyễn Trãi → VN – Nguyễn Trãi Store"
+    },
+    {
+      "warehouse_id": "66184c11-4f37-465b-b5a7-09cb026b9ebd",
+      "country": "VIETNAM",
+      "warehouse_type": "M",
+      "evidence_aliases": "Kho Marketing → VN – Marketing Stock"
+    },
+    {
+      "warehouse_id": "76be7836-6dc5-4b1c-9e48-b18e43127453",
+      "country": "CHINA",
+      "warehouse_type": "B",
+      "evidence_aliases": "Kho Trung Quốc (Back-up) → CN – Backup Stock (VN)"
+    },
+    {
+      "warehouse_id": "878504e9-fb75-4870-8504-b2ecdbc097ba",
+      "country": "THAILAND",
+      "warehouse_type": "B",
+      "evidence_aliases": "Kho Thái (Back-up) → TH – Backup Stock (VN)"
+    },
+    {
+      "warehouse_id": "ad07f1c9-84be-4c4d-bc5b-4de980ffb97e",
+      "country": "THAILAND",
+      "warehouse_type": "P",
+      "evidence_aliases": "Kho Emsphere → TH – EmSphere Store"
+    },
+    {
+      "warehouse_id": "c8b7a738-7b1c-4599-ad32-64d145b005c1",
+      "country": "VIETNAM",
+      "warehouse_type": "P",
+      "evidence_aliases": "LSOUL HEAD OFFICE → MKT HEAD OFFICE → VN – Marketing HO Stock"
+    },
+    {
+      "warehouse_id": "c9aea4ce-e71e-404e-b7c1-8d6ff342d748",
+      "country": "VIETNAM",
+      "warehouse_type": "P",
+      "evidence_aliases": "POP-UP OFFICE"
+    },
+    {
+      "warehouse_id": "cf854971-c137-4e23-86ec-4bd8fbed6990",
+      "country": "VIETNAM",
+      "warehouse_type": "P",
+      "evidence_aliases": "Kho Online → VN – Online Stock"
+    },
+    {
+      "warehouse_id": "d65e391f-711e-4f9d-81a4-ee54c2d7eca8",
+      "country": "VIETNAM",
+      "warehouse_type": "P",
+      "evidence_aliases": "Kho Whole Sale → VN – Wholesale Stock"
+    },
+    {
+      "warehouse_id": "e8d36467-0811-4020-a732-7e6564b5edb4",
+      "country": "VIETNAM",
+      "warehouse_type": "P",
+      "evidence_aliases": "Kho Whole Sale NT"
+    },
+    {
+      "warehouse_id": "eb66793a-2953-44da-8585-da8888111d6d",
+      "country": "VIETNAM",
+      "warehouse_type": "B",
+      "evidence_aliases": "LJIN (current dimension)"
+    },
+    {
+      "warehouse_id": "f0eb59ac-aa0e-4cf6-971e-01456e5dc3d2",
+      "country": "THAILAND",
+      "warehouse_type": "P",
+      "evidence_aliases": "Kho MKT Thailand"
+    }
+  ],
+  "reporting_groups": {
+    "vn_ecommerce": [
+      "3fb24787-3208-4fb7-9580-24a3754e51d6"
+    ],
+    "vn_online": [
+      "cf854971-c137-4e23-86ec-4bd8fbed6990"
+    ],
+    "vn_store": [
+      "4a93fada-d892-4bbd-8547-ec505e6104df",
+      "c9aea4ce-e71e-404e-b7c1-8d6ff342d748"
+    ],
+    "thai_store": [
+      "ad07f1c9-84be-4c4d-bc5b-4de980ffb97e",
+      "490ded40-64ba-4424-aaed-399abbf13fbb",
+      "133983a4-ff7d-4861-805c-0a1bdd51795f"
+    ]
+  }
+}

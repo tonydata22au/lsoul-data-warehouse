@@ -38,7 +38,7 @@ WITH dim_product AS (
 
       --WAREHOUSE
       ,'76be7836-6dc5-4b1c-9e48-b18e43127453' AS warehouse_id --warehouse_id cua Kho Trung Quốc (Back-up)
-      ,'Kho Trung Quốc (Back-up)' AS warehouse_name
+      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
      
      --SALE
       ,CASE WHEN LEFT(IFNULL(variation_display_id,items_sku_id),2) NOT IN ('TG','HT','HN','HH','TD') THEN items_qty ELSE 0 END          AS item_qty

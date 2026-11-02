@@ -33,8 +33,7 @@ WITH stage AS (
 
       --WAREHOUSE
       oi.warehouse_id,
-      oi.warehouse_name,
-
+      warehouse.canonical_warehouse_name AS warehouse_name,
       --SALE
       customer_currency,
       CASE 
@@ -81,12 +80,16 @@ WITH stage AS (
     JOIN `marine-cycle-484213-b4.core_pancake.core_order` AS o ON oi.order_id = o.order_id
     LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_product` AS p ON oi.product_id = p.raw_product_id
     LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON oi.variation_id = v.variation_id
+    LEFT JOIN (
+      SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
+      FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+    ) AS warehouse ON warehouse.canonical_warehouse_id = oi.warehouse_id
     WHERE 1=1
       AND o.order_id NOT IN (SELECT CAST(order_id AS STRING) FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` WHERE is_duplicate = 1)
       AND (
           assigning_seller_name IN ('OANHONLINE','TLINHONLINE','TAIONLINE', 'TRAM XLD', 'Bao Tran XLD') 
           OR creator_name IN ('QUINT','OANHONLINE','TLINHONLINE','TAIONLINE', 'TRAM XLD', 'Bao Tran XLD'))
-      AND (o.order_sources_name IN ('Website', 'Facebook', 'Webcake', 'Instagram', 'Zalo') OR o.warehouse_name = 'Kho Online')
+      AND (o.order_sources_name IN ('Website', 'Facebook', 'Webcake', 'Instagram', 'Zalo') OR o.warehouse_id = 'cf854971-c137-4e23-86ec-4bd8fbed6990')
 )
 ,core AS (
   SELECT

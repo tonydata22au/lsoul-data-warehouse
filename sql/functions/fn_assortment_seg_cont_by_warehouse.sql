@@ -9,12 +9,16 @@ d_date
 ,string_field_4 AS nhom_chung_loai
 ,string_field_5 AS bst
 ,sp.warehouse_id
-,sp.warehouse_name
+,cw.canonical_warehouse_name AS warehouse_name
 ,CASE WHEN is_latest = 1 THEN COALESCE(sl_ton_kho,0) ELSE 0 END AS sl_ton_kho
 ,COALESCE(SUM(sp.revenue),0) AS revenue
 ,COALESCE(SUM(sp.units_sold),0) AS units_sold
 ,CASE WHEN is_latest = 1 THEN COALESCE(SUM(units_sold_day_range),0) ELSE 0 END AS units_sold_day_range
 FROM `marine-cycle-484213-b4.reportdb.report_order_product_inventory_summary` sp 
+LEFT JOIN (
+    SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
+    FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+  ) cw ON cw.canonical_warehouse_id = sp.warehouse_id
 LEFT JOIN  `marine-cycle-484213-b4.reportdb.product_tree_csv` pt ON pt.string_field_1 = sp.variation_code
 WHERE 1=1
 AND report_type = 0
@@ -55,4 +59,4 @@ FROM
 CROSS JOIN 
   company_totals t
 WHERE i_type = 0
-GROUP BY 1,2,3,global_sku_count,global_units_sold,global_revenue;
+GROUP BY 1,2,3,s.warehouse_id,global_sku_count,global_units_sold,global_revenue;

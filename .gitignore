@@ -104,3 +104,7 @@ seeds/**/*.xlsx
 
 # Reviewed warehouse definition/configuration snapshots (never table-row exports)
 !sql/live/**/*.json
+
+# Reviewed ID policy and provenance records; never credentials or table-row exports.
+!sql/config/warehouse_policy.json
+!sql/source_provenance.json

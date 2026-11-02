@@ -44,6 +44,23 @@ files. Older CTAS/backfill, ad hoc and working files are retained because replac
 transformations with schema-only DDL would destroy their purpose. Consult the live
 snapshot and pipeline source before using those historical files.
 
+## Maintained source provenance
+
+`sql/source_provenance.json` records intentional source divergence with exact object/path,
+snapshot/source hashes, baseline DDL hash, date, reason and status. `pending` means prepared,
+not deployed; `preexisting-unverified` means an earlier source edit with unverified deployment.
+Run `python3 scripts/validate_sql_sources.py` and the unit suite after a reviewed source edit.
+A hash match establishes integrity, not deployment.
+
+Commit `8b4d858a70a589b0ff0fc5856b1c2c0bf3934855` added `images STRING` directly to the
+captured `raw_product_variations` DDL and changed maintained `fn_dim_sku`. The provenance file
+records these existing edits without reverting them or rewriting the original snapshot manifest.
+The amendment checks the original manifest hash and exact amended bytes. This is a documented
+post-capture edit, not a new live observation. All other snapshot files retain their hash checks.
+Finder `.DS_Store` files are ignored as OS metadata; SQL/configuration files remain checked.
+
+See [warehouse identity migration](warehouse-identity.md) for the pending warehouse ID changes.
+
 ## Repeat the export
 
 Authenticate the CLI as an account with access to the intended project, then export

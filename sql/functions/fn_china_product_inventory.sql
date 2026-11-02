@@ -1,6 +1,11 @@
 CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_china_product_inventory(i_type INT64, i_number_year_back INT64)
 AS
-WITH stock_store_cn AS (
+WITH dianplus_source AS (
+  -- Keep source-system stock streams distinct from the shared reporting warehouse.
+  SELECT i.* EXCEPT (warehouse_name), i.warehouse_name AS source_warehouse_name
+  FROM `marine-cycle-484213-b4.dianplus.core_dianplus_inventory` i
+)
+,stock_store_cn AS (
 SELECT 
 ROW_NUMBER() OVER (PARTITION BY skuCode, warehouse_name, DATE(updated_at) ORDER BY proc_date desc) AS sort_num
 ,updated_at ,product_code, skuCode, product_name, product_launch_date,variation_attributes 
@@ -15,13 +20,17 @@ FROM
   SELECT DISTINCT
   i.proc_date
   ,i.updated_at ,v.product_code, i.skuCode, p.product_name, p.product_launch_date,variation_attributes
-  ,'Kho Trung Quốc (Back-up)' AS warehouse_name --Kho TXmall
+  ,cw.canonical_warehouse_name AS warehouse_name --Kho TXmall
   ,'TXmall' AS Kho --Kho TXmall
   ,'CHINA' AS country
-  ,IFNULL(realNum - LAG(realNum) OVER (PARTITION BY i.skuId, i.warehouse_name ORDER BY i.updated_at),0) AS sl_nhap_kho
+  ,IFNULL(realNum - LAG(realNum) OVER (PARTITION BY i.skuId, i.source_warehouse_name ORDER BY i.updated_at),0) AS sl_nhap_kho
   ,i.realNum
   ,v.retail_price
-  FROM `marine-cycle-484213-b4.dianplus.core_dianplus_inventory` i
+  FROM dianplus_source i
+  LEFT JOIN (
+    SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
+    FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+  ) cw ON cw.canonical_warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453'
   LEFT JOIN  `marine-cycle-484213-b4.core_pancake.core_product` p ON i.skuCode = p.display_id
   LEFT JOIN   `marine-cycle-484213-b4.core_pancake.core_variations` v ON i.skuCode = v.variation_display_id
   
@@ -65,13 +74,17 @@ FROM
 (
 SELECT DISTINCT
 i.vn_modified ,i.product_code, i.sku_id, IFNULL(p.product_name,name) AS product_name , i.product_launch_date,variation_attributes
-,'Kho Trung Quốc (Back-up)' AS warehouse_name 
+,cw.canonical_warehouse_name AS warehouse_name
 ,'Ecommerce TQ' AS Kho --'Kho Ecommerce China'
 ,'CHINA' AS country
 ,qty
 ,purchase_qty
 ,v.retail_price
 FROM `marine-cycle-484213-b4.jushuitan.core_jushuitan_inventory` i
+LEFT JOIN (
+    SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
+    FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+  ) cw ON cw.canonical_warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453'
 LEFT JOIN  `marine-cycle-484213-b4.core_pancake.core_product` p ON i.sku_id = p.display_id
 LEFT JOIN   `marine-cycle-484213-b4.core_pancake.core_variations` v ON i.sku_id = v.variation_display_id
 WHERE TRIM(i.sku_id) NOT LIKE '001'
