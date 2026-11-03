@@ -54,6 +54,7 @@ Safe commands make no network calls and write nothing outside the working tree:
 | Offline repo checks | `python3 scripts/validate_repo.py` | None |
 | Checks + import every Cloud Run service | `.venv/bin/python scripts/validate_repo.py --imports` | None. Isolated subprocesses: dotenv disabled, dummy credentials, temp HOME, sockets blocked |
 | Unit tests | `python3 -m unittest discover -s tests` | None |
+| Rebuild the pipeline manifest | `python3 scripts/build_pipeline_manifest.py` (`--check` to verify) | Writes `metadata/pipeline_manifest.json` only (static `ast` parse; never imports pipelines) |
 | Syntax-check one file | `python3 -m py_compile <file>` | Writes `__pycache__` only |
 | Show a pipeline's CLI flags | Read its `argparse` block, or see [docs/pipelines.md](docs/pipelines.md) | None. Avoid `--help`: it imports the module, which loads `.env`, may read the service-account key, and in some scripts (e.g. the Meta CSV exporter) runs the export at import |
 

@@ -74,6 +74,8 @@ data/processed/*
 *.xls
 *.json
 !data/**/.gitkeep
+# Generated, code-only index (no data); see scripts/build_pipeline_manifest.py
+!metadata/pipeline_manifest.json
 
 # =========================
 # OS / editor files

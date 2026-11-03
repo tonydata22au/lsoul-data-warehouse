@@ -1,3 +1,14 @@
+/* @datacloud.settings
+{
+  "version": 1,
+  "service": "BIG_QUERY",
+  "connectionInfo": {
+    "billingProjectId": "INHERIT"
+  },
+  "dialect": "GOOGLE_SQL"
+}
+*/
+
 CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_sale_store_thai_product(number_year_back INT64)
 AS
 SELECT DISTINCT
@@ -39,13 +50,13 @@ SELECT DISTINCT
                         ,SUM(oi.cart_quantity) OVER (PARTITION BY o.order_id ORDER BY o.order_id)
                         ),0) 
       AS revenue_vn,
-      CASE WHEN o.warehouse_id IN ('ad07f1c9-84be-4c4d-bc5b-4de980ffb97e','490ded40-64ba-4424-aaed-399abbf13fbb','133983a4-ff7d-4861-805c-0a1bdd51795f') THEN 'Store' ELSE  header_warehouse.canonical_warehouse_name END AS order_sources_name,
+      CASE WHEN o.warehouse_id IN ('ad07f1c9-84be-4c4d-bc5b-4de980ffb97e','490ded40-64ba-4424-aaed-399abbf13fbb','133983a4-ff7d-4861-805c-0a1bdd51795f') THEN 'Store' ELSE  warehouse.canonical_warehouse_name END AS order_sources_name,
       'TL Offline Store' AS sale_channel,
       CASE 
           WHEN o.warehouse_id = 'ad07f1c9-84be-4c4d-bc5b-4de980ffb97e' THEN 'Emsphere'
           WHEN o.warehouse_id = '490ded40-64ba-4424-aaed-399abbf13fbb' THEN 'Central Ladprao'
           WHEN o.warehouse_id = '133983a4-ff7d-4861-805c-0a1bdd51795f' THEN 'Central World'
-      ELSE header_warehouse.canonical_warehouse_name 
+      ELSE warehouse.canonical_warehouse_name 
       END AS sale_channel_details,
       CASE 
         WHEN tags LIKE '%Facebook%'   THEN 'Facebook'
@@ -72,10 +83,6 @@ SELECT DISTINCT
       SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
       FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
     ) AS warehouse ON warehouse.canonical_warehouse_id = oi.warehouse_id
-    LEFT JOIN (
-      SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
-      FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
-    ) AS header_warehouse ON header_warehouse.canonical_warehouse_id = o.warehouse_id
     WHERE 1=1
       --AND DATE_TRUNC(o.inserted_at, YEAR) >='2026-01-01' 
       AND DATE_TRUNC(o.inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)

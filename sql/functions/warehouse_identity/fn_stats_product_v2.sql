@@ -1,3 +1,14 @@
+/* @datacloud.settings
+{
+  "version": 1,
+  "service": "BIG_QUERY",
+  "connectionInfo": {
+    "billingProjectId": "INHERIT"
+  },
+  "dialect": "GOOGLE_SQL"
+}
+*/
+
 CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_stats_product_v2(i_type INT64, i_number_year_back INT64, i_days_range INT64, i_avg_units_sold_expect INT64, i_FromDate DATE, i_ToDate DATE)
 OPTIONS(
   description="Stock-forecasting scorecard per SKU: sell-through, velocity, DOH,\ncolour bucket, and a deterministic overstock / stockout alert engine.\nFeeds reportdb.sp_ai_product_stock_insights. Refactor of fn_stats_product (v2).")

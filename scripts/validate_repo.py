@@ -277,6 +277,20 @@ def check_pipeline_inventory():
     return errors, []
 
 
+def check_pipeline_manifest():
+    """metadata/pipeline_manifest.json must match what the generator produces from src/ now."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import build_pipeline_manifest as manifest
+
+    target = ROOT / manifest.MANIFEST
+    hint = f"; run python3 {manifest.GENERATOR}"
+    if not target.is_file():
+        return [f"{manifest.MANIFEST.as_posix()} missing{hint}"], []
+    if target.read_text(encoding="utf-8") != manifest.render(manifest.build_manifest(ROOT)):
+        return [f"{manifest.MANIFEST.as_posix()} is stale{hint}"], []
+    return [], []
+
+
 def check_git_hygiene():
     warnings = []
     try:
@@ -341,6 +355,7 @@ STATIC_CHECKS = [
     check_skills,
     check_agent_docs,
     check_pipeline_inventory,
+    check_pipeline_manifest,
     check_git_hygiene,
 ]
 

@@ -2,6 +2,9 @@
 
 Verified by reading the code on 2026-10-18 (nothing was executed against APIs or BigQuery).
 `scripts/validate_repo.py` fails if a pipeline file is missing from this page.
+`metadata/pipeline_manifest.json` is generated from this page and the code (destinations,
+write dispositions, env var names, functions with line ranges); after changing a pipeline or this
+page, run `python3 scripts/build_pipeline_manifest.py`. `validate_repo.py` fails when it is stale.
 
 **Legend**
 - **Project:** the client's default project unless noted. The warehouse SQL uses `marine-cycle-484213-b4`.

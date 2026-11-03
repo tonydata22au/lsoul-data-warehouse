@@ -645,7 +645,6 @@ SELECT
   ,retail_price
   ,warehouse_id
   ,warehouse_name
-  ,warehouse_country
   ,order_sources_name
   ,sale_channel
   ,sale_channel_details

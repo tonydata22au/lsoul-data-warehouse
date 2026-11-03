@@ -1,3 +1,14 @@
+/* @datacloud.settings
+{
+  "version": 1,
+  "service": "BIG_QUERY",
+  "connectionInfo": {
+    "billingProjectId": "INHERIT"
+  },
+  "dialect": "GOOGLE_SQL"
+}
+*/
+
 CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_sale_store_thai_v2(i_number_year_back INT64, i_type INT64)
 AS
 WITH stage AS (
@@ -8,14 +19,14 @@ WITH stage AS (
       CASE 
         WHEN o.warehouse_id IN ('ad07f1c9-84be-4c4d-bc5b-4de980ffb97e','490ded40-64ba-4424-aaed-399abbf13fbb','133983a4-ff7d-4861-805c-0a1bdd51795f') 
         THEN 'Store' 
-        ELSE  header_warehouse.canonical_warehouse_name 
+        ELSE  warehouse.canonical_warehouse_name 
         END AS level_1,
       'TL Offline Store' AS level_2,
       CASE 
           WHEN o.warehouse_id = 'ad07f1c9-84be-4c4d-bc5b-4de980ffb97e' THEN 'Emsphere'
           WHEN o.warehouse_id = '490ded40-64ba-4424-aaed-399abbf13fbb' THEN 'Central Ladprao'
           WHEN o.warehouse_id = '133983a4-ff7d-4861-805c-0a1bdd51795f' THEN 'Central World'
-      ELSE header_warehouse.canonical_warehouse_name
+      ELSE warehouse.canonical_warehouse_name
       END AS level_3,
       CAST(customer_id AS STRING) AS customer_id,
       CASE 
@@ -72,10 +83,6 @@ WITH stage AS (
       SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
       FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
     ) AS warehouse ON warehouse.canonical_warehouse_id = oi.warehouse_id
-    LEFT JOIN (
-      SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
-      FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
-    ) AS header_warehouse ON header_warehouse.canonical_warehouse_id = o.warehouse_id
     WHERE 1=1
      AND is_received_at_shop = 1
      AND o.order_id NOT IN (SELECT CAST(order_id AS STRING) FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` WHERE is_duplicate = 1) 

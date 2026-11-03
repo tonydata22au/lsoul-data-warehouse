@@ -1,3 +1,14 @@
+/* @datacloud.settings
+{
+  "version": 1,
+  "service": "BIG_QUERY",
+  "connectionInfo": {
+    "billingProjectId": "INHERIT"
+  },
+  "dialect": "GOOGLE_SQL"
+}
+*/
+
 CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_sale_ecom_taobao_tmall_manual_china_product(number_year_back INT64)
 OPTIONS(
   description="Taobao/Tmall manual order feed. v2: de-duplicates core_product on product_code before joining, fixing a 4.03x row fan-out present in v1. Output contract unchanged.")

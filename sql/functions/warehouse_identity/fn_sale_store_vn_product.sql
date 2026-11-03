@@ -1,3 +1,14 @@
+/* @datacloud.settings
+{
+  "version": 1,
+  "service": "BIG_QUERY",
+  "connectionInfo": {
+    "billingProjectId": "INHERIT"
+  },
+  "dialect": "GOOGLE_SQL"
+}
+*/
+
 CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_sale_store_vn_product(number_year_back INT64)
 AS
 SELECT DISTINCT
@@ -29,7 +40,7 @@ SELECT DISTINCT
       CASE
         WHEN o.warehouse_id = '4a93fada-d892-4bbd-8547-ec505e6104df' THEN 'Store Nguyễn Trãi'
         WHEN o.warehouse_id = 'c9aea4ce-e71e-404e-b7c1-8d6ff342d748' THEN 'VN Pop-up'
-        ELSE header_warehouse.canonical_warehouse_name
+        ELSE warehouse.canonical_warehouse_name
       END AS sale_channel_details,
       CASE 
         WHEN tags LIKE '%Facebook%'   THEN 'Facebook'
@@ -52,10 +63,6 @@ SELECT DISTINCT
       SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
       FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
     ) AS warehouse ON warehouse.canonical_warehouse_id = oi.warehouse_id
-    LEFT JOIN (
-      SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
-      FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
-    ) AS header_warehouse ON header_warehouse.canonical_warehouse_id = o.warehouse_id
     WHERE 1=1
       --AND DATE_TRUNC(o.inserted_at, YEAR) >='2026-01-01' 
       --AND DATE_TRUNC(o.inserted_at, day) between '2025-11-01' and '2025-11-30'
