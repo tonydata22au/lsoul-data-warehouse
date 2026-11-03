@@ -1,6 +1,23 @@
+/* @datacloud.settings
+{
+  "version": 1,
+  "service": "BIG_QUERY",
+  "connectionInfo": {
+    "billingProjectId": "INHERIT",
+    "location": "asia-southeast2"
+  },
+  "dialect": "GOOGLE_SQL"
+}
+*/
+
 CREATE OR REPLACE TABLE FUNCTION `marine-cycle-484213-b4`.reportdb.fn_sale_ecom_china_v2(i_number_year_back INT64, i_type INT64)
 AS
-WITH dim_product AS (
+--Sale Ecommerce China
+-- SELECT * EXCEPT(variation_code,product_code,product_name,product_launch_date, variation_attributes,retail_price,warehouse_id,warehouse_name) FROM `marine-cycle-484213-b4.reportdb.fn_sale_ecom_china_v2`(0,0) ORDER BY 1 DESC
+-- SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_sale_ecom_china_v2`(0,1) ORDER BY 1 DESC
+-- SELECT * FROM `marine-cycle-484213-b4.reportdb.fn_sale_ecom_china_v2`(0,3) ORDER BY 1 DESC
+WITH 
+dim_product AS (
   -- ONE row per product_code. This is the entire fix.
   SELECT
      product_code
