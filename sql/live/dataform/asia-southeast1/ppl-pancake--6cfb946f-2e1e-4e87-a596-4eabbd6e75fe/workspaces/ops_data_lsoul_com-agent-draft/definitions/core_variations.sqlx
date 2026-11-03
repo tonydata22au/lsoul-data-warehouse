@@ -1,0 +1,40 @@
+config {
+  type:"table",
+  name:"core_variations",
+  dataset:"core_pancake",
+  dependencyTargets:[{
+    name:"stg_variations"
+  }],
+}
+SELECT
+  inserted_at,
+  updated_at,
+  product_id,
+  REGEXP_EXTRACT(variation_display_id, r'^([^-]+)') AS product_code, 
+  variation_id, 
+  variation_display_id,
+  size_name,
+  size_value,
+  color_name,
+  color_value,
+  images,
+  retail_price,
+  retail_price_after_discount,
+  last_imported_price,
+  total_purchase_price,
+  price_at_counter,
+  wholesale_price,
+  remain_quantity,
+  is_hidden, 
+  is_locked,
+  is_removed,
+  is_sell_negative,
+  is_composite,
+  CASE 
+      WHEN size_value NOT LIKE '' AND  color_value NOT LIKE '' THEN CONCAT(size_value,' - ',color_value) 
+      WHEN size_value LIKE '' AND  color_value NOT LIKE '' THEN color_value
+      WHEN size_value NOT LIKE '' AND  color_value  LIKE '' THEN size_value
+      ELSE NULL
+  END variation_attributes
+  FROM ${ref("stg_variations")}
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY variation_id ORDER BY updated_at DESC) = 1

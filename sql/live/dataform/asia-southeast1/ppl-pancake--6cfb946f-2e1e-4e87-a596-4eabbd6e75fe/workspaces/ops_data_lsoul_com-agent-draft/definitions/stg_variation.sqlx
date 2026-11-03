@@ -30,4 +30,4 @@ SELECT DISTINCT
   SAFE_CAST(is_sell_negative AS INT64) AS is_sell_negative,  
   SAFE_CAST(is_composite AS INT64) AS is_composite
 FROM ${ref("raw_product_variations")}
-WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP(CURRENT_DATE("Asia/Ho_Chi_Minh"))
+WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP('2026-01-01')
