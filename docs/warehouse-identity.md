@@ -46,9 +46,9 @@ extension does not require refreshing those report tables. Verify caller access 
 ## Earlier predicate/dimension behavior and policy
 
 Twelve reporting functions select warehouses using the order header's `warehouse_id`: base,
-product and v2 variants of VN ecommerce, VN online, VN stores and Thai stores. Existing v2
-filenames are retained; nine additional sources live in `sql/functions/warehouse_identity/`.
-`sql/source_provenance.json` is the exact object/path index. Online source OR logic, financial
+product and v2 variants of VN ecommerce, VN online, VN stores and Thai stores. Each function's
+source is `sql/functions/reportdb.<function>.sql` (the former `warehouse_identity/` subfolder was
+merged into `sql/functions/` on 2026-11-05). `sql/source_provenance.json` records the reviewed hashes. Online source OR logic, financial
 calculations, date windows and interfaces remain unchanged. Store labels use the same IDs.
 Names and name-derived codes remain display attributes.
 
@@ -90,7 +90,7 @@ and explain restored renamed rows. The broken original VN store v2 is not an equ
    Plan/Build captures live privately under this thread's `warehouse-id-plan/` storage directory.
 2. Run dimension preflight. Classification mismatches are expected before repair; duplicate/blank
    IDs or unreviewed mappings block the run. Review transaction and stale-source behavior.
-3. Deploy only `sql/procedures/sp_pancake_core_warehouse_insert.sql`, then call that producer once
+3. Deploy only `sql/procedures/core_pancake.sp_pancake_core_warehouse_insert.sql`, then call that producer once
    in the intended project/region to apply the dimension correction. Verify actual table rows.
    Do not run schema scripts, the historic CTAS, snapshot directories or unrelated pipelines.
 4. Deploy the twelve reviewed functions from the provenance index; verify interfaces, membership,

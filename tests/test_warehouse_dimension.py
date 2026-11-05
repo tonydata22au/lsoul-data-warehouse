@@ -11,7 +11,7 @@ import sqlite3
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-PROCEDURE = ROOT / 'sql/procedures/sp_pancake_core_warehouse_insert.sql'
+PROCEDURE = ROOT / 'sql/procedures/core_pancake.sp_pancake_core_warehouse_insert.sql'
 POLICY = ROOT / 'sql/config/warehouse_policy.json'
 THAI = 'ad07f1c9-84be-4c4d-bc5b-4de980ffb97e'
 MARKETING = '66184c11-4f37-465b-b5a7-09cb026b9ebd'

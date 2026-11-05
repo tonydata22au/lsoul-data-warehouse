@@ -10,10 +10,10 @@ Read each file first; never run deployment SQL just to "test" it.
 
 | Folder | Contents | Object types |
 |---|---|---|
-| [`staging/`](staging/) | `stg_*`: typed/cleaned copies of raw tables | `CREATE OR REPLACE TABLE … PARTITION BY DATE(proc_date)`; `stg_pancake_order.sql` and `stg_pancake_orders_returned.sql` are Dataform SQLX (`config {…}`, `${ref()}`) |
+| [`staging/`](staging/) | `stg_*`: typed/cleaned copies of raw tables | `CREATE OR REPLACE TABLE … PARTITION BY DATE(proc_date)`; `stg_pancake.stg_order.sql` and `stg_pancake.stg_orders_returned.sql` are Dataform SQLX (`config {…}`, `${ref()}`) |
 | [`core/`](core/) | `core_*`: build/backfill scripts for core tables | `CREATE OR REPLACE TABLE … PARTITION BY … CLUSTER BY …` (one `INSERT`) |
 | [`procedures/`](procedures/) | `sp_*`: incremental staging → core loads, logging, dashboard jobs | `CREATE OR REPLACE PROCEDURE` |
-| [`functions/`](functions/) | `fn_*` reporting table functions (`reportdb`), `sys-*` shared scalar UDFs | `CREATE OR REPLACE TABLE FUNCTION` / `FUNCTION` |
+| [`functions/`](functions/) | `reportdb.fn_*` reporting table functions, shared scalar UDFs (`sysdb.udf_*`, the `reportdb.fn_money_helpers.sql` bundle) | `CREATE OR REPLACE TABLE FUNCTION` / `FUNCTION` |
 | [`monitoring/`](monitoring/) | Read-only Looker Studio connector queries, examples and synthetic test fixtures | `SELECT`; see [dashboard guide](../docs/warehouse-operations-dashboard.md) |
 | [`marts/`](marts/), [`checks/`](checks/) | Placeholders (empty today) | — |
 | [`ad_hoc/`](ad_hoc/) | `q-*` one-off analysis and monitoring queries | Mostly `SELECT`; `q-ai_performance_snapshot.sql` also creates views |
@@ -26,8 +26,36 @@ The [live snapshot](live/README.md) records the current accessible deployed obje
 saved queries, scheduled queries and Dataform source. See the
 [sync guide](../docs/warehouse-definition-sync.md) for scope, provenance and refresh steps.
 The snapshot separates schema DDL from transformations; it is not a batch deployment.
-Matching function/procedure files here are refreshed from deployed routines. Historical
-CTAS/backfill and working files are retained and may differ from the live source.
+Historical CTAS/backfill and working files are retained and may differ from the live source.
+
+## File naming and the live snapshot
+
+Each object in `staging/`, `core/`, `procedures/` and `functions/` has exactly **one editable
+file**, directly in its layer folder (no subfolders), named `<dataset>.<object>.sql` after the
+object it creates:
+
+```text
+functions/reportdb.fn_sale_ecom_vn_v2.sql         → reportdb.fn_sale_ecom_vn_v2
+procedures/core_pancake.sp_core_order_insert.sql  → core_pancake.sp_core_order_insert
+staging/stg_pancake.stg_order.sql                 → stg_pancake.stg_order (Dataform SQLX)
+core/dianplus.core_dianplus_order.sql             → dianplus.core_dianplus_order
+```
+
+The only multi-object file is `functions/reportdb.fn_money_helpers.sql` (four money helpers
+that deploy together). `sql/live/` holds the second copy of many of these objects. It is the
+machine-generated record of what BigQuery runs: **edit the file here, never the snapshot**, and
+refresh the snapshot with the [sync guide](../docs/warehouse-definition-sync.md) after deploying.
+
+To find an object's file and see whether it matches what is deployed:
+
+```bash
+python3 scripts/sql_index.py fn_sale_ecom_vn   # editable path, live path, same/differs/not deployed
+python3 scripts/sql_index.py --drift           # every object whose file differs from the snapshot
+python3 scripts/sql_index.py --check           # naming rules (also part of validate_repo.py)
+```
+
+`differs` means the file was edited here and not yet deployed (see
+[`source_provenance.json`](source_provenance.json)) or BigQuery changed after the snapshot.
 
 ## Data flow
 
@@ -57,13 +85,17 @@ Example chain: `raw_pancake.raw_order` → `stg_pancake.stg_order` → `sp_core_
 - Some staging files hard-code partition dates (e.g. `= "2026-06-01"`); check before rerunning.
 - Several objects are referenced but not defined here (e.g. `sysdb.sp_data_insert_log_V3`,
   `fn_sale_store_thai_v2`, `core_meta.*`). The live BigQuery definition is the source of truth.
-- File names don't always match the object they create (e.g. `core_tiktok_ad.sql` creates
-  `core_tiktok.core_thai_ads`). Search for the object name, not just the file name.
+- Editable files are named `<dataset>.<object>.sql` after the object they create, so
+  `core_tiktok.core_thai_ads` lives in `core/core_tiktok.core_thai_ads.sql`. See
+  [File naming](#file-naming-and-the-live-snapshot).
 
 ## Conventions for new SQL
 
-- One object per file, named after the object: `stg_<source>_<entity>.sql`,
-  `core_<source>_<entity>.sql`, `sp_<source>_core_<entity>_insert.sql`, `fn_<purpose>.sql`.
+- One object per file, named `<dataset>.<object>.sql` (e.g. `dianplus.stg_dianplus_order.sql`,
+  `reportdb.fn_sale_store_vn.sql`). Before creating one, run `python3 scripts/sql_index.py <name>`
+  to make sure the object doesn't already have a file.
+- A new version of an object (`_v2`) gets its own file only while both versions are deployed;
+  move a version that's no longer deployed to `archive/` as `zarchived-<dataset>.<object>.sql`.
 - Always fully qualify tables with project and dataset (backticks).
 - Use `CREATE OR REPLACE` only where a full rebuild is intended; document partition filters.
 - Move superseded files to `archive/` with the `zarchived-` prefix instead of deleting them.

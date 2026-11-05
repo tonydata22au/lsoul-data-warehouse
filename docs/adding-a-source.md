@@ -12,8 +12,8 @@ both people and agents. This page is the summary.
    `.env.example`. Never hardcode.
 4. **Raw table:** create it with a schema script modeled on `src/schema/` (DAY partitioning on
    ingestion time). Creating a table is a BigQuery write; get authorization.
-5. **SQL:** add `sql/staging/stg_<source>_<entity>.sql`, a core build script and an
-   `sp_<source>_core_<entity>_insert.sql` procedure if the data feeds reporting.
+5. **SQL:** add `sql/staging/<dataset>.stg_<source>_<entity>.sql`, a core build script and an
+   `sql/procedures/<dataset>.sp_<source>_core_<entity>_insert.sql` procedure (named `<dataset>.<object>.sql`) if the data feeds reporting.
 6. **Document:** add the pipeline to [pipelines.md](pipelines.md) (the validator enforces it).
 7. **Validate offline:** `python3 scripts/validate_repo.py`, `python3 -m unittest discover -s tests`,
    `.venv/bin/python scripts/validate_repo.py --imports`.

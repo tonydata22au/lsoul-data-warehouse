@@ -24,7 +24,7 @@ Change what lands in BigQuery, or how, without breaking downstream SQL or losing
 - Raw tables are partitioned by ingestion day (`_PARTITIONTIME`), mostly with `require_partition_filter`.
 - Staging (`sql/staging/`) is rebuilt with `CREATE OR REPLACE TABLE … PARTITION BY DATE(proc_date)`;
   `proc_date` comes from `_PARTITIONTIME`. Two files are Dataform SQLX.
-- Core loads (`sql/procedures/sp_*_insert.sql`) delete the IDs present in today's staging partition
+- Core loads (`sql/procedures/<dataset>.sp_*_insert.sql`) delete the IDs present in today's staging partition
   and reinsert the latest version; they log to `sysdb`.
 - `src/schema/` scripts **delete and recreate** the table if it exists (data loss), then optionally
   load a CSV with `WRITE_TRUNCATE`.

@@ -52,7 +52,7 @@ fix changes production behavior and needs a decision.
    `cloud-run-tiktok-thai-gmv-max-report` would deploy over the VN service.
    `cloud-run-surfosm-inventory`'s example uses `--allow-unauthenticated`.
 9. **SQL:** several objects are referenced but not defined in `sql/` (e.g.
-   `sysdb.sp_data_insert_log_V3`), `stg_meta_ads_reporting_my.sql` reads a `stg_` table from `raw_meta`,
-   and `core_pancake_orders_returned.sql` has an incomplete `BETWEEN`. See [../sql/README.md](../sql/README.md).
+   `sysdb.sp_data_insert_log_V3`), `staging/stg_meta.stg_ads_reporting_my.sql` reads a `stg_` table from `raw_meta`,
+   and `core/core_pancake.core_orders_returned.sql` has an incomplete `BETWEEN`. See [../sql/README.md](../sql/README.md).
 10. **Two different Meta tokens** are in use (`META_ACCESS_TOKEN` for Cloud Run,
     `META_ACCESS_TOKEN_LOCAL` for `local_run/meta_ads_*.py`). Confirm which is valid and consolidate.

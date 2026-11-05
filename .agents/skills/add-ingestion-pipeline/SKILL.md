@@ -49,8 +49,9 @@ table, following the repo's existing pattern so it can be deployed like the othe
    - Keep `--dry-run`, `--start-date`, `--end-date`, `--project-id` flags consistent with siblings.
 4. **Schema script** (optional but recommended): copy a `src/schema/` script, set dataset/table and
    fields matching the rename map. Don't run it (it drops existing tables).
-5. **SQL** (if the data feeds reporting): `sql/staging/stg_<source>_<entity>.sql`, a core build
-   script, and `sql/procedures/sp_<source>_core_<entity>_insert.sql` modeled on an existing one.
+5. **SQL** (if the data feeds reporting): `sql/staging/<dataset>.stg_<source>_<entity>.sql`, a core
+   build script, and `sql/procedures/<dataset>.sp_<source>_core_<entity>_insert.sql` modeled on an
+   existing one (files are named `<dataset>.<object>.sql`; `scripts/sql_index.py --check` enforces it).
 6. **Inventory:** add a row to `docs/pipelines.md` (service, endpoint, default window, flags,
    destination, load, schedule "unknown" until confirmed).
 7. **Validate offline** (skill `validate-changes`):

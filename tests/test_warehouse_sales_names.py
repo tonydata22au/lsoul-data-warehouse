@@ -20,11 +20,7 @@ DIMENSION = '`marine-cycle-484213-b4.core_pancake.core_warehouse`'
 
 
 def source_path(name):
-    if name.endswith('_v2') and name != 'fn_sale_store_thai_v2':
-        return ROOT / 'sql/functions' / (name[:-3] + '.sql')
-    if name == 'fn_sale_wholeshale_vn_product':
-        return ROOT / 'sql/functions' / (name + '.sql')
-    return ROOT / 'sql/functions/warehouse_identity' / (name + '.sql')
+    return ROOT / 'sql/functions' / ('reportdb.' + name + '.sql')
 
 
 def executable(sql):

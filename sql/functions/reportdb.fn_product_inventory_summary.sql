@@ -40,7 +40,12 @@ ORDER BY 3, 1 DESC
   ,product_name
   ,retail_price
   ,warehouse_id
-  ,cw.canonical_warehouse_name AS warehouse_name
+  ,CASE 
+      WHEN DATE(period_date) >= '2026-06-01' AND warehouse_id =  '76be7836-6dc5-4b1c-9e48-b18e43127453' --Kho Trung Quoc (Back-up)
+      THEN 'Kho Trung Quốc (nguồn Pancake + Dianplus + Jushuitan)' 
+      WHEN DATE(period_date) >= '2026-02-13' AND warehouse_id = '878504e9-fb75-4870-8504-b2ecdbc097ba' --Kho Thai Lan (Back-up)
+      THEN 'Kho Thái Lan (nguồn Pancake + Scale-Up Fulfilment)' 
+      ELSE canonical_warehouse_name END AS warehouse_name
   ,sl_nhap_moi_tu_sx
   ,sl_nhap_kho
   ,SUM(sl_ton_kho) OVER (PARTITION BY variation_code,warehouse_id ORDER BY period_date ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS sl_ton_kho

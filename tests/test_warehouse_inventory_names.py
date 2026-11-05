@@ -24,8 +24,7 @@ NAMES = (
 
 
 def source(name):
-    for folder in (BASE, BASE / 'warehouse_identity', SNAPSHOT):
-        path = folder / (name + '.sql')
+    for path in (BASE / ('reportdb.' + name + '.sql'), SNAPSHOT / (name + '.sql')):
         if path.exists():
             return path.read_text()
     raise AssertionError('Missing source: ' + name)

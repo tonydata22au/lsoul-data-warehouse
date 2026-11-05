@@ -21,9 +21,7 @@ THAI_ID = '878504e9-fb75-4870-8504-b2ecdbc097ba'
 
 
 def source_path(name):
-    if name.endswith('_v2'):
-        return ROOT / 'sql/functions' / (name[:-3] + '.sql')
-    return ROOT / 'sql/functions/warehouse_identity' / (name + '.sql')
+    return ROOT / 'sql/functions' / ('reportdb.' + name + '.sql')
 
 
 def executable(sql):

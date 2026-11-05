@@ -36,9 +36,13 @@ Files with publication edits record the original hash and applied changes.
 
 ## Existing SQL
 
-Matching files in `sql/functions/` and `sql/procedures/` are refreshed from deployed
-routine bodies while retaining their `CREATE OR REPLACE` deployment behavior. The
-existing four-function money helper bundle remains a bundle; the snapshot also has
+The editable source for each object is `sql/<layer>/<dataset>.<object>.sql`; the snapshot
+is a second, read-only copy (see [sql/README.md](../sql/README.md#file-naming-and-the-live-snapshot)).
+The export writes only `sql/live/`. On 2026-10-28, matching files in `sql/functions/` and
+`sql/procedures/` were refreshed once from deployed routine bodies, keeping their
+`CREATE OR REPLACE` deployment behavior. Run `python3 scripts/sql_index.py --drift` after a
+refresh to see which editable files now differ from the snapshot. The four-function money
+helper bundle (`reportdb.fn_money_helpers.sql`) remains a bundle; the snapshot also has
 one file per function. `routine_sync.json` records updated files and unmatched legacy
 files. Older CTAS/backfill, ad hoc and working files are retained because replacing
 transformations with schema-only DDL would destroy their purpose. Consult the live

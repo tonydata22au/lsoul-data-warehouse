@@ -2,7 +2,7 @@
 
 ## Delivery and source
 
-The canonical definition is [fn_warehouse_operations.sql](../sql/functions/fn_warehouse_operations.sql).
+The canonical definition is [reportdb.fn_warehouse_operations.sql](../sql/functions/reportdb.fn_warehouse_operations.sql).
 It is a reporting table function for `marine-cycle-484213-b4`, Singapore
 (`asia-southeast1`), using Vietnam calendar dates. It reads metadata and billing;
 it never runs an ingestion pipeline or changes a business table.

@@ -62,7 +62,7 @@ the prior thread's same-day warehouse-only capture; no fuzzy identity mapping is
 ### Implementation style and structure
 
 Use existing maintained paths identified by CREATE object name and `sql/source_provenance.json`.
-Add missing exact-object sources under `sql/functions/warehouse_identity/`; one object per file.
+Add missing exact-object sources as `sql/functions/reportdb.<object>.sql`; one object per file.
 Do not change `sql/live/` or represent prepared SQL as observed production. Keep changes focused.
 Tests belong under `tests/`; migration guidance is `docs/warehouse-identity.md`; detailed tasks
 are in [tasks/todo.md](tasks/todo.md). No new runtime lookup table or helper function is required.
@@ -174,9 +174,9 @@ in the October 28 snapshot. Use the fresh definition; do not restore removed log
 - Python standard-library repository tooling/tests; dbt BigQuery/Jinja in sibling `lsoul_dbt`.
 - `sql/functions/`: maintained deployment sources. Three affected existing files use short
   filenames but create `_v2` objects; add exact-object files for the nine missing functions.
-- `sql/procedures/sp_pancake_core_warehouse_insert.sql`: maintained producer source.
+- `sql/procedures/core_pancake.sp_pancake_core_warehouse_insert.sql`: maintained producer source.
 - `sql/live/`: immutable October 28 observed snapshot, protected by manifest hashes.
-- `sql/core/core_pancake_warehouse.sql`: historical June 2 CTAS, not the current producer.
+- `sql/core/core_pancake.core_warehouse.sql`: historical June 2 CTAS, not the current producer.
 - `tests/`, `docs/`, `tasks/`: regression checks, migration notes, planning artifacts.
 - Sibling `lsoul_dbt/models/core/pancake/core_pancake__warehouse.sql`: parallel dbt dimension;
   its current merge already chooses one row per ID. Existing YAML tests assert ID uniqueness

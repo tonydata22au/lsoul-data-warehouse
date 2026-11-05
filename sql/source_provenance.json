@@ -3,7 +3,7 @@
   "sources": [
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_dim_sku",
-      "path": "sql/functions/fn_dim_sku.sql",
+      "path": "sql/functions/reportdb.fn_dim_sku.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_dim_sku.sql",
       "snapshot_sha256": "fbff373de838249e1abcad647b30e707b9bd7e762f0c2bd59499e50934e84969",
       "source_sha256": "dea92a8c4d334353fe4654a9f30eb28c2a4038176b969056524d25f1022ad51d",
@@ -14,7 +14,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_vn_v2",
-      "path": "sql/functions/fn_sale_ecom_vn.sql",
+      "path": "sql/functions/reportdb.fn_sale_ecom_vn_v2.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_vn_v2.sql",
       "snapshot_sha256": "94cfc623864ce2cf1657544c7da50bc4f1b3628d1db24edecba4cf8bd62e0091",
       "source_sha256": "20053acc788196d37fb7603b2303cfaa6be595d883b6c0280043b27afcee4c71",
@@ -26,7 +26,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_online_vn_v2",
-      "path": "sql/functions/fn_sale_online_vn.sql",
+      "path": "sql/functions/reportdb.fn_sale_online_vn_v2.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_online_vn_v2.sql",
       "snapshot_sha256": "9d92b5b960551af85f19bfbc5f4fa55790471e8fc501db4a52fec021fc747a9c",
       "source_sha256": "0cc977b4ac657491bbc7e328b801fe401377825d2a7620b19eff48d3bc33ebf8",
@@ -38,7 +38,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_store_vn_v2",
-      "path": "sql/functions/fn_sale_store_vn.sql",
+      "path": "sql/functions/reportdb.fn_sale_store_vn_v2.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_store_vn_v2.sql",
       "snapshot_sha256": "7879db74512e10bc26475ce4cef0adeb1fc9f5657a011a367a14f54dea8137b4",
       "source_sha256": "d508326b76455f2efdda43ef1245058d909b5b2e835781b76c321b97658b8302",
@@ -50,7 +50,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_store_vn_product",
-      "path": "sql/functions/warehouse_identity/fn_sale_store_vn_product.sql",
+      "path": "sql/functions/reportdb.fn_sale_store_vn_product.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_store_vn_product.sql",
       "snapshot_sha256": "f3be5bf29a3671b5e3a01ace01a76eabf8584bd433c4957886ecfd7acc30ce29",
       "source_sha256": "c86bbdd48aa11ff659ec4487af30493f25f3ef8c09113145adb453b78f1eab5c",
@@ -62,7 +62,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_vn_product",
-      "path": "sql/functions/warehouse_identity/fn_sale_ecom_vn_product.sql",
+      "path": "sql/functions/reportdb.fn_sale_ecom_vn_product.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_vn_product.sql",
       "snapshot_sha256": "11f3f926a30f8b62d3f3d90d6aa63fce23cb53abf4d34fe36f9e1c13d5ba6524",
       "source_sha256": "6b1dd1a40ef0b5e7483194ade8cd28ea689b0564a5a7a157e23e700c2ee5791c",
@@ -74,7 +74,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_online_vn_product",
-      "path": "sql/functions/warehouse_identity/fn_sale_online_vn_product.sql",
+      "path": "sql/functions/reportdb.fn_sale_online_vn_product.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_online_vn_product.sql",
       "snapshot_sha256": "1d514cbf0981673f231607d7488b7fe28fafea54ac7bca55440895137b6a6162",
       "source_sha256": "5dd4c672ee88b8ef4d667b2048b0bdc0ff8b3444c7582daca9b41f5e2ae8ac90",
@@ -86,7 +86,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_store_vn",
-      "path": "sql/functions/warehouse_identity/fn_sale_store_vn.sql",
+      "path": "sql/functions/reportdb.fn_sale_store_vn.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_store_vn.sql",
       "snapshot_sha256": "4e9bd5d1b4754fe11f91c5bef1137df2ba45bc439df61cd946b25b9f51c79590",
       "source_sha256": "393d696dbbd79497c2715c4040ef2d6952a23a817ae08f44c19902bb7f1fa638",
@@ -98,7 +98,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_online_vn",
-      "path": "sql/functions/warehouse_identity/fn_sale_online_vn.sql",
+      "path": "sql/functions/reportdb.fn_sale_online_vn.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_online_vn.sql",
       "snapshot_sha256": "993488a585622013d63cd7bb7d4b50d948e0fbcb0f756e242887d65fa9b9ca9b",
       "source_sha256": "9fdd3e9bfb80e58eefb205dbe6db417df6cb41f8511f0769b6b0e44d3e7553fb",
@@ -110,7 +110,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_store_thai",
-      "path": "sql/functions/warehouse_identity/fn_sale_store_thai.sql",
+      "path": "sql/functions/reportdb.fn_sale_store_thai.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_store_thai.sql",
       "snapshot_sha256": "d626c4595c5723fa6a043e5e099cc3d631b331540f2444ff8ae407e773d43699",
       "source_sha256": "5ed4c426f744559c95ee45a86769ec2ae2c3e2ba003bb3d0d47c5a35c085d249",
@@ -122,7 +122,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_store_thai_product",
-      "path": "sql/functions/warehouse_identity/fn_sale_store_thai_product.sql",
+      "path": "sql/functions/reportdb.fn_sale_store_thai_product.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_store_thai_product.sql",
       "snapshot_sha256": "0d7f72e004bb67472bd8ddb5883ed0beab2d7c4c8d6de5d2e72fa78fc7e10344",
       "source_sha256": "409405cecd1204b50e39987bd3789f61779ac2cf84cb53bab72487a909657b75",
@@ -134,7 +134,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_vn",
-      "path": "sql/functions/warehouse_identity/fn_sale_ecom_vn.sql",
+      "path": "sql/functions/reportdb.fn_sale_ecom_vn.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_vn.sql",
       "snapshot_sha256": "52a50dd955e8a29ffc8bf8f4a0c3fa99d53d1feb141be675df31a3b356745599",
       "source_sha256": "6681b677001d64919a2d49c7a9ac412fe5e2328abc5fbb6f8302130f45c1354d",
@@ -146,7 +146,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_store_thai_v2",
-      "path": "sql/functions/warehouse_identity/fn_sale_store_thai_v2.sql",
+      "path": "sql/functions/reportdb.fn_sale_store_thai_v2.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_store_thai_v2.sql",
       "snapshot_sha256": "bba413c79189992bb804b18f3284635ecfd14a7a6fc6648c296d3e8a79feb496",
       "source_sha256": "b39fbc6c00327422802955411e9b1a49f791bfc67aa9609eddba5782ee708376",
@@ -158,7 +158,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.core_pancake.sp_pancake_core_warehouse_insert",
-      "path": "sql/procedures/sp_pancake_core_warehouse_insert.sql",
+      "path": "sql/procedures/core_pancake.sp_pancake_core_warehouse_insert.sql",
       "snapshot_path": "sql/live/bigquery/core_pancake/routines/sp_pancake_core_warehouse_insert.sql",
       "snapshot_sha256": "b565da172e629ee82624430f1d7dcba2842af652c72f19993438d711edb263a1",
       "source_sha256": "1391b349af97b29764f5bcab166f773d018b76a8dda8ce3a974f382a92b04443",
@@ -170,7 +170,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_product_variations_warehouse_summary",
-      "path": "sql/functions/fn_product_variations_warehouse_summary.sql",
+      "path": "sql/functions/reportdb.fn_product_variations_warehouse_summary.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_product_variations_warehouse_summary.sql",
       "snapshot_sha256": "df3b6764d76127bfd574cc269b5b1f458527ddf85173aee6870d50cbb4a82b5e",
       "source_sha256": "f81bf27e41cb2a64f1e40df34761b77411d6225d441c9e3eb3566d764182e3ce",
@@ -182,7 +182,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_thailand_product_inventory",
-      "path": "sql/functions/fn_thailand_product_inventory.sql",
+      "path": "sql/functions/reportdb.fn_thailand_product_inventory.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_thailand_product_inventory.sql",
       "snapshot_sha256": "f2bd5bdfb34da41ac9e9e8615c4306f2f5be982e53c0eefc96adea59e0fcffa7",
       "source_sha256": "f9ca96bb975fe6431d3aea33990e2289d52587aed188c2232f99f4006d05b373",
@@ -194,7 +194,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_product_inventory_overseas_shipment",
-      "path": "sql/functions/fn_product_inventory_overseas_shipment.sql",
+      "path": "sql/functions/reportdb.fn_product_inventory_overseas_shipment.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_product_inventory_overseas_shipment.sql",
       "snapshot_sha256": "cd4a627aceb9e4aff9bc23162e85cec3cd1974cee8684c820880fc0075eb0fad",
       "source_sha256": "ec02a016d438469f5d00ae36ef399a05630483b4c81e99c269dedf6a0d120b47",
@@ -206,7 +206,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_assortment_seg_cont_by_warehouse",
-      "path": "sql/functions/fn_assortment_seg_cont_by_warehouse.sql",
+      "path": "sql/functions/reportdb.fn_assortment_seg_cont_by_warehouse.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_assortment_seg_cont_by_warehouse.sql",
       "snapshot_sha256": "c76ddbe8d6d86fe49382b0e80644daf14f558322ccd8435fa6a4bdaae1a3d727",
       "source_sha256": "bd521bc659bfd6917b6687dae61b73a98ef0036e3bb80620527bbf61ebb86c2d",
@@ -218,7 +218,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_thai_v2",
-      "path": "sql/functions/fn_sale_ecom_thai.sql",
+      "path": "sql/functions/reportdb.fn_sale_ecom_thai_v2.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_thai_v2.sql",
       "snapshot_sha256": "aa13a0f167c8fd63c0b63adbc25b8ff5a668420afcd1fb3e9d065815c4e51dcc",
       "source_sha256": "58a24b685bcf2bba2110cdc09120d8990b5d011b5e599e2940e4a9a96b3ade3b",
@@ -230,7 +230,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_wholeshale_vn_v2",
-      "path": "sql/functions/fn_sale_wholeshale_vn.sql",
+      "path": "sql/functions/reportdb.fn_sale_wholeshale_vn_v2.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_wholeshale_vn_v2.sql",
       "snapshot_sha256": "b1d55c173cf936cf0ab29bf15539d964ebdd4be196c84092699358d1c4954f8b",
       "source_sha256": "1c4f5656cafd076545dd0ff5c1cc7faac50525bde8d80d4ab04f42486ac856d5",
@@ -242,7 +242,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_online_thai_v2",
-      "path": "sql/functions/fn_sale_online_thai.sql",
+      "path": "sql/functions/reportdb.fn_sale_online_thai_v2.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_online_thai_v2.sql",
       "snapshot_sha256": "42f7f47fb7dee21142ca03dd7a947641f64a9c3d4ef73df9d3a17cb64dd608b1",
       "source_sha256": "70c214e2c5dcbf282ccd7850ee119d3065f46ba40c0aaba311e75803c7fef501",
@@ -254,7 +254,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_taobao_tmall_manual_china_v2",
-      "path": "sql/functions/fn_sale_ecom_taobao_tmall_manual_china.sql",
+      "path": "sql/functions/reportdb.fn_sale_ecom_taobao_tmall_manual_china_v2.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_taobao_tmall_manual_china_v2.sql",
       "snapshot_sha256": "e57a1c9748371e7d7c514b63016579a1cab41a3d93b147f30d9e6eee8ea896cf",
       "source_sha256": "ff30d1b4cbc5255094ee670321c9cf06e6e055aa2fae107bd941e1220fd55418",
@@ -266,7 +266,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_china_product_inventory",
-      "path": "sql/functions/fn_china_product_inventory.sql",
+      "path": "sql/functions/reportdb.fn_china_product_inventory.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_china_product_inventory.sql",
       "snapshot_sha256": "33a3d0671ff1b77862ef5343b8bb663d472ff5b3f53be4e761b231c340d81330",
       "source_sha256": "ef25e6e408dd41a846a9caa6a7a4dc17083cbb35067dda9c08596c524eb98794",
@@ -278,7 +278,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_wholeshale_vn_product",
-      "path": "sql/functions/fn_sale_wholeshale_vn_product.sql",
+      "path": "sql/functions/reportdb.fn_sale_wholeshale_vn_product.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_wholeshale_vn_product.sql",
       "snapshot_sha256": "da59c12b070d42d903d6883bc5f819396b3eac3c51b111e144e8f12aff8bf292",
       "source_sha256": "4a8a84e8397900bbeb0a6b13ead4ef2f304291c96613a9cb03ed41286740c74e",
@@ -290,7 +290,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_product_inventory_summary_v2",
-      "path": "sql/functions/fn_product_inventory_summary_v2.sql",
+      "path": "sql/functions/reportdb.fn_product_inventory_summary_v2.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_product_inventory_summary_v2.sql",
       "snapshot_sha256": "f2be6d3ee81b6ada4f7704e7ed3648f0f33617f1fa6aaaac71f3bb3f7c79fc02",
       "source_sha256": "0fb57cd8079ad76e0396949663dbc6c7251fa9f3ec9685201299de6cc098bdda",
@@ -307,7 +307,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_china_v2",
-      "path": "sql/functions/fn_sale_ecom_china.sql",
+      "path": "sql/functions/reportdb.fn_sale_ecom_china_v2.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_china_v2.sql",
       "snapshot_sha256": "129eaac5771967abb7858c4295ed01ae17ea11d66cf858b638de27f216d8190d",
       "source_sha256": "28a4afe179b6dfb0c7ccbb41378deed8b3557c0c2aa21b21a64512a791459c74",
@@ -319,7 +319,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_store_china_v2",
-      "path": "sql/functions/fn_sale_store_china.sql",
+      "path": "sql/functions/reportdb.fn_sale_store_china_v2.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_store_china_v2.sql",
       "snapshot_sha256": "5a56a6f7e7c3468bd2e557eec020349c1cfe880f7fb4fe9aa07d18b7415b3f0c",
       "source_sha256": "cd0213a6dfb94ff76fb0cf207dfe49fe090f323884e8e153f04005d221bf8f15",
@@ -331,7 +331,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_stats_product_v2",
-      "path": "sql/functions/warehouse_identity/fn_stats_product_v2.sql",
+      "path": "sql/functions/reportdb.fn_stats_product_v2.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_stats_product_v2.sql",
       "snapshot_sha256": "64e4e7c70afce66599d560bfb20424c6fcdab13f4993c66017bb84eccabb9d6c",
       "source_sha256": "30af225d3d358c7b38c6160d4480ba4413cc4f876422962ab3fb1aa3baf5dbdb",
@@ -343,7 +343,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_online_thai_product",
-      "path": "sql/functions/warehouse_identity/fn_sale_online_thai_product.sql",
+      "path": "sql/functions/reportdb.fn_sale_online_thai_product.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_online_thai_product.sql",
       "snapshot_sha256": "46b0b9c5da746a117e32164d68b45668db7d18ef85230c7171a02fc12f7686f8",
       "source_sha256": "891cb92a3122949b3c1611ab2414b17b6fbbf7545b6ceaebc7e1a7e789195511",
@@ -355,7 +355,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_thai",
-      "path": "sql/functions/warehouse_identity/fn_sale_ecom_thai.sql",
+      "path": "sql/functions/reportdb.fn_sale_ecom_thai.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_thai.sql",
       "snapshot_sha256": "aef9cc0b2f21feb7d32342544764fe99d9e95f19bb6b74206f1c3250cd4c11a1",
       "source_sha256": "10e8bf8346aa9299b46938357fb94537298169d925a3ffe1423998b68a2cde29",
@@ -367,7 +367,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_thai_product",
-      "path": "sql/functions/warehouse_identity/fn_sale_ecom_thai_product.sql",
+      "path": "sql/functions/reportdb.fn_sale_ecom_thai_product.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_thai_product.sql",
       "snapshot_sha256": "f84e0b1f2d5f1342ed71334ed34d4a1fa922f5060ba216cf77adab5db6d88c73",
       "source_sha256": "f220debebb4aed5e7f38dc7c7616f52c13726f96d2dc2b80fada0bd7214a5bf3",
@@ -379,7 +379,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_taobao_tmall_manual_china_product",
-      "path": "sql/functions/warehouse_identity/fn_sale_ecom_taobao_tmall_manual_china_product.sql",
+      "path": "sql/functions/reportdb.fn_sale_ecom_taobao_tmall_manual_china_product.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_taobao_tmall_manual_china_product.sql",
       "snapshot_sha256": "92bc517bcb74617ad52290550fff9fa67823fbd27b066cfca1bc7cf07c7de6bf",
       "source_sha256": "dc690018dcfb0bda9ad97df185211a092ec3b72340a551d9aa643b71f6d1f92a",
@@ -391,7 +391,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_wholeshale_vn",
-      "path": "sql/functions/warehouse_identity/fn_sale_wholeshale_vn.sql",
+      "path": "sql/functions/reportdb.fn_sale_wholeshale_vn.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_wholeshale_vn.sql",
       "snapshot_sha256": "a71736b61bf78ff9a08329dea26dc8563005d7132ec2990b16de44f55bc478d1",
       "source_sha256": "8be963a9a64240043b1a9f033fb5dd1ed58e08c798e477e2e8326db480fc5b9c",
@@ -403,7 +403,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_store_china_product",
-      "path": "sql/functions/warehouse_identity/fn_sale_store_china_product.sql",
+      "path": "sql/functions/reportdb.fn_sale_store_china_product.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_store_china_product.sql",
       "snapshot_sha256": "80ba1ee1aff7104d4f525e306db8dc59913ca87dd2701835377e7a20ee0873a0",
       "source_sha256": "d3be9d7d3a675a7e905757088dd1c9f9dcb90d5bd4df760483a851c5de932050",
@@ -415,7 +415,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_taobao_tmall_manual_china",
-      "path": "sql/functions/warehouse_identity/fn_sale_ecom_taobao_tmall_manual_china.sql",
+      "path": "sql/functions/reportdb.fn_sale_ecom_taobao_tmall_manual_china.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_taobao_tmall_manual_china.sql",
       "snapshot_sha256": "9819d472af48da04c486209821a0fb3509eb65f6fd9e3fa9a35dbe788402e2c6",
       "source_sha256": "9e2dc31a1dd4835bd0531df4a1c52651472f4fc0d873e1686259803a1c66eb3a",
@@ -427,7 +427,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_product_inventory_summary",
-      "path": "sql/functions/warehouse_identity/fn_product_inventory_summary.sql",
+      "path": "sql/functions/reportdb.fn_product_inventory_summary.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_product_inventory_summary.sql",
       "snapshot_sha256": "a59d9c630e3b4a132257bc07bd9b2dca0830021c418159fad76d68cae3cf62cf",
       "source_sha256": "7862f753b31ad4dfab6adde7d984e456fbfe8c720d59349e758a46b67193fd77",
@@ -439,7 +439,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_china_product",
-      "path": "sql/functions/warehouse_identity/fn_sale_ecom_china_product.sql",
+      "path": "sql/functions/reportdb.fn_sale_ecom_china_product.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_china_product.sql",
       "snapshot_sha256": "7fa271d7a48e7326719de7728d2d92073f16dda6f7e00bcf353534795c8eae56",
       "source_sha256": "4a334e476602397327604f3bd8aacf6039b673b457d85cd58f5cd04708a257eb",
@@ -451,7 +451,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_ecom_china",
-      "path": "sql/functions/warehouse_identity/fn_sale_ecom_china.sql",
+      "path": "sql/functions/reportdb.fn_sale_ecom_china.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_ecom_china.sql",
       "snapshot_sha256": "669aeeac534dd0241efa261f85c3da59984c44927423a2ac0b37660b13207142",
       "source_sha256": "838ac74cb81922d66a006dce0f1de7bff0792f31b425be2223e3026440cc9d90",
@@ -463,7 +463,7 @@
     },
     {
       "object": "marine-cycle-484213-b4.reportdb.fn_sale_store_china",
-      "path": "sql/functions/warehouse_identity/fn_sale_store_china.sql",
+      "path": "sql/functions/reportdb.fn_sale_store_china.sql",
       "snapshot_path": "sql/live/bigquery/reportdb/routines/fn_sale_store_china.sql",
       "snapshot_sha256": "fee940ce125eed8d894613b9656abc03ffa35aac80f398c409e520a5315c7092",
       "source_sha256": "26361539665db35e845c9e1c15c0da2166ef74c665a4c33ed2db86bbd36e4dcc",

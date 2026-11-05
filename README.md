@@ -76,9 +76,9 @@ and `sysdb` respectively.
 1. The [Pancake order service](src/cloud_run/cloud-run-pancake-order/cr-pancake-order.py)
    fetches orders **updated yesterday**, using a Vietnam-time window and `updateStatus=updated_at`.
 2. It flattens the response and appends it to `raw_pancake.raw_order`.
-3. [Staging SQLX](sql/staging/stg_pancake_order.sql) builds `stg_pancake.stg_order` with typed
+3. [Staging SQLX](sql/staging/stg_pancake.stg_order.sql) builds `stg_pancake.stg_order` with typed
    fields and a processing date.
-4. [sp_core_order_insert](sql/procedures/sp_core_order_insert.sql) checks the latest processing
+4. [sp_core_order_insert](sql/procedures/core_pancake.sp_core_order_insert.sql) checks the latest processing
    date, deletes matching order IDs from `core_pancake.core_order`, and inserts refreshed records.
 5. Reporting functions use core data for sales and order reporting. See the example lineage in
    [the SQL guide](sql/README.md#data-flow).

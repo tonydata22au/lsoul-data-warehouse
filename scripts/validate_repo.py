@@ -291,6 +291,14 @@ def check_pipeline_manifest():
     return [], []
 
 
+def check_sql_layout():
+    """Editable SQL is named <dataset>.<object>.sql, flat per layer, one file per object."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import sql_index
+
+    return sql_index.check(ROOT), []
+
+
 def check_git_hygiene():
     warnings = []
     try:
@@ -356,6 +364,7 @@ STATIC_CHECKS = [
     check_agent_docs,
     check_pipeline_inventory,
     check_pipeline_manifest,
+    check_sql_layout,
     check_git_hygiene,
 ]
 

@@ -4,7 +4,7 @@ See the [dashboard guide](../../docs/warehouse-operations-dashboard.md) for metr
 definitions, A4 landscape layout, date/table filters, costs and coverage limitations.
 
 The single canonical reporting function is
-[fn_warehouse_operations.sql](../functions/fn_warehouse_operations.sql). It is not
+[reportdb.fn_warehouse_operations.sql](../functions/reportdb.fn_warehouse_operations.sql). It is not
 installed by these files. The `looker_studio_*.sql` files contain its SELECT body,
 so the report can work without function deployment; enable `DS_START_DATE` and
 `DS_END_DATE` date-range parameters in each BigQuery connector.

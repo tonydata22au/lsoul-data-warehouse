@@ -36,23 +36,23 @@ All objects below are in `marine-cycle-484213-b4.reportdb`. Hashes use exact ret
 | `fn_sale_ecom_thai` | Direct canonical-name update | `Resolve by object name during Build` | `0a4ba1a15007077022e74912419df08cb317ded69acbc21e691a6521dd520b8a` |
 | `fn_sale_ecom_thai_product` | Direct canonical-name update | `Resolve by object name during Build` | `7f45216c00b5de6a0c9f50761ce6fca9851961b9451e0e4fdf5e760f72aac55a` |
 | `fn_sale_ecom_thai_v2` | Direct canonical-name update | `Resolve by object name during Build` | `7a02da5f19bdebdb1dcaa662981097944c6ec825c366437237e6e3c2b2fa50b9` |
-| `fn_sale_ecom_vn` | Direct canonical-name update | `sql/functions/warehouse_identity/fn_sale_ecom_vn.sql` | `ae77397a9fee9dbdbfc6135332472ddfa77ed57263149d548ca4549e8cabbca6` |
-| `fn_sale_ecom_vn_product` | Direct canonical-name update | `sql/functions/warehouse_identity/fn_sale_ecom_vn_product.sql` | `88927513bd48654f843c41ff9f85688d087f716702e48dfe1ef7715229a57975` |
+| `fn_sale_ecom_vn` | Direct canonical-name update | `sql/functions/reportdb.fn_sale_ecom_vn.sql` | `ae77397a9fee9dbdbfc6135332472ddfa77ed57263149d548ca4549e8cabbca6` |
+| `fn_sale_ecom_vn_product` | Direct canonical-name update | `sql/functions/reportdb.fn_sale_ecom_vn_product.sql` | `88927513bd48654f843c41ff9f85688d087f716702e48dfe1ef7715229a57975` |
 | `fn_sale_ecom_vn_v2` | Direct canonical-name update | `sql/functions/fn_sale_ecom_vn.sql` | `3e86a1a4939a7a72c0258dbbbbd5591e5261f8d53e2498acb85183786c2661f3` |
 | `fn_sale_online_thai_product` | Direct canonical-name update | `Resolve by object name during Build` | `67e14bb6444965871221fa006ac53ff5a40cbe9132938d80a64fa4bcbe18648d` |
 | `fn_sale_online_thai_v2` | Direct canonical-name update | `Resolve by object name during Build` | `ff297729a8a8db3b44750b93b5fffde132378dcfed885f43458ea56ed718d64b` |
-| `fn_sale_online_vn` | Direct canonical-name update | `sql/functions/warehouse_identity/fn_sale_online_vn.sql` | `38e9c1b737588a8a2fb50646984f72d58ccc8f556f3ed94b24035d5f2f5cd351` |
-| `fn_sale_online_vn_product` | Direct canonical-name update | `sql/functions/warehouse_identity/fn_sale_online_vn_product.sql` | `905c130cdbf18fc6883f7184206828c92771ffb6c0e3add07413f2871c521395` |
+| `fn_sale_online_vn` | Direct canonical-name update | `sql/functions/reportdb.fn_sale_online_vn.sql` | `38e9c1b737588a8a2fb50646984f72d58ccc8f556f3ed94b24035d5f2f5cd351` |
+| `fn_sale_online_vn_product` | Direct canonical-name update | `sql/functions/reportdb.fn_sale_online_vn_product.sql` | `905c130cdbf18fc6883f7184206828c92771ffb6c0e3add07413f2871c521395` |
 | `fn_sale_online_vn_v2` | Direct canonical-name update | `sql/functions/fn_sale_online_vn.sql` | `f76423ca8298c906f998fb59474a0d2cdfc9a23e3ec9f062d0eac4bf704677da` |
 | `fn_sale_store_china` | Direct canonical-name update | `Resolve by object name during Build` | `649864ff086db7a8a9bf8334b346ff8f81c916367c2988c5320e5582f6699d7d` |
 | `fn_sale_store_china_product` | Direct canonical-name update | `Resolve by object name during Build` | `720c606dae8cfdd39ba119b94d7821ab4a622c0320b094d7bb5999c49381eda6` |
 | `fn_sale_store_china_v2` | Direct canonical-name update | `Resolve by object name during Build` | `df11bd90a6d0b889653d33364e0977d35f3733445515c48484d0f0d3368f6172` |
-| `fn_sale_store_thai` | Direct canonical-name update | `sql/functions/warehouse_identity/fn_sale_store_thai.sql` | `b3e005f8c8e2ea5d59f9b81874770753a7b26b5b920aa21b8b008fd0b6c97836` |
-| `fn_sale_store_thai_product` | Direct canonical-name update | `sql/functions/warehouse_identity/fn_sale_store_thai_product.sql` | `6429ad93244f19c042bfc871ec25688c499d3718ebd54932fd311829c5c67fa2` |
-| `fn_sale_store_thai_v2` | Direct canonical-name update | `sql/functions/warehouse_identity/fn_sale_store_thai_v2.sql` | `79dc3bbe0f97c04eeea5e0562ff99581d3d570588a00d905e48868ae7cafff4a` |
+| `fn_sale_store_thai` | Direct canonical-name update | `sql/functions/reportdb.fn_sale_store_thai.sql` | `b3e005f8c8e2ea5d59f9b81874770753a7b26b5b920aa21b8b008fd0b6c97836` |
+| `fn_sale_store_thai_product` | Direct canonical-name update | `sql/functions/reportdb.fn_sale_store_thai_product.sql` | `6429ad93244f19c042bfc871ec25688c499d3718ebd54932fd311829c5c67fa2` |
+| `fn_sale_store_thai_v2` | Direct canonical-name update | `sql/functions/reportdb.fn_sale_store_thai_v2.sql` | `79dc3bbe0f97c04eeea5e0562ff99581d3d570588a00d905e48868ae7cafff4a` |
 | `fn_sale_store_vn` | Direct canonical-name update | `sql/functions/warehouse_identity/fn_sale_store_vn.sql` | `7ade74b60b42f993193b8ead58556d9dad6539bbc18436811548fc452583db9f` |
-| `fn_sale_store_vn_product` | Direct canonical-name update | `sql/functions/warehouse_identity/fn_sale_store_vn_product.sql` | `2cab49ff566e5af8a2ccab6128cdb29de9c9588289a0db6b0e139276715d2bcc` |
-| `fn_sale_store_vn_v2` | Direct canonical-name update | `sql/functions/fn_sale_store_vn.sql` | `85420a713c57b83d9a56d1e229acf3fdfd5175be8bf125761c9b479f07784583` |
+| `fn_sale_store_vn_product` | Direct canonical-name update | `sql/functions/reportdb.fn_sale_store_vn_product.sql` | `2cab49ff566e5af8a2ccab6128cdb29de9c9588289a0db6b0e139276715d2bcc` |
+| `fn_sale_store_vn_v2` | Direct canonical-name update | `sql/functions/reportdb.fn_sale_store_vn.sql` | `85420a713c57b83d9a56d1e229acf3fdfd5175be8bf125761c9b479f07784583` |
 | `fn_sale_wholeshale_vn` | Direct canonical-name update | `Resolve by object name during Build` | `d2266f93f2791bfab1f9bfdf2c4bd2d93e6869bc5187c816d0ec6fdf6effa848` |
 | `fn_sale_wholeshale_vn_product` | Direct canonical-name update | `Resolve by object name during Build` | `0c6a8a2e1175a88665dc51d347de90a44915fb04dd359ae6cc0bfb5b68021e56` |
 | `fn_sale_wholeshale_vn_v2` | Direct canonical-name update | `Resolve by object name during Build` | `b4dbde9420fc40a1bc7c52e9e6e16a5af92ebf7ac3422d6181008062bf71d872` |

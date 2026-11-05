@@ -54,6 +54,7 @@ Safe commands make no network calls and write nothing outside the working tree:
 | Offline repo checks | `python3 scripts/validate_repo.py` | None |
 | Checks + import every Cloud Run service | `.venv/bin/python scripts/validate_repo.py --imports` | None. Isolated subprocesses: dotenv disabled, dummy credentials, temp HOME, sockets blocked |
 | Unit tests | `python3 -m unittest discover -s tests` | None |
+| Find an SQL object's file / drift from live | `python3 scripts/sql_index.py [<name>] [--drift] [--check]` | None (reads `sql/` only) |
 | Rebuild the pipeline manifest | `python3 scripts/build_pipeline_manifest.py` (`--check` to verify) | Writes `metadata/pipeline_manifest.json` only (static `ast` parse; never imports pipelines) |
 | Syntax-check one file | `python3 -m py_compile <file>` | Writes `__pycache__` only |
 | Show a pipeline's CLI flags | Read its `argparse` block, or see [docs/pipelines.md](docs/pipelines.md) | None. Avoid `--help`: it imports the module, which loads `.env`, may read the service-account key, and in some scripts (e.g. the Meta CSV exporter) runs the export at import |
@@ -89,7 +90,10 @@ There is no offline or mock mode for pipelines. Don't invent a dry-run flag.
   update the matching `local_run/` and `csv_export/` variants or note that you didn't.
 - **Don't rename or move `src/cloud_run/*` folders or `cr-*.py` files**: external deploy
   commands and `app_runner.py` depend on those paths (including the `autction` typo).
-- **SQL**: one object per file, fully qualified `` `marine-cycle-484213-b4.<dataset>.<object>` ``.
+- **SQL**: one editable file per object, named `<dataset>.<object>.sql` directly under its layer
+  folder (`sql/functions/reportdb.fn_sale_ecom_vn.sql`); fully qualify objects as
+  `` `marine-cycle-484213-b4.<dataset>.<object>` ``. Edit that file, never `sql/live/` (the
+  generated snapshot). `python3 scripts/sql_index.py <name>` finds the file and its drift from live.
   Superseded files go to `sql/archive/` with the `zarchived-` prefix. See [sql/README.md](sql/README.md).
 - Keep diffs small. Match the surrounding style. Don't reformat files you aren't changing.
 

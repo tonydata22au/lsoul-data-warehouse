@@ -38,10 +38,7 @@ OBJECTS = {
 
 
 def source_path(name):
-    # The three historical short filenames already deploy the v2 objects.
-    if name.endswith('_v2') and name != 'fn_sale_store_thai_v2':
-        return ROOT / 'sql/functions' / (name[:-3] + '.sql')
-    return ROOT / 'sql/functions/warehouse_identity' / (name + '.sql')
+    return ROOT / 'sql/functions' / ('reportdb.' + name + '.sql')
 
 
 def executable(sql):

@@ -3,7 +3,7 @@
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = ROOT / 'sql/functions/fn_warehouse_operations.sql'
+SOURCE = ROOT / 'sql/functions/reportdb.fn_warehouse_operations.sql'
 OUTPUT = ROOT / 'sql/monitoring'
 
 
