@@ -31,6 +31,30 @@ raw_orders_returned, raw_product_variations, raw_stats_inventory_variations, raw
 `raw_dianplus_*`. `jushuitan`: raw_jushuitan_inventory, raw_jushuitan_taobao_tmall_order_manual.
 `magento`: raw_magento_order. `surfosm`: 3 `raw_surfosm_*`.
 
+## Scenario C: the 2026-11-06 night deploy (fixed code, current datasets)
+
+On the night of 2026-11-06 the fixed code was deployed to the existing services
+([deploy plan](../tasks/raw-dataset-deploy-plan.md)). Each service still writes its **current** dataset
+(`BQ_RAW_DATASET` / `BQ_DATASET` override), so the old-dataset destinations in scenario A still apply.
+What differs from scenario A on 2026-11-07:
+
+- **Credentials now come from Secret Manager** (`tiktok_vn_access_token`, `tiktok_th_access_token`,
+  `meta_access_token`, `dianplus_app_key/secret`, `jushuitan_app_key/secret`, `magento_username/password`,
+  `surfosm_api_key`, `pancake_pos`). A 401/403 or "Authentication failed" at 07:00 most likely means a
+  secret value is wrong. Add a corrected secret version (the next cold start reads `latest`), or roll that
+  service back.
+- **Fetch failures are non-2xx with no load**, except a non-success Dianplus `resultCode` / Jushuitan `code`,
+  which keeps the pages so far (decision D7; search for "API error"). Any failed Surfosm order detail fails
+  the run (decision D2).
+- **Empty days are 2xx** in the 10 services that used to return 500.
+- **Success lines carry the job ID** in every deployed service: `… rows into|to <project>.<dataset>.<table> [<job_id>]`.
+- **Not deployed (old images, old behaviour):** `pancake-orders-returned`, `jushuitan-inventory`,
+  `meta-raw-ads-reporting-my`.
+
+**Rollback per service** (no data change, takes effect immediately):
+`gcloud run services update-traffic <service> --region asia-southeast1 --project marine-cycle-484213-b4 --to-revisions <previous-revision>=100`.
+The previous revisions are listed in [the verification record](../tasks/raw-dataset-local-verification.md#deploy-2026-11-06-night).
+
 ## Known schedules (unverified)
 
 The repository documents only two ingestion jobs, both from docstrings and **not verified live**:

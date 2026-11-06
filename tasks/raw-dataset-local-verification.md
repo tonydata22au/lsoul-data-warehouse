@@ -230,3 +230,63 @@ writer. The full table, config precedence and failure behaviour are in the
    failure paths at the HTTP level, not only the happy path.
 3. Graphify's AST graph has no SQL table edges here; use `dbt parse` and the reference guard for consumer
    lineage.
+
+## Deploy 2026-11-06 night
+
+Plan: [raw-dataset-deploy-plan.md](raw-dataset-deploy-plan.md). Code: commit `2b372f2` (local, on top of
+`82fac76`), deployed 19:15–21:40 ICT with `gcloud run deploy <service> --source src/cloud_run/<folder>
+--update-env-vars <override> --update-secrets <env>=<secret>:latest` (project `marine-cycle-484213-b4`,
+region `asia-southeast1`). Canary `pancake-stats-product` first, then the rest after a form gate.
+
+**Credentials moved to Secret Manager.** The live images had their credentials baked in; the repo code reads
+env vars. The user supplied the values through BB's secrets form (never seen by the agent). Ten secrets
+were created (`tiktok_vn_access_token`, `tiktok_th_access_token`, `meta_access_token`, `dianplus_app_key`,
+`dianplus_app_secret`, `jushuitan_app_key`, `jushuitan_app_secret`, `magento_username`, `magento_password`,
+`surfosm_api_key`), each with a per-secret `secretAccessor` grant for the Cloud Run service account, like
+the existing `pancake_pos`.
+
+**Verified per service:** Ready; 100% traffic on the new revision; new image; the destination override equals
+the dataset it loaded this morning (BigQuery job metadata, 2026-11-06 07:00–07:16 ICT); the secret references
+match; no other env vars; startup probe passed; no ERROR or traceback lines. The only log noise is gunicorn's
+"Control server error" in the two Python 3.13 images, which the previous revisions also logged.
+
+| Service | Previous revision (rollback target) | New revision | Destination override | Secrets |
+|---|---|---|---|---|
+| `cr-tiktok-ads` | `cr-tiktok-ads-00002-cwx` | `cr-tiktok-ads-00003-fkz` | `BQ_RAW_DATASET=raw_tiktok` | `tiktok_vn_access_token` |
+| `cr-tiktok-reporting-basic-auction-ad` | `cr-tiktok-reporting-basic-auction-ad-00003-4mz` | `cr-tiktok-reporting-basic-auction-ad-00004-sg2` | `BQ_RAW_DATASET=raw_tiktok` | `tiktok_vn_access_token` |
+| `cr-tiktok-thai-ads` | `cr-tiktok-thai-ads-00003-6jn` | `cr-tiktok-thai-ads-00004-52j` | `BQ_RAW_DATASET=raw_tiktok` | `tiktok_th_access_token` |
+| `cr-tiktok-thai-gmv-max-report` | `cr-tiktok-thai-gmv-max-report-00001-x2w` | `cr-tiktok-thai-gmv-max-report-00002-lnc` | `BQ_RAW_DATASET=raw_tiktok` | `tiktok_th_access_token` |
+| `cr-tiktok-thai-reporting-basic-auction-ad` | `cr-tiktok-thai-reporting-basic-auction-ad-00001-dxd` | `cr-tiktok-thai-reporting-basic-auction-ad-00002-g87` | `BQ_RAW_DATASET=raw_tiktok` | `tiktok_th_access_token` |
+| `dianplus-inventory` | `dianplus-inventory-00004-9zq` | `dianplus-inventory-00005-zk6` | `BQ_RAW_DATASET=dianplus` | `dianplus_app_key`, `dianplus_app_secret` |
+| `dianplus-order` | `dianplus-order-00006-52f` | `dianplus-order-00007-lst` | `BQ_RAW_DATASET=dianplus` | `dianplus_app_key`, `dianplus_app_secret` |
+| `dianplus-order-refund` | `dianplus-order-refund-00001-m5s` | `dianplus-order-refund-00002-g2g` | `BQ_RAW_DATASET=dianplus` | `dianplus_app_key`, `dianplus_app_secret` |
+| `dianplus-product` | `dianplus-product-00004-xpg` | `dianplus-product-00005-dlp` | `BQ_RAW_DATASET=dianplus` | `dianplus_app_key`, `dianplus_app_secret` |
+| `jushuitan-order` | `jushuitan-order-00017-l97` | `jushuitan-order-00018-rxc` | `BQ_RAW_DATASET=jushuitan` | `jushuitan_app_key`, `jushuitan_app_secret` |
+| `magento-order` | `magento-order-00002-4sp` | `magento-order-00003-qdm` | `BQ_DATASET=magento` | `magento_username`, `magento_password` |
+| `meta-raw-ads-reporting-a` | `meta-raw-ads-reporting-a-00006-fx6` | `meta-raw-ads-reporting-a-00007-t5k` | `BQ_RAW_DATASET=raw_meta` | `meta_access_token` |
+| `meta-raw-ads-reporting-ecom` | `meta-raw-ads-reporting-ecom-00004-fcr` | `meta-raw-ads-reporting-ecom-00005-zfg` | `BQ_RAW_DATASET=raw_meta` | `meta_access_token` |
+| `pancake-customer` | `pancake-customer-00007-m6t` | `pancake-customer-00008-zrs` | `BQ_RAW_DATASET=raw_pancake` | `pancake_pos` |
+| `pancake-inventory-histories` | `pancake-inventory-histories-00002-dvh` | `pancake-inventory-histories-00003-xx4` | `BQ_RAW_DATASET=raw_pancake` | `pancake_pos` |
+| `pancake-order` | `pancake-order-00014-knk` | `pancake-order-00015-wd8` | `BQ_RAW_DATASET=raw_pancake` | `pancake_pos` |
+| `pancake-product-variations` | `pancake-product-variations-00008-qfw` | `pancake-product-variations-00009-ww4` | `BQ_RAW_DATASET=raw_pancake` | `pancake_pos` |
+| `pancake-stats-inventory-variations` | `pancake-stats-inventory-variations-00003-jmg` | `pancake-stats-inventory-variations-00004-jht` | `BQ_RAW_DATASET=raw_pancake` | `pancake_pos` |
+| `pancake-stats-product` | `pancake-stats-product-00001-m89` | `pancake-stats-product-00002-ljq` | `BQ_RAW_DATASET=raw_pancake` | `pancake_pos` |
+| `surfosm-inventory` | `surfosm-inventory-00002-6h9` | `surfosm-inventory-00003-p9r` | `BQ_DATASET=surfosm` | `surfosm_api_key` |
+| `surfosm-order` | `surfosm-order-00003-jvt` | `surfosm-order-00004-cst` | `BQ_RAW_DATASET=surfosm` | `surfosm_api_key` |
+| `surfosm-order-return` | `surfosm-order-return-00002-6qj` | `surfosm-order-return-00003-nb2` | `BQ_RAW_DATASET=surfosm` | `surfosm_api_key` |
+| `tiktok-gmv-max-report` | `tiktok-gmv-max-report-00001-l7j` | `tiktok-gmv-max-report-00002-lrz` | `BQ_RAW_DATASET=raw_tiktok` | `tiktok_vn_access_token` |
+
+**Not deployed (unchanged):** `pancake-orders-returned` (decision D5; its live code writes `raw_orders_returned`,
+unlike the repo copy), and `jushuitan-inventory` and `meta-raw-ads-reporting-my` (no source in this repo).
+
+**Rollback, per service:** `gcloud run services update-traffic <service> --region asia-southeast1 --project
+marine-cycle-484213-b4 --to-revisions <previous revision>=100`.
+
+**Found during the inventory:** `jushuitan.raw_jushuitan_order` exists and loads daily. The 2026-11-05
+inventory missed it, so the future migration has 32 tables, not 31. No load arrived this morning from
+`pancake-product-variations`, `dianplus-order-refund` or `meta-raw-ads-reporting-ecom`; check those first
+on 2026-11-07.
+
+**Next for the owner:** watch the 2026-11-07 07:00–07:16 ICT runs ([runbook](../docs/raw-dataset-next-run-monitoring.md),
+scenario C). Rotate `DIANPLUS_APP_SECRET` / `JUSHUITAN_APP_SECRET` in the vendor consoles, then add the new
+values as new secret versions; the next cold start reads `latest`.
