@@ -287,6 +287,23 @@ inventory missed it, so the future migration has 32 tables, not 31. No load arri
 `pancake-product-variations`, `dianplus-order-refund` or `meta-raw-ads-reporting-ecom`; check those first
 on 2026-11-07.
 
-**Next for the owner:** watch the 2026-11-07 07:00–07:16 ICT runs ([runbook](../docs/raw-dataset-next-run-monitoring.md),
-scenario C). Rotate `DIANPLUS_APP_SECRET` / `JUSHUITAN_APP_SECRET` in the vendor consoles, then add the new
-values as new secret versions; the next cold start reads `latest`.
+**Risks after the deploy (review, 2026-11-06 night):**
+- **Rotation ends the rollback window.** The previous revisions run images with the old credentials baked in.
+  After a credential is rotated, rolling that service back fails authentication, so roll forward instead.
+  Rotate only after the 2026-11-07 runs succeed.
+- **The old images still contain credentials.** Every family's previous images in Artifact Registry
+  (TikTok VN/TH, Meta, Magento, Surfosm, Pancake, Dianplus, Jushuitan) hold their credentials. Rotate all of
+  them once the new revisions are proven, then delete the old images and revisions (owner action). Git
+  history has no hardcoded credentials in `src/` (checked every commit).
+- **The values typed tonight are unverified** until the 07:00 runs. A wrong value shows up as an auth
+  failure (fix it with a new secret version, or roll back before rotating).
+- **The Cloud Run service account has project-level `roles/editor`,** which is broad. Consider a dedicated
+  least-privilege account.
+- **The remote doesn't have the deployed code.** Commits `2b372f2` and `7af11f4` are local only
+  (`origin/main` is behind production).
+
+**Next for the owner:**
+1. Watch the 2026-11-07 07:00–07:16 ICT runs ([runbook](../docs/raw-dataset-next-run-monitoring.md),
+   scenario C).
+2. Once they succeed, rotate the credentials in the vendor consoles and add each new value as a new secret
+   version; the next cold start reads `latest`.

@@ -54,6 +54,8 @@ What differs from scenario A on 2026-11-07:
 **Rollback per service** (no data change, takes effect immediately):
 `gcloud run services update-traffic <service> --region asia-southeast1 --project marine-cycle-484213-b4 --to-revisions <previous-revision>=100`.
 The previous revisions are listed in [the verification record](../tasks/raw-dataset-local-verification.md#deploy-2026-11-06-night).
+The previous revisions use the old images, with credentials baked in, so a rollback only works **until those
+credentials are rotated**. Rotate only after the 2026-11-07 runs succeed.
 
 ## Known schedules (unverified)
 

@@ -55,7 +55,7 @@ with the default window below. The CLI is `python cr-<name>.py [flags]` in the s
 | cloud-run-tiktok-ads | TikTok `/ad/get/` (VN account) | **Full snapshot** of all ads | `--start-date --end-date --dry-run` | `raw.raw_tiktok_ads` | WA |
 | cloud-run-tiktok-gmv-max-report | TikTok `/gmv_max/report/get/` | VN yesterday, 30-day chunks | same as tiktok-ads | `raw.raw_tiktok_gmv_max_report` | WA |
 | cloud-run-tiktok-reporting-basic-autction-ad | TikTok `/report/integrated/get/` | VN yesterday | same | `raw.raw_tiktok_reporting_basic_auction_ad` | WA |
-| cloud-run-tiktok-thai-ads | TikTok `/ad/get/` (Thai account) | Full snapshot | same | `raw.raw_tiktok_thai_ads` | WA. ⚠ **Couldn't start; fixed locally 2026-11-06, not deployed** (see known issues; needs `TIKTOK_TH_ACCESS_TOKEN`) |
+| cloud-run-tiktok-thai-ads | TikTok `/ad/get/` (Thai account) | Full snapshot | same | `raw.raw_tiktok_thai_ads` | WA. `app_runner.py` fix deployed 2026-11-06 (needs `TIKTOK_TH_ACCESS_TOKEN`, from Secret Manager) |
 | cloud-run-tiktok-thai-gmv-max-report | TikTok `/gmv_max/report/get/` | VN yesterday | same | `raw.raw_tiktok_thai_gmv_max_report` | WA |
 | cloud-run-tiktok-thai-reporting-basic-autction-ad | TikTok `/report/integrated/get/` | VN yesterday | same | `raw.raw_tiktok_thai_reporting_basic_auction_ad` | WA |
 

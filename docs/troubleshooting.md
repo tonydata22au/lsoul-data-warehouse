@@ -21,12 +21,12 @@
 ## Known issues
 
 All of these existed before the 2026-10 restructure. Most are documented rather than fixed, because each
-fix changes production behavior and needs a decision. Items marked **fixed locally** were fixed in the
-working tree on 2026-11-06 and take effect only once the services are redeployed.
+fix changes production behavior and needs a decision. Items marked **fixed** were deployed on 2026-11-06 to 23 Cloud Run services
+(all except `pancake-orders-returned`, `jushuitan-inventory` and `meta-raw-ads-reporting-my`).
 
-1. **`cloud-run-tiktok-thai-ads` couldn't start. Fixed locally on 2026-11-06, not deployed.** `app_runner.py`
+1. **`cloud-run-tiktok-thai-ads` couldn't start. Fixed and deployed on 2026-11-06.** `app_runner.py`
    loaded `cr-tiktok-thai-ads.py`, but the folder contains `cr-tiktok-ads.py`; it now loads `cr-tiktok-ads.py`
-   (no files renamed). A revision deployed before the fix still can't boot unless the deployed image differs
+   (no files renamed). The live service kept working because it ran an older image that differed
    from this folder. `KNOWN_BROKEN_SERVICES` in `scripts/validate_repo.py` is now empty.
 2. **`cloud-run-pancake-order_returned` duplicates `cloud-run-pancake-order`.** Its script was a
    byte-identical copy until `cloud-run-pancake-order` got the yesterday-only default,
@@ -41,8 +41,8 @@ working tree on 2026-11-06 and take effect only once the services are redeployed
    pancake-product, pancake-stats_inventory_product, pancake-stats_inventory_variations,
    pancake-stats_order, pancake-stats_product, pancake-variations, tiktok-ads and tiktok-thai-ads.
    (`pancake-order` now returns 200 "No data to export", because its one-day default window makes an
-   empty window realistic.) **Fixed locally on 2026-11-06, not deployed:** these now return 200 with the
-   empty message and no load. Review before deploying: the scheduler stops retrying empty days.
+   empty window realistic.) **Fixed and deployed on 2026-11-06** (not in pancake-order_returned, which wasn't deployed): these
+   now return 200 with the empty message and no load, so the scheduler no longer retries empty days.
 5. **Credential default paths point at folders that don't exist** in `src/schema/` and
    `src/csv_export/` (`src/credentials/`, `src/local-run/credentials/`, a Windows `G:` path in the
    warehouse-transfer schema script). `src/local_run/` no longer has this problem: it reads the
@@ -63,17 +63,17 @@ working tree on 2026-11-06 and take effect only once the services are redeployed
 11. **Fetch failures reported as success.** On revisions deployed before 2026-11-06, a failed page, request
     error or API error code made the fetch loop stop and return what it had. So an outage looked like a
     valid empty day (200 "0 entries found"), and a mid-run failure loaded a partial window with 200. Affected:
-    TikTok ×6, Dianplus ×4, jushuitan-order, magento-order. **Fixed locally (not deployed):** they now fail
+    TikTok ×6, Dianplus ×4, jushuitan-order, magento-order. **Fixed and deployed on 2026-11-06:** they now fail
     the run (500) before any load, which is safe to retry. Surfosm order/order_return used to skip any
-    order whose detail request failed and load the rest with 200; **fixed locally on 2026-11-06** (decision D2):
+    order whose detail request failed and load the rest with 200; **fixed and deployed on 2026-11-06** (decision D2):
     a failed detail now fails the run. A non-success Dianplus `resultCode` / Jushuitan `code` still keeps the
     pages fetched so far (decision D7, owner-approved). See [raw-destination-contract.md](raw-destination-contract.md#http-and-cli-behaviour).
 12. **Credentials in logs.** Dianplus (4 services) and jushuitan-order printed the signing "raw string",
     which starts with `DIANPLUS_APP_SECRET` / `JUSHUITAN_APP_SECRET`, and Jushuitan printed its `access_token`
     on every run. Cloud Run keeps stdout, so these secrets are in Cloud Logging: rotate them. **Fixed
-    locally on 2026-11-06 in `cloud_run/` (not deployed):** the raw string is no longer printed and the
+    and deployed on 2026-11-06 in `cloud_run/`:** the raw string is no longer printed and the
     request-param log masks credentials. `local_run/` and `csv_export/` still print the raw string to the
     terminal. On a failed request, Pancake (12 services) and Meta error text included `api_key` /
     `access_token` (URL query), and a failed Dianplus auth included `appSecret`, in the 500 body and the logs.
-    **Fixed locally on 2026-11-06 in `cloud_run/`** (decision D10, `redact_secrets()`); `local_run/` and
+    **Fixed and deployed on 2026-11-06 in `cloud_run/`** (decision D10, `redact_secrets()`); `local_run/` and
     `csv_export/` still echo them.

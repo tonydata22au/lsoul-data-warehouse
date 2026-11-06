@@ -136,8 +136,9 @@ through symlinks in `.claude/skills/`.
 See [docs/troubleshooting.md](docs/troubleshooting.md#known-issues). The ones most likely to
 surprise you:
 
-- `cloud-run-tiktok-thai-ads` couldn't start (its `app_runner.py` loaded a file that doesn't exist). Fixed
-  locally on 2026-11-06 and **not deployed**: the live service stays broken until it is redeployed.
+- `cloud-run-tiktok-thai-ads`'s `app_runner.py` loaded a file that doesn't exist (the live service ran an older
+  image, so it kept working). Fixed and deployed on 2026-11-06 with the other fixes: 23 services now run this repo's
+  code, pinned to their current datasets, with credentials from Secret Manager.
   [docs/raw-destination-contract.md](docs/raw-destination-contract.md) lists every service, its table and
   the other local fixes.
 - `cloud-run-pancake-order_returned` is a copy of `cloud-run-pancake-order` and also appends to `raw.raw_order`.

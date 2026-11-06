@@ -1,8 +1,9 @@
 # Raw destination contract: every Cloud Run service and the table it writes
 
-Status (2026-11-06): **local working tree only, not deployed.** It describes the code in `src/cloud_run/`
-after the raw-dataset consolidation ([plan](../tasks/raw-dataset-plan.md)). The live services keep their
-current destinations until a separately approved cutover and deploy. Verified offline, with mocks, by
+Status (2026-11-06 night): this code is **deployed to 23 existing Cloud Run services**, each pinned to its
+**current** dataset with `BQ_RAW_DATASET` / `BQ_DATASET` and reading credentials from Secret Manager
+([deploy record](../tasks/raw-dataset-local-verification.md#deploy-2026-11-06-night)). The move to the `raw`
+dataset ([plan](../tasks/raw-dataset-plan.md)) is still a separate, not-yet-run cutover. Verified offline, with mocks, by
 `tests/test_cloud_run_destinations.py`, `tests/test_cloud_run_routes.py` and `tests/test_cloud_run_fetch.py`
 (see [the verification record](../tasks/raw-dataset-local-verification.md)).
 
