@@ -7,9 +7,9 @@ end non-2xx (route) / non-zero (CLI) with no load job. Each service does its sin
 after all fetching, so failing before the load is safe for a scheduler retry.
 
 READINESS_BLOCKERS lists behaviour that still reports a failure as success and needs an
-owner decision (tasks/raw-dataset-plan.md, decision 7). Its tests keep asserting the
-required behaviour and are marked expectedFailure; while the map is non-empty the local
-readiness verdict is NOT READY. Needs the services' requirements (see
+owner decision (tasks/raw-dataset-plan.md, decision 7); its tests would be expectedFailure.
+It is empty since the 2026-11-06 deploy decisions (tasks/raw-dataset-deploy-plan.md):
+D2 fixed the Surfosm detail skip, and D7 accepts partial loads on Dianplus/Jushuitan API codes. Needs the services' requirements (see
 tests/test_cloud_run_destinations.py for how to run).
 """
 
@@ -21,23 +21,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import cloud_run_harness as harness  # noqa: E402
 from test_cloud_run_destinations import EXPECTED_TABLES, PROJECT  # noqa: E402
 
-READINESS_BLOCKERS = {
-    "surfosm_order_detail_skip": {
-        "service": "cloud-run-surfosm-order",
-        "behaviour": "fetch_order_details() logs a warning and skips every order whose detail request "
-                     "fails or answers ok:false (cr-surfosm-order.py:196-208), then loads the remaining "
-                     "orders and reports success (HTTP 200 / exit 0). If every detail fails it reports "
-                     "'0 order details found' with 200 / exit 0, which looks like a valid empty day.",
-        "decision": "Should one failed order detail fail the whole run (no load, non-2xx, scheduler "
-                    "retry) or be skipped with an explicit partial status and alert? The default "
-                    "31-day window re-fetches old dates, which may heal a skip but appends duplicates.",
-    },
-    "surfosm_order_return_detail_skip": {
-        "service": "cloud-run-surfosm-order_return",
-        "behaviour": "Same as cloud-run-surfosm-order (cr-surfosm-order_return.py:170-182).",
-        "decision": "Same decision as surfosm_order_detail_skip; keep both services consistent.",
-    },
-}
+# Empty since 2026-11-06: decision D2 fixed the Surfosm detail skip (tasks/raw-dataset-deploy-plan.md).
+READINESS_BLOCKERS = {}
 
 
 def ok(body):
@@ -155,8 +140,10 @@ def scenarios(service):
             route(service, "page2_connection_reset", [p1, CONN_RESET]),
         ]
     if service == "cloud-run-meta-ads-reporting-a":  # representative of the Meta family
+        # Real paging.next URLs carry the access token, so a failed page-2 request must not echo it
+        token = harness.CREDENTIAL_VALUES["META_ACCESS_TOKEN"]
         p1 = ok({"data": [{"date_start": "2026-11-05", "campaign_id": "1", "spend": "1"}],
-                 "paging": {"next": "https://graph.facebook.com/v24.0/synthetic-next"}})
+                 "paging": {"next": f"https://graph.facebook.com/v24.0/synthetic-next?access_token={token}&after=x"}})
         return [
             route(service, "two_pages", [p1, ok({"data": [{"date_start": "2026-11-05", "campaign_id": "2", "spend": "2"}]})]),
             route(service, "page2_http_500", [p1, HTTP_500]),
@@ -178,6 +165,8 @@ def scenarios(service):
                              pages=[SURFOSM_LIST, surfosm_detail("SO1"), HTTP_500]),
             harness.scenario(service, "all_details_http_500", action="cli", argv=SURFOSM_ARGV, http="pages",
                              pages=[SURFOSM_LIST, HTTP_500]),
+            harness.scenario(service, "detail_ok_false", action="cli", argv=SURFOSM_ARGV, http="pages",
+                             pages=[SURFOSM_LIST, surfosm_detail("SO1"), ok({"ok": False, "error": "synthetic: not found"})]),
         ]
     return []
 
@@ -237,14 +226,24 @@ class Pagination(Base):
 
 class MidRunFailure(Base):
     CASES = ("page2_http_500", "page2_connection_reset", "page2_api_error", "all_mode_http_500")
+    # Decision D7/D8 (2026-11-06): a non-success API code from these services ends the fetch and keeps the
+    # pages so far (old behaviour, owner-approved); HTTP errors and connection failures still fail the run.
+    API_CODE_KEEPS_PAGES = frozenset(DIANPLUS) | {"cloud-run-jushuitan-order"}
 
     def test_a_failed_page_fails_the_run_and_loads_nothing(self):
         for service, results in RESULTS.items():
             for name in self.CASES:
-                if name not in results:
+                if name not in results or (name == "page2_api_error" and service in self.API_CODE_KEEPS_PAGES):
                     continue
                 with self.subTest(service=service, case=name):
                     self.assert_failed_without_load(self.result(service, name))
+
+    def test_dianplus_and_jushuitan_api_error_code_keeps_the_pages_so_far(self):
+        for service in sorted(self.API_CODE_KEEPS_PAGES):
+            with self.subTest(service=service):
+                result = self.result(service, "page2_api_error")
+                self.assertTrue(is_2xx(result["status"]), (result["status"], result["body"]))
+                self.assertEqual([load["rows"] for load in result["loads"]], [1])  # page 1 only
 
     def test_fetch_output_never_contains_a_credential(self):
         # Cloud Run keeps stdout/stderr in Cloud Logging, so a printed secret is a leaked secret.
@@ -262,33 +261,22 @@ class MidRunFailure(Base):
                 self.assertEqual("_thai_" in load["destination"], is_thai)
 
 
+class SurfosmOrderDetails(Base):
+    """Decision D2 (2026-11-06): any failed order detail fails the run before the single load."""
+
+    SERVICES = ("cloud-run-surfosm-order", "cloud-run-surfosm-order_return")
+
+    def test_a_failed_order_detail_fails_the_run_and_loads_nothing(self):
+        for service in self.SERVICES:
+            for case in ("second_detail_http_500", "all_details_http_500", "detail_ok_false"):
+                with self.subTest(service=service, case=case):
+                    result = self.result(service, case)
+                    self.assert_failed_without_load(result)
+                    self.assertIn("Surfosm order detail", result["exception"] or "")  # the new raise, not a typo
+
+
 class ReadinessBlockers(Base):
     """Required behaviour that is not met yet: kept as assertions, expected to fail."""
-
-    BLOCKED_SERVICES = ("cloud-run-surfosm-order", "cloud-run-surfosm-order_return")
-
-    @unittest.expectedFailure
-    def test_blocked__surfosm_order_detail_skip(self):
-        self.assert_failed_without_load(self.result("cloud-run-surfosm-order", "second_detail_http_500"))
-
-    @unittest.expectedFailure
-    def test_blocked__surfosm_order_return_detail_skip(self):
-        self.assert_failed_without_load(self.result("cloud-run-surfosm-order_return", "second_detail_http_500"))
-
-    def test_blocked_behaviour_is_still_exactly_the_documented_one(self):
-        # Pins today's behaviour, so each expectedFailure above fails for the documented reason
-        # (and not, say, a broken fixture). When a blocker is fixed this test must change with it.
-        for service in self.BLOCKED_SERVICES:
-            with self.subTest(service=service, case="one detail fails"):
-                partial = self.result(service, "second_detail_http_500")
-                self.assertEqual(partial["exit_code"], 0)
-                self.assertEqual([load["rows"] for load in partial["loads"]], [1])  # SO1 loaded, SO2 skipped
-                self.assertIn("Warning: Failed to fetch order", partial["output_tail"])
-            with self.subTest(service=service, case="every detail fails"):
-                silent = self.result(service, "all_details_http_500")
-                self.assertEqual(silent["exit_code"], 0)
-                self.assertEqual(silent["loads"], [])
-                self.assertIn("0 order details found", silent["output_tail"])
 
     def test_blocker_map_matches_the_expected_failures(self):
         blocked_tests = {name.removeprefix("test_blocked__") for name in dir(self) if name.startswith("test_blocked__")}

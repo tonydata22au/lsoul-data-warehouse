@@ -56,6 +56,12 @@ COLUMN_RENAME_MAP = {
 }
 
 
+def redact_secrets(text):
+    """Mask credentials that requests puts in error text (they travel in URL query strings here)."""
+    import re
+    return re.sub(r"(api_key|access_token|appSecret|appId|app_secret|app_key)=[^&\s'\"]+", r"\1=***", str(text))
+
+
 def parse_date_to_utc_datetime(date_string):
     """
     Convert Vietnam local time string to an aware UTC datetime.
@@ -136,9 +142,9 @@ def load_data(start_date=None, end_date=None, max_pages=None):
             
             page += 1
         except requests.exceptions.RequestException as e:
-            raise ValueError(f"API request failed: {e}")
+            raise ValueError(f"API request failed: {redact_secrets(e)}") from None
         except Exception as e:
-            raise ValueError(f"Failed to parse API response: {e}")
+            raise ValueError(f"Failed to parse API response: {redact_secrets(e)}") from None
     
     print(f"✓ Successfully fetched {len(all_entries)} entries from API\n")
     return all_entries

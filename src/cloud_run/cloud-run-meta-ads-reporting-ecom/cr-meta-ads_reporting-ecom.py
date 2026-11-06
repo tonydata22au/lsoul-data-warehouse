@@ -56,6 +56,12 @@ logging.basicConfig(level=logging.INFO)
 # Helpers
 # ---------------------------------------------------------------------------
 
+def redact_secrets(text):
+    """Mask credentials that requests puts in error text (they travel in URL query strings here)."""
+    import re
+    return re.sub(r"(api_key|access_token|appSecret|appId|app_secret|app_key)=[^&\s'\"]+", r"\1=***", str(text))
+
+
 def sanitize_field(name: str) -> str:
     return name.replace(".", "_") if name else name
 
@@ -101,7 +107,10 @@ def fetch_insights(params: Dict[str, str]) -> List[Dict]:
     next_params = params.copy()
 
     while next_url:
-        response = requests.get(next_url, params=next_params)
+        try:
+            response = requests.get(next_url, params=next_params)
+        except requests.exceptions.RequestException as e:
+            raise RuntimeError(f"Meta API request failed: {redact_secrets(e)}") from None
         if response.status_code != 200:
             raise ValueError(f"Meta API error {response.status_code}: {response.text}")
         data = response.json()

@@ -78,6 +78,12 @@ WAREHOUSE_FIELDS = ['actual_remain_quantity', 'total_quantity', 'warehouse_id',
                     'returning_quantity', 'waiting_quantity']
 
 
+def redact_secrets(text):
+    """Mask credentials that requests puts in error text (they travel in URL query strings here)."""
+    import re
+    return re.sub(r"(api_key|access_token|appSecret|appId|app_secret|app_key)=[^&\s'\"]+", r"\1=***", str(text))
+
+
 def parse_date_to_unix(date_string):
     """
     Convert date string in format 'YYYY-MM-DDTHH:MM:SS' (Vietnam time) to Unix timestamp.
@@ -151,7 +157,7 @@ def load_data(start_date=None, end_date=None, max_pages=None):
             response.raise_for_status()
             payload = response.json()
         except requests.exceptions.RequestException as e:
-            raise ValueError(f"API request failed: {e}")
+            raise ValueError(f"API request failed: {redact_secrets(e)}") from None
         
         products = payload.get("data", [])
         if not products:

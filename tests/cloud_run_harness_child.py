@@ -209,24 +209,42 @@ def _response(url, status, body):
     return response
 
 
+def _full_url(method, url, kwargs):
+    """The URL requests would send, query string included (it appears in real error messages)."""
+    try:
+        return requests.Request(method, url, params=kwargs.get("params")).prepare().url
+    except Exception:
+        return url
+
+
+def _connection_error(full_url):
+    # Same shape as urllib3's message, which carries the path and query string
+    parts = urlparse(full_url)
+    path = parts.path + (f"?{parts.query}" if parts.query else "")
+    return requests.exceptions.ConnectionError(
+        f"HTTPSConnectionPool(host='{parts.netloc}', port=443): Max retries exceeded with url: {path} "
+        "(Caused by NewConnectionError('harness: network unavailable'))")
+
+
 def fake_request(self, method, url, *args, **kwargs):
+    full_url = _full_url(method, url, kwargs)
     STATE["http_calls"].append({"method": method.upper(), "host": urlparse(url).netloc,
                                 "path": urlparse(url).path})
     if len(STATE["http_calls"]) > HTTP_CALL_LIMIT:
         raise HarnessAbort(f"more than {HTTP_CALL_LIMIT} HTTP calls (retry loop?)")
     http = STATE["scenario"].get("http", "unexpected")
     if http == "conn_error":
-        raise requests.exceptions.ConnectionError("harness: network unavailable")
+        raise _connection_error(full_url)
     if http == "http_500":
-        return _response(url, 500, {"error": "harness: upstream error", "code": 500})
+        return _response(full_url, 500, {"error": "harness: upstream error", "code": 500})
     if http == "pages":
         # The Nth HTTP call (auth included) gets pages[N]; calls past the end repeat the last page
         pages = STATE["scenario"]["pages"]
         index = len(STATE["http_calls"]) - 1
         page = pages[index] if index < len(pages) else pages[-1]
         if page.get("error") == "conn_error":
-            raise requests.exceptions.ConnectionError("harness: connection reset mid-run")
-        return _response(url, page.get("status", 200), page.get("body", {}))
+            raise _connection_error(full_url)
+        return _response(full_url, page.get("status", 200), page.get("body", {}))
     raise HarnessAbort(f"unexpected HTTP call {method} {urlparse(url).netloc}{urlparse(url).path}")
 
 
@@ -264,6 +282,7 @@ def _stub(value_spec):
 
 
 def run_scenario(module, app, scenario):
+    full_body = ""
     out = {"name": scenario["name"], "status": None, "body": None, "exit_code": None,
            "exception": None, "returned": None, "harness_abort": None}
     for name, value_spec in (scenario.get("stubs") or {}).items():
@@ -284,7 +303,8 @@ def run_scenario(module, app, scenario):
                 client = app.test_client()
                 response = client.open(scenario.get("path", "/"), method=scenario.get("method", "GET"))
                 out["status"] = response.status_code
-                out["body"] = response.get_data(as_text=True)[:400]
+                full_body = response.get_data(as_text=True)
+                out["body"] = full_body[:400]
             elif action == "cli":
                 if not hasattr(module, "main"):
                     out["exception"] = "NoCLI: module has no main()"
@@ -327,8 +347,8 @@ def run_scenario(module, app, scenario):
     out["clients_closed"] = all(c["closed"] for c in STATE["clients"]) if STATE["clients"] else None
     full_output = stdout.getvalue()
     out["output_tail"] = full_output[-1500:]
-    # Scan the whole output and body (not just the tail) for any credential value
-    scanned = full_output + (out["body"] or "")
+    # Scan the whole output, the full body and the raised exception text for any credential value
+    scanned = full_output + full_body + (out["exception"] or "")
     out["credential_hits"] = sorted(
         name for name in REQUEST.get("credential_names", [])
         if os.environ.get(name) and os.environ[name] in scanned

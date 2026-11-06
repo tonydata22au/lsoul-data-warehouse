@@ -395,6 +395,7 @@ def _fetch_pages(token, headers, modified_begin=None, modified_end=None):
 
     while True:
         page_success = False
+        api_error = False
         orders = []
         has_next = False
 
@@ -445,6 +446,7 @@ def _fetch_pages(token, headers, modified_begin=None, modified_end=None):
                     error_msg = data.get('msg') or 'Unknown error'
                     print(f"  API error: {error_msg}")
                     page_success = False
+                    api_error = True
                     break
 
                 orders = data.get("data", {}).get("orders", [])
@@ -467,10 +469,15 @@ def _fetch_pages(token, headers, modified_begin=None, modified_end=None):
                     print(f"  Retrying in {wait}s...")
                     time.sleep(wait)
 
+        if api_error:
+            # Decision D7 (2026-11-06): a non-zero API code ends the fetch and keeps the pages so far
+            print(f"  API error on page {page_num}. Stopping with {len(all_rows)} orders fetched so far.")
+            break
+
         if not page_success:
             print(f"  Failed to fetch page {page_num} after {max_retries} attempts. Stopping.")
             # Fail the run: returning the pages so far would load a partial window as a success
-            raise RuntimeError(f"Jushuitan page {page_num} failed (HTTP error after {max_retries} attempts or API error)")
+            raise RuntimeError(f"Jushuitan page {page_num} failed after {max_retries} attempts")
 
         if not orders:
             break

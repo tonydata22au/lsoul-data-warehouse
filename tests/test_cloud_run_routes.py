@@ -115,6 +115,18 @@ class RouteFailures(Base):
                 self.assert_failure(self.result(service, "route_fetch_http_500"), expect_load_attempt=False)
 
 
+class NoCredentialEcho(Base):
+    def test_no_route_or_cli_output_contains_a_credential(self):
+        # Failed requests put the full URL (query string included) into the requests error text, which
+        # the services re-raise, return in the 500 body and log. Credentials must be masked there
+        # (decision D10, 2026-11-06). The harness gives each credential a distinct synthetic value.
+        for service in EXPECTED_TABLES:
+            for name, result in RESULTS[service].items():
+                with self.subTest(service=service, case=name):
+                    self.assertNotIn("import_error", result, result.get("traceback"))
+                    self.assertEqual(result["credential_hits"], [], "credential echoed in output or body")
+
+
 class Cli(Base):
     def services(self):
         return [s for s in EXPECTED_TABLES if s not in NO_CLI]

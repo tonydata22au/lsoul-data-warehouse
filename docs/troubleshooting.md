@@ -64,15 +64,16 @@ working tree on 2026-11-06 and take effect only once the services are redeployed
     error or API error code made the fetch loop stop and return what it had. So an outage looked like a
     valid empty day (200 "0 entries found"), and a mid-run failure loaded a partial window with 200. Affected:
     TikTok ×6, Dianplus ×4, jushuitan-order, magento-order. **Fixed locally (not deployed):** they now fail
-    the run (500) before any load, which is safe to retry. **Still open (readiness blocker):**
-    surfosm-order and surfosm-order_return skip any order whose detail request fails and load the rest
-    with 200. See [raw-destination-contract.md](raw-destination-contract.md#http-and-cli-behaviour).
+    the run (500) before any load, which is safe to retry. Surfosm order/order_return used to skip any
+    order whose detail request failed and load the rest with 200; **fixed locally on 2026-11-06** (decision D2):
+    a failed detail now fails the run. A non-success Dianplus `resultCode` / Jushuitan `code` still keeps the
+    pages fetched so far (decision D7, owner-approved). See [raw-destination-contract.md](raw-destination-contract.md#http-and-cli-behaviour).
 12. **Credentials in logs.** Dianplus (4 services) and jushuitan-order printed the signing "raw string",
     which starts with `DIANPLUS_APP_SECRET` / `JUSHUITAN_APP_SECRET`, and Jushuitan printed its `access_token`
     on every run. Cloud Run keeps stdout, so these secrets are in Cloud Logging: rotate them. **Fixed
     locally on 2026-11-06 in `cloud_run/` (not deployed):** the raw string is no longer printed and the
     request-param log masks credentials. `local_run/` and `csv_export/` still print the raw string to the
-    terminal. **Still open:** on a failed request, Pancake (12 services, all except pancake-order) and Meta
-    error text includes `api_key` / `access_token` (URL query), and a failed Dianplus auth includes
-    `appSecret`. That text is returned in the 500 body and logged. Redact as pancake-order does
-    (`redact_api_key`).
+    terminal. On a failed request, Pancake (12 services) and Meta error text included `api_key` /
+    `access_token` (URL query), and a failed Dianplus auth included `appSecret`, in the 500 body and the logs.
+    **Fixed locally on 2026-11-06 in `cloud_run/`** (decision D10, `redact_secrets()`); `local_run/` and
+    `csv_export/` still echo them.

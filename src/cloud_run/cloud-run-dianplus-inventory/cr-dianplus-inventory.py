@@ -53,6 +53,12 @@ COLUMN_RENAME_MAP = {
                 "defectNum": "defectNum"
 }
 
+def redact_secrets(text):
+    """Mask credentials that requests puts in error text (they travel in URL query strings here)."""
+    import re
+    return re.sub(r"(api_key|access_token|appSecret|appId|app_secret|app_key)=[^&\s'\"]+", r"\1=***", str(text))
+
+
 def get_auth_token():
     """
     Get authentication token from Dianplus API.
@@ -121,11 +127,11 @@ def get_auth_token():
         except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
             retry_count += 1
             if retry_count >= max_retries:
-                raise Exception(f"Authentication request failed after {max_retries} retries. Network issue: {e}")
-            print(f"⚠ Network timeout/error: {e}")
+                raise Exception(f"Authentication request failed after {max_retries} retries. Network issue: {redact_secrets(e)}") from None
+            print(f"⚠ Network timeout/error: {redact_secrets(e)}")
             
         except requests.exceptions.RequestException as e:
-            raise Exception(f"Authentication request failed: {e}")
+            raise Exception(f"Authentication request failed: {redact_secrets(e)}") from None
 
 def calculate_sign(app_id, brand_id, page_num, page_size, time_stamp):
     """
@@ -245,7 +251,8 @@ def load_data(start_time=None, end_time=None):
             if data.get("resultCode") != "success":
                 error_msg = data.get('exceptionMessage') or 'Unknown error'
                 print(f"API error: {error_msg}")
-                raise RuntimeError(f"Dianplus API error on page {page_num}: {error_msg}")
+                # Decision D7 (2026-11-06): a non-success resultCode ends the fetch and keeps the pages so far
+                break
             
             raw_data = data.get("resultObject", {}).get("results", [])
             
@@ -259,8 +266,8 @@ def load_data(start_time=None, end_time=None):
             page_num += 1
             
         except requests.exceptions.RequestException as e:
-            print(f"Request error: {e}")
-            raise RuntimeError(f"Dianplus request failed on page {page_num}: {e}") from e
+            print(f"Request error: {redact_secrets(e)}")
+            raise RuntimeError(f"Dianplus request failed on page {page_num}: {redact_secrets(e)}") from None
     
     if not all_rows:
         print("No data fetched.")

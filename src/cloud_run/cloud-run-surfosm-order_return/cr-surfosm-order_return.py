@@ -169,17 +169,18 @@ def fetch_order_details(order_numbers, order_date_mapping=None):
                 all_order_details.append(order_detail)
             else:
                 print(f"  Warning: Invalid response for order {order_num}")
-                continue
+                # Decision D2 (2026-11-06): a skipped order would load a partial set as a success
+                raise ValueError(f"invalid detail response for order {order_num} (ok=false or no data)")
             
             if idx % 10 == 0 or idx == total:
                 print(f"  Fetched {idx}/{total} order details")
                 
         except requests.exceptions.RequestException as e:
             print(f"  Warning: Failed to fetch order {order_num}: {e}")
-            continue
+            raise RuntimeError(f"Surfosm order detail request failed for {order_num}: {e}") from e
         except Exception as e:
             print(f"  Warning: Failed to parse order {order_num}: {e}")
-            continue
+            raise RuntimeError(f"Surfosm order detail failed for {order_num}: {e}") from e
     
     print(f"✓ Successfully fetched {len(all_order_details)} order return details\n")
     return all_order_details
