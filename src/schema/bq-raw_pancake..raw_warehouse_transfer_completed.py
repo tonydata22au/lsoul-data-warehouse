@@ -20,7 +20,7 @@ from google.oauth2 import service_account
 # ============================================================================
 
 # BigQuery Configuration
-DATASET_ID = 'raw_pancake'
+DATASET_ID = 'raw'
 TABLE_ID = 'raw_warehouse_transfers_completed'
 LOCATION = 'asia-southeast1'
 

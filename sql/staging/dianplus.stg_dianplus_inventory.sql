@@ -20,7 +20,7 @@ SAFE_CAST(frozenNum AS INT64) AS frozenNum,
 SAFE_CAST(transitNum AS INT64) AS transitNum, 
 SAFE_CAST(defectNum AS INT64) AS defectNum 
 
-FROM `marine-cycle-484213-b4.dianplus.raw_dianplus_inventory` 
+FROM `marine-cycle-484213-b4.raw.raw_dianplus_inventory` 
 WHERE
 TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-06-01")
 AND  storageId = '1214524817899254785'

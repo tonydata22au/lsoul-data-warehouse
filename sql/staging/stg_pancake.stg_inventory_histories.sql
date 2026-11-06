@@ -43,5 +43,5 @@ current_inventory_name,
 SAFE_CAST(current_inventory_actual_remain_quantity AS NUMERIC) AS current_inventory_actual_remain_quantity,
 SAFE_CAST(current_inventory_remain_quantity AS NUMERIC) AS current_inventory_remain_quantity,
 SAFE_CAST(current_inventory_total_quantity AS NUMERIC) AS current_inventory_total_quantity
-FROM `marine-cycle-484213-b4.raw_pancake.raw_inventory_histories`
+FROM `marine-cycle-484213-b4.raw.raw_inventory_histories`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP("2026-06-02");

@@ -44,7 +44,7 @@ class WarehouseNameCoverageTests(unittest.TestCase):
                 entry = by_name[name]
                 self.assertEqual(entry['status'], 'pending')
                 sql = executable((ROOT / entry['path']).read_text())
-                self.assertIn('marine-cycle-484213-b4.core_pancake.core_warehouse', sql)
+                self.assertIn('marine-cycle-484213-b4.core.core_pancake__warehouse', sql)
                 self.assertNotRegex(sql, r"'[^']*Kho[^']*'\s+AS\s+warehouse_name")
                 if name in SALES or name == 'fn_product_inventory_overseas_shipment':
                     self.assertNotRegex(sql, r'\b(?:o|oi)\.warehouse_name\b')

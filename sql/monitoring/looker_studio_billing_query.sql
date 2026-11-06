@@ -51,11 +51,7 @@ SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS t
 UNION ALL
 SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.magento.INFORMATION_SCHEMA.TABLES`
 UNION ALL
-SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.raw_meta.INFORMATION_SCHEMA.TABLES`
-UNION ALL
-SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.raw_pancake.INFORMATION_SCHEMA.TABLES`
-UNION ALL
-SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.raw_tiktok.INFORMATION_SCHEMA.TABLES`
+SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.raw.INFORMATION_SCHEMA.TABLES`
 UNION ALL
 SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.reportdb.INFORMATION_SCHEMA.TABLES`
 UNION ALL
@@ -82,6 +78,13 @@ inventory AS (
       ELSE 'DAILY_ASSUMED'
     END AS freshness_policy,
     CASE
+      WHEN table_schema = 'raw' AND STARTS_WITH(table_name, 'raw_dianplus_') THEN 'Dianplus'
+      WHEN table_schema = 'raw' AND STARTS_WITH(table_name, 'raw_jushuitan_') THEN 'Jushuitan'
+      WHEN table_schema = 'raw' AND STARTS_WITH(table_name, 'raw_magento_') THEN 'Magento'
+      WHEN table_schema = 'raw' AND STARTS_WITH(table_name, 'raw_surfosm_') THEN 'Surfosm / ScaleUp'
+      WHEN table_schema = 'raw' AND STARTS_WITH(table_name, 'raw_tiktok_') THEN 'TikTok Ads'
+      WHEN table_schema = 'raw' AND STARTS_WITH(table_name, 'raw_ads_reporting_') THEN 'Meta Ads'
+      WHEN table_schema = 'raw' THEN 'Pancake POS'  -- Pancake raw tables carry no source prefix
       WHEN table_schema LIKE '%pancake%' THEN 'Pancake POS'
       WHEN table_schema LIKE '%meta%' THEN 'Meta Ads'
       WHEN table_schema LIKE '%tiktok%' THEN 'TikTok Ads'

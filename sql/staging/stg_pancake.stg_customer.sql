@@ -27,5 +27,5 @@ AS
   shop_customer_addresses_country_code,
   shop_customer_addresses_province_id,
   shop_customer_addresses_commune_id
-  FROM `marine-cycle-484213-b4.raw_pancake.raw_customer`
+  FROM `marine-cycle-484213-b4.raw.raw_customer`
   WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-04-16")

@@ -19,7 +19,7 @@ from google.oauth2 import service_account
 # ============================================================================
 
 # BigQuery Configuration
-DATASET_ID = 'raw_pancake'  # Change this to your desired dataset name
+DATASET_ID = 'raw'  # Change this to your desired dataset name
 TABLE_ID = 'raw_inventory_histories'  # Change this to your desired table name
 LOCATION = 'asia-southeast1'
 

@@ -45,7 +45,7 @@ SAFE_CAST(live_product_clicks AS INT64) AS live_product_clicks,
 SAFE_CAST(total_landing_page_view AS INT64) AS total_landing_page_view,
 SAFE_CAST(cost_per_landing_page_view AS INT64) AS cost_per_landing_page_view,
 SAFE_CAST(landing_page_view_rate AS FLOAT64) AS landing_page_view_rate,
-FROM `marine-cycle-484213-b4.raw_tiktok.raw_tiktok_reporting_basic_auction_ad`
+FROM `marine-cycle-484213-b4.raw.raw_tiktok_reporting_basic_auction_ad`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-01-01")
 
 

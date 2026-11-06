@@ -56,7 +56,7 @@ VN_TZ = pytz.timezone("Asia/Ho_Chi_Minh")
 
 # ─── BigQuery ─────────────────────────────────────────────────────────────────
 BQ_PROJECT = os.getenv("BQ_PROJECT", "marine-cycle-484213-b4")
-BQ_DATASET = os.getenv("BQ_DATASET", "magento")
+BQ_DATASET = os.getenv("BQ_DATASET", "raw")
 BQ_TABLE   = os.getenv("BQ_TABLE",   "raw_magento_order")
 
 _BASE_DIR = Path(__file__).resolve().parent.parent
@@ -210,7 +210,7 @@ def _fetch_pages(token, date_from=None, date_to=None):
                 if attempt < max_retries:
                     time.sleep(5 * attempt)
         logging.error("Failed to fetch all orders after retries")
-        return []
+        raise RuntimeError(f"Magento: fetching all orders failed after {max_retries} attempts")
 
     # Date-filtered mode
     all_orders, page, total_count = [], 1, None
@@ -247,7 +247,8 @@ def _fetch_pages(token, date_from=None, date_to=None):
                     time.sleep(5 * attempt)
         if not fetched:
             logging.error(f"Giving up on page {page}")
-            break
+            # Fail the run: returning the pages so far would load a partial window as a success
+            raise RuntimeError(f"Magento: page {page} failed after {max_retries} attempts")
         if not orders or (total_count is not None and len(all_orders) >= total_count):
             break
         page += 1
@@ -383,7 +384,7 @@ def insert_to_bigquery(df):
             df, client.dataset(BQ_DATASET).table(BQ_TABLE), job_config=job_config
         )
         job.result()
-        logging.info(f"✓ Inserted {job.output_rows} rows → {BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE}")
+        logging.info(f"✓ Inserted {job.output_rows} rows → {BQ_PROJECT}.{BQ_DATASET}.{BQ_TABLE} [{job.job_id}]")
         return job.output_rows
     finally:
         client.close()

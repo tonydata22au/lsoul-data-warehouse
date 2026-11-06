@@ -49,7 +49,7 @@ def lookup(sql):
     match = re.search(
         r'LEFT JOIN\s*\(\s*SELECT warehouse_id AS canonical_warehouse_id,\s*'
         r'warehouse_name AS canonical_warehouse_name\s+FROM\s+'
-        r'`marine-cycle-484213-b4\.core_pancake\.core_warehouse`\s*\) cw\s*'
+        r'`marine-cycle-484213-b4\.core\.core_pancake__warehouse`\s*\) cw\s*'
         r'ON cw\.canonical_warehouse_id = ([^\n]+)', executable(sql), re.I)
     if not match:
         raise AssertionError('Missing canonical dimension lookup')
@@ -143,10 +143,10 @@ class ReportConsumerNameTests(unittest.TestCase):
         with closing(sqlite3.connect(':memory:')) as db:
             db.create_function('SAFE_DIVIDE',2,lambda a,b: a/b if b else None)
             db.executescript("""
-                CREATE TABLE core_warehouse(warehouse_id TEXT PRIMARY KEY, warehouse_name TEXT);
+                CREATE TABLE core_pancake__warehouse(warehouse_id TEXT PRIMARY KEY, warehouse_name TEXT);
                 CREATE TABLE report_order_product_inventory_summary(d_date,variation_code,retail_price,warehouse_id,warehouse_name,is_latest,sl_ton_kho,revenue,units_sold,units_sold_day_range,report_type);
                 CREATE TABLE product_tree_csv(string_field_1,string_field_2,string_field_3,string_field_4,string_field_5,string_field_6);
-                INSERT INTO core_warehouse VALUES ('A','Shared canonical name'),('B','Shared canonical name');
+                INSERT INTO core_pancake__warehouse VALUES ('A','Shared canonical name'),('B','Shared canonical name');
                 INSERT INTO product_tree_csv VALUES ('sku',100,'segment','group','collection',NULL);
                 INSERT INTO report_order_product_inventory_summary VALUES ('2026-11-02','sku',100,'A','Old A',1,10,100,1,1,0),('2026-11-02','sku',100,'B','Old B',1,20,200,2,2,0);
             """)
@@ -176,7 +176,7 @@ class InventorySummaryNameTests(unittest.TestCase):
                 else:
                     body = body.replace('src_union s','source_stream s')
                     body = body.replace('NOT IN UNNEST(c.excluded_sku_prefixes)', "NOT IN ('TG','HT','HN','HH','TD')")
-                body = body.replace('`marine-cycle-484213-b4.core_pancake.core_warehouse`','core_warehouse')
+                body = body.replace('`marine-cycle-484213-b4.core.core_pancake__warehouse`','core_warehouse')
                 with closing(sqlite3.connect(':memory:')) as db:
                     db.executescript("""
                         CREATE TABLE core_warehouse(warehouse_id TEXT PRIMARY KEY, warehouse_name TEXT);

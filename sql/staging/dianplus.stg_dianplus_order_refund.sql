@@ -82,5 +82,5 @@ SAFE_CAST(origOrder_sumAmount AS FLOAT64) AS origOrder_sumAmount,
 SAFE_CAST(origOrder_sumSuggestPrice AS FLOAT64) AS origOrder_sumSuggestPrice,
 SAFE_CAST(origOrder_sumSalePrice AS FLOAT64) AS origOrder_sumSalePrice,
 SAFE_CAST(origOrder_sumDealPrice AS FLOAT64) AS origOrder_sumDealPrice
-FROM `marine-cycle-484213-b4.dianplus.raw_dianplus_order_refund`
+FROM `marine-cycle-484213-b4.raw.raw_dianplus_order_refund`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-04-25")

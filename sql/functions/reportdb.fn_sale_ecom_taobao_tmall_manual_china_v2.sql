@@ -18,7 +18,7 @@ WITH dim_product AS (
     ,ANY_VALUE(product_name)        AS product_name
     ,ANY_VALUE(product_launch_date) AS product_launch_date
     ,MAX(CASE WHEN TRIM(UPPER(product_tags)) LIKE '%SYS_01_SALE_END%' THEN 1 ELSE 0 END) AS is_sale_end
-  FROM `marine-cycle-484213-b4.core_pancake.core_product`
+  FROM `marine-cycle-484213-b4.core.core_pancake__product`
   GROUP BY product_code
 )
 ,stage AS (
@@ -49,7 +49,7 @@ WITH dim_product AS (
 
       --WAREHOUSE
       ,'76be7836-6dc5-4b1c-9e48-b18e43127453' AS warehouse_id --warehouse_id cua Kho Trung Quốc (Back-up)
-      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
+      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core.core_pancake__warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
      
      --SALE
       ,CASE WHEN LEFT(IFNULL(variation_display_id,items_sku_id),2) NOT IN ('TG','HT','HN','HH','TD') THEN items_qty ELSE 0 END          AS item_qty
@@ -63,9 +63,9 @@ WITH dim_product AS (
         ELSE 0
         END AS to_remove_record
 
-    FROM `marine-cycle-484213-b4.jushuitan.core_jushuitan_taobao_tmall_order_manual` AS o
+    FROM `marine-cycle-484213-b4.core.core_jushuitan__taobao_tmall_order_manual` AS o
     LEFT JOIN dim_product p ON o.product_code = p.product_code
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON o.items_sku_id = v.variation_display_id
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__variations` AS v ON o.items_sku_id = v.variation_display_id
     WHERE 1=1
       AND shop_id IN (20209463,20209689)
 )

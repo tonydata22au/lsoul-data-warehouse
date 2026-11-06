@@ -30,7 +30,7 @@ WITH CTE_SURFOSM_ECOM_TL AS
       'TL Online' AS sale_channel,
       customer_phone_no AS customer_id,
       '878504e9-fb75-4870-8504-b2ecdbc097ba' AS warehouse_id,
-      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '878504e9-fb75-4870-8504-b2ecdbc097ba') AS warehouse_name,
+      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core.core_pancake__warehouse` w WHERE w.warehouse_id = '878504e9-fb75-4870-8504-b2ecdbc097ba') AS warehouse_name,
       oi.product_qty AS units_sold,
       oi.original_price AS sales_revenue_thai,
       oi.original_price * 800 AS sales_revenue_vn,
@@ -39,10 +39,10 @@ WITH CTE_SURFOSM_ECOM_TL AS
       oi.original_price * 800 -  oi.discount_platform * 800 AS revenue_vn,
       oi.original_price  -  oi.discount_platform  AS revenue_thai,
       --o.status
-    FROM `marine-cycle-484213-b4.surfosm.core_surfosm_order` AS o
-    JOIN `marine-cycle-484213-b4.surfosm.core_surfosm_order_item` AS oi ON o.order_number = oi.order_number
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_product` AS p ON oi.product_code = p.product_code
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON oi.product_sku = v.variation_display_id
+    FROM `marine-cycle-484213-b4.core.core_surfosm__order` AS o
+    JOIN `marine-cycle-484213-b4.core.core_surfosm__order_item` AS oi ON o.order_number = oi.order_number
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__product` AS p ON oi.product_code = p.product_code
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__variations` AS v ON oi.product_sku = v.variation_display_id
     WHERE 1=1
       AND DATE_TRUNC(o.inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)
       --AND DATE_TRUNC(o.inserted_at, day) between '2026-02-01' and '2026-02-28'

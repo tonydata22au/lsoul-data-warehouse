@@ -305,7 +305,7 @@ def rename_and_reorder_columns(df):
     
     return result_df
 
-def insert_to_bigquery(df, project_id=None, dataset_id="surfosm", table_id="raw_surfosm_order_return"):
+def insert_to_bigquery(df, project_id=None, dataset_id=os.getenv("BQ_RAW_DATASET", "raw"), table_id="raw_surfosm_order_return"):
     """Insert DataFrame into BigQuery."""
     
     # Convert all columns to string, but preserve None values
@@ -327,7 +327,7 @@ def insert_to_bigquery(df, project_id=None, dataset_id="surfosm", table_id="raw_
         )
         load_job = client.load_table_from_dataframe(df, table_ref, job_config=job_config)
         load_job.result()
-        print(f"  ✓ Successfully loaded {load_job.output_rows} rows into {dataset_id}.{table_id}")
+        print(f"  ✓ Successfully loaded {load_job.output_rows} rows into {client.project}.{dataset_id}.{table_id} [{load_job.job_id}]")
     finally:
         # Ensure client is properly closed
         client.close()

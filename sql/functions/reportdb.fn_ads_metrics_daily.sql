@@ -59,7 +59,7 @@ meta_vn AS (
     CAST(NULL AS NUMERIC) AS conversion_value_vnd,
     CAST(NULL AS NUMERIC) AS platform_orders,
     CAST(NULL AS NUMERIC) AS platform_gross_revenue_vnd
-  FROM `marine-cycle-484213-b4.core_meta.core_ads_reporting_a`
+  FROM `marine-cycle-484213-b4.core.core_meta__ads_reporting_a`
   WHERE DATE_TRUNC(day, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
 ),
 meta_us AS (
@@ -79,7 +79,7 @@ meta_us AS (
     CAST(NULL AS INT64), CAST(NULL AS INT64),
     CAST(conversion_messaging_conversation_started_7d AS NUMERIC),
     CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC)
-  FROM `marine-cycle-484213-b4.core_meta.core_ads_reporting_my`
+  FROM `marine-cycle-484213-b4.core.core_meta__ads_reporting_my`
   WHERE DATE_TRUNC(day, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
 ),
 tiktok_auction_vn AS (
@@ -99,7 +99,7 @@ tiktok_auction_vn AS (
     CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), live_product_clicks,
     result, real_time_result,
     CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC)
-  FROM `marine-cycle-484213-b4.core_tiktok.core_reporting_basic_auction_ad`
+  FROM `marine-cycle-484213-b4.core.core_tiktok__reporting_basic_auction_ad`
   WHERE DATE_TRUNC(inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
 ),
 tiktok_auction_th AS (
@@ -119,7 +119,7 @@ tiktok_auction_th AS (
     CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), live_product_clicks,
     result, real_time_result,
     CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC)
-  FROM `marine-cycle-484213-b4.core_tiktok.core_thai_reporting_basic_auction_ad`
+  FROM `marine-cycle-484213-b4.core.core_tiktok__thai_reporting_basic_auction_ad`
   WHERE DATE_TRUNC(inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
 ),
 tiktok_gmvmax_vn AS (
@@ -139,7 +139,7 @@ tiktok_gmvmax_vn AS (
     CAST(NULL AS INT64), CAST(NULL AS INT64),
     CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC),
     orders, gross_revenue
-  FROM `marine-cycle-484213-b4.core_tiktok.core_tiktok_gmv_max_report`
+  FROM `marine-cycle-484213-b4.core.core_tiktok__gmv_max_report`
   WHERE DATE_TRUNC(inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
 ),
 tiktok_gmvmax_th AS (
@@ -159,7 +159,7 @@ tiktok_gmvmax_th AS (
     CAST(NULL AS INT64), CAST(NULL AS INT64),
     CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC), CAST(NULL AS NUMERIC),
     orders, gross_revenue * 800
-  FROM `marine-cycle-484213-b4.core_tiktok.core_tiktok_thai_gmv_max_report`
+  FROM `marine-cycle-484213-b4.core.core_tiktok__thai_gmv_max_report`
   WHERE DATE_TRUNC(inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
 ),
 google_ads AS (

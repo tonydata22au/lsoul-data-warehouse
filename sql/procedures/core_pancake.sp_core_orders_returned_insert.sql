@@ -71,7 +71,7 @@ CALL `marine-cycle-484213-b4.sysdb.sp_data_insert_log_V3`(
   ,'marine-cycle-484213-b4.stg_pancake.stg_orders_returned'
   ,'marine-cycle-484213-b4.core_pancake.core_orders_returned'
   ,'marine-cycle-484213-b4.core_pancake.sp_core_orders_returned_insert'
-  ,'marine-cycle-484213-b4.raw_pancake.raw_orders_returned'
+  ,'marine-cycle-484213-b4.raw.raw_orders_returned'
 );
 
   ELSE 
@@ -87,7 +87,7 @@ CALL `marine-cycle-484213-b4.sysdb.sp_data_insert_log_V3`(
   ,'marine-cycle-484213-b4.stg_pancake.stg_orders_returned'
   ,'marine-cycle-484213-b4.core_pancake.core_orders_returned'
   ,'marine-cycle-484213-b4.core_pancake.sp_core_orders_returned_insert'
-  ,'marine-cycle-484213-b4.raw_pancake.raw_orders_returned'
+  ,'marine-cycle-484213-b4.raw.raw_orders_returned'
 );
 
 

@@ -83,5 +83,5 @@ SAFE_CAST(payInfos_amount AS FLOAT64) AS payInfos_amount,
 SAFE_CAST(payInfos_otherAmount AS FLOAT64) AS payInfos_otherAmount,
 SAFE_CAST(couponAmount AS FLOAT64) AS couponAmount
 
-FROM `marine-cycle-484213-b4.dianplus.raw_dianplus_order`
+FROM `marine-cycle-484213-b4.raw.raw_dianplus_order`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-04-25")

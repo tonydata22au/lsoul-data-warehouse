@@ -16,7 +16,7 @@ SNAPSHOT = ROOT / 'sql/live/bigquery/reportdb/routines'
 FAMILIES = ('fn_sale_ecom_vn', 'fn_sale_online_vn', 'fn_sale_store_vn',
             'fn_sale_store_thai', 'fn_sale_wholeshale_vn')
 OBJECTS = tuple(family + suffix for family in FAMILIES for suffix in ('', '_product', '_v2'))
-DIMENSION = '`marine-cycle-484213-b4.core_pancake.core_warehouse`'
+DIMENSION = '`marine-cycle-484213-b4.core.core_pancake__warehouse`'
 
 
 def source_path(name):
@@ -65,7 +65,20 @@ def restore_reviewed_name_changes(sql, name):
         sql = sql.replace(reviewed_join('header_warehouse', 'o'), '', 1)
         count = 2 if name.startswith('fn_sale_store_thai') else 1
         sql = sql.replace('header_warehouse.canonical_warehouse_name', 'o.warehouse_name', count)
-    return re.sub(r'\s+', ' ', sql).strip()
+    return re.sub(r'\s+', ' ', restore_reviewed_table_repoint(sql)).strip()
+
+
+# Reviewed table-name-only repoint (tasks/core-pancake-repoint-plan.md): live core_pancake.core_<t>
+# becomes core.core_pancake__<t>. Mapping new names back keeps every other token comparable.
+REPOINTED_TABLES = ('customer', 'inventory_histories', 'order', 'order_item', 'orders_returned',
+                    'product', 'stats_inventory_variations', 'variation_warehouses', 'variations',
+                    'warehouse')
+
+
+def restore_reviewed_table_repoint(sql):
+    return re.sub(
+        r'`marine-cycle-484213-b4\.core\.core_pancake__(' + '|'.join(REPOINTED_TABLES) + r')`',
+        r'`marine-cycle-484213-b4.core_pancake.core_\1`', sql)
 
 
 def projection_and_joins(sql):

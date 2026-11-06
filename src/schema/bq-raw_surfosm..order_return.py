@@ -18,7 +18,7 @@ from google.oauth2 import service_account
 # ============================================================================
 
 # BigQuery Configuration
-DATASET_ID = 'surfosm'
+DATASET_ID = 'raw'
 TABLE_ID = 'raw_surfosm_order_return'  # Change this to your desired table name
 LOCATION = 'asia-southeast1'
 

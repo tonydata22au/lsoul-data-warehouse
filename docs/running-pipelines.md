@@ -86,9 +86,9 @@ fails (see [restructure-2026-10.md](restructure-2026-10.md#deployment-impact)).
 
 ```sql
 SELECT DATE(_PARTITIONTIME) AS load_day, COUNT(*) AS row_count
-FROM `marine-cycle-484213-b4.raw_pancake.raw_order`
+FROM `marine-cycle-484213-b4.raw.raw_order`
 WHERE _PARTITIONTIME >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 3 DAY)
 GROUP BY load_day ORDER BY load_day;
 ```
 
-`sql/ad_hoc/q-check_scheduler_status.sql` checks freshness across the `raw_pancake` tables.
+`sql/ad_hoc/q-check_scheduler_status.sql` checks freshness across the Pancake tables in the `raw` dataset.

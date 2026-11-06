@@ -15,16 +15,16 @@ fn AS (
 ),
 raw AS (
   SELECT SUM(spend) AS spend, SUM(reach) AS reach, SUM(clicks) AS clicks FROM (
-    SELECT amount_spend AS spend, reach, clicks FROM `marine-cycle-484213-b4.core_meta.core_ads_reporting_a` a
+    SELECT amount_spend AS spend, reach, clicks FROM `marine-cycle-484213-b4.core.core_meta__ads_reporting_a` a
       CROSS JOIN p WHERE a.day BETWEEN p.cur_wk_start AND p.cur_wk_end AND a.campaign_type IS NOT NULL
     UNION ALL
-    SELECT amount_spend, reach, clicks FROM `marine-cycle-484213-b4.core_meta.core_ads_reporting_my` a
+    SELECT amount_spend, reach, clicks FROM `marine-cycle-484213-b4.core.core_meta__ads_reporting_my` a
       CROSS JOIN p WHERE a.day BETWEEN p.cur_wk_start AND p.cur_wk_end AND a.campaign_type IS NOT NULL
     UNION ALL
-    SELECT spend, reach, clicks FROM `marine-cycle-484213-b4.core_tiktok.core_reporting_basic_auction_ad` t
+    SELECT spend, reach, clicks FROM `marine-cycle-484213-b4.core.core_tiktok__reporting_basic_auction_ad` t
       CROSS JOIN p WHERE t.inserted_at BETWEEN p.cur_wk_start AND p.cur_wk_end
     UNION ALL
-    SELECT cost, NULL, NULL FROM `marine-cycle-484213-b4.core_tiktok.core_tiktok_gmv_max_report` t
+    SELECT cost, NULL, NULL FROM `marine-cycle-484213-b4.core.core_tiktok__gmv_max_report` t
       CROSS JOIN p WHERE t.inserted_at BETWEEN p.cur_wk_start AND p.cur_wk_end
     UNION ALL
     SELECT total_spend, NULL, total_clicks FROM `marine-cycle-484213-b4.reportdb.fn_ads_spend_ggads`(0) g

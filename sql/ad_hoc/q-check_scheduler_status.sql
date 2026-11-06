@@ -9,8 +9,10 @@ DECLARE j INT64 DEFAULT 0;
 -- Populate array with table names having 'inserted_at'
 SET tables_has_col_inserted_at = (
   SELECT ARRAY_AGG(DISTINCT table_name)
-  FROM `marine-cycle-484213-b4.raw_pancake.INFORMATION_SCHEMA.COLUMNS`
+  FROM `marine-cycle-484213-b4.raw.INFORMATION_SCHEMA.COLUMNS`
   WHERE column_name = 'inserted_at'
+    -- `raw` holds every source; Pancake raw tables are the ones without a source prefix
+    AND NOT REGEXP_CONTAINS(table_name, r'^raw_(dianplus|jushuitan|magento|surfosm|tiktok|ads_reporting)_')
 );
 
 -- Populate array with table names NOT having 'inserted_at'
@@ -18,8 +20,9 @@ SET tables_has_no_col_inserted_at = (
   SELECT ARRAY_AGG(table_name)
   FROM (
     SELECT DISTINCT table_name
-    FROM `marine-cycle-484213-b4.raw_pancake.INFORMATION_SCHEMA.TABLES`
+    FROM `marine-cycle-484213-b4.raw.INFORMATION_SCHEMA.TABLES`
     WHERE table_name LIKE 'raw_%'
+      AND NOT REGEXP_CONTAINS(table_name, r'^raw_(dianplus|jushuitan|magento|surfosm|tiktok|ads_reporting)_')
   ) AS all_raw_tables
   WHERE table_name NOT IN UNNEST(IFNULL(tables_has_col_inserted_at, []))
 );
@@ -46,7 +49,7 @@ WHILE i < ARRAY_LENGTH(tables_has_col_inserted_at) DO
                 DATE(_PARTITIONTIME, 'Asia/Ho_Chi_Minh') AS proc_date,
                 DATETIME(PARSE_TIMESTAMP('%%Y%%m%%d%%H%%M%%S', MAX(inserted_at))) AS insert_toDate,
                 DATETIME(PARSE_TIMESTAMP('%%Y%%m%%d%%H%%M%%S', MIN(inserted_at))) AS insert_frDate
-              FROM `marine-cycle-484213-b4.raw_pancake.%s`
+              FROM `marine-cycle-484213-b4.raw.%s`
               WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP('2020-02-08')
               GROUP BY 1, 2, 3, 4 
               ''',
@@ -79,7 +82,7 @@ WHILE j < ARRAY_LENGTH(tables_has_no_col_inserted_at) DO
                 DATE(_PARTITIONTIME, 'Asia/Ho_Chi_Minh') AS proc_date,
                 NULL AS insert_toDate,
                 NULL AS insert_frDate
-              FROM `marine-cycle-484213-b4.raw_pancake.%s`
+              FROM `marine-cycle-484213-b4.raw.%s`
               WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP('2020-02-08')
               GROUP BY 1, 2, 3, 4 
               ''',

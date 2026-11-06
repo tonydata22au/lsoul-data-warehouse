@@ -20,5 +20,5 @@ SELECT
   SAFE_CAST(clicks AS INT64) AS clicks, 
   SAFE_CAST(cpc AS FLOAT64) AS cpc, 
   SAFE_CAST(cpm AS FLOAT64) AS cpm
-FROM `marine-cycle-484213-b4.raw_meta.raw_ads_reporting_a` 
+FROM `marine-cycle-484213-b4.raw.raw_ads_reporting_a` 
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP(CURRENT_DATE("Asia/Ho_Chi_Minh"))

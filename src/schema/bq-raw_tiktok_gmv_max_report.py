@@ -20,7 +20,7 @@ from google.oauth2 import service_account
 # ============================================================================
 
 # BigQuery Configuration
-DATASET_ID = 'raw_tiktok'
+DATASET_ID = 'raw'
 TABLE_ID = 'raw_tiktok_thai_gmv_max_report'  # Change this to your desired table name
 LOCATION = 'asia-southeast1'
 

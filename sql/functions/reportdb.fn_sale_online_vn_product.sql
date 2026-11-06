@@ -43,19 +43,19 @@ SELECT DISTINCT
       --status_name,
       --assigning_seller_name,
       --creator_name
-    FROM `marine-cycle-484213-b4.core_pancake.core_order` AS o 
-    JOIN `marine-cycle-484213-b4.core_pancake.core_order_item` AS oi ON oi.order_id = o.order_id
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_product` AS p ON oi.product_id = p.raw_product_id
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON oi.variation_id = v.variation_id
+    FROM `marine-cycle-484213-b4.core.core_pancake__order` AS o 
+    JOIN `marine-cycle-484213-b4.core.core_pancake__order_item` AS oi ON oi.order_id = o.order_id
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__product` AS p ON oi.product_id = p.raw_product_id
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__variations` AS v ON oi.variation_id = v.variation_id
     LEFT JOIN (
       SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
-      FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+      FROM `marine-cycle-484213-b4.core.core_pancake__warehouse`
     ) AS warehouse ON warehouse.canonical_warehouse_id = oi.warehouse_id
     WHERE 1=1
       AND DATE_TRUNC(o.inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)
       --AND DATE_TRUNC(o.inserted_at, day) between '2025-11-01' and '2025-11-30'
       --AND o.order_id = 'REDACTED_EXAMPLE'
-      AND o.order_id NOT IN (SELECT CAST(order_id AS STRING) FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` WHERE is_duplicate = 1)
+      AND o.order_id NOT IN (SELECT CAST(order_id AS STRING) FROM `marine-cycle-484213-b4.core.core_pancake__orders_returned` WHERE is_duplicate = 1)
       AND status_name NOT IN ('canceled','returned','packing')
        AND (o.order_sources_name IN ('Website', 'Facebook', 'Webcake', 'Instagram', 'Zalo') OR o.warehouse_id = 'cf854971-c137-4e23-86ec-4bd8fbed6990')
       AND o.order_sources_name NOT LIKE ('Wholesale')

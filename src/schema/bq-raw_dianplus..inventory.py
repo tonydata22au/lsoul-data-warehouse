@@ -19,7 +19,7 @@ from google.oauth2 import service_account
 # ============================================================================
 
 # BigQuery Configuration
-DATASET_ID = 'dianplus'
+DATASET_ID = 'raw'
 TABLE_ID = 'raw_dianplus_inventory'  # Change this to your desired table name
 LOCATION = 'asia-southeast1'
 

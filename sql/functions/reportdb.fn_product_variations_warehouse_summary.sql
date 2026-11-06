@@ -56,10 +56,10 @@ FROM
   ,i.warehouse_id
   ,i.table_name
   ,i.record_id
-  FROM `marine-cycle-484213-b4.core_pancake.core_inventory_histories` i
+  FROM `marine-cycle-484213-b4.core.core_pancake__inventory_histories` i
   LEFT JOIN (
     SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
-    FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+    FROM `marine-cycle-484213-b4.core.core_pancake__warehouse`
   ) cw ON cw.canonical_warehouse_id = i.inv_warehouse_id
   WHERE 1=1
   AND LEFT(i.variation_display_id,2) NOT IN ('TG','HT','HN','HH','TD')
@@ -152,7 +152,7 @@ TIMESTAMP_TRUNC(i.inserted_at, DAY) AS inserted_at
     ELSE 0
   END AS tong_gia_tri_hang_ton_kho_theo_gia_ban 
 FROM stats_variations_by_warehouse_insertedat i
-LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_warehouse` w ON i.inv_warehouse_id = w.warehouse_id
+LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__warehouse` w ON i.inv_warehouse_id = w.warehouse_id
 WHERE i_country = '' OR w.country = i_country
 )
 

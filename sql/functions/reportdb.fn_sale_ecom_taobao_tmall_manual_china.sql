@@ -33,7 +33,7 @@ WITH CTE AS (
       ,buyer_account
       ,platform_site
       ,'76be7836-6dc5-4b1c-9e48-b18e43127453' AS warehouse_id --warehouse_id cua Kho Trung Quốc (Back-up)
-      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
+      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core.core_pancake__warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
       ,CASE
             WHEN items_buyer_paid_amount <= 0 THEN 1
             WHEN TRIM(o.items_status) LIKE 'Cancelled' THEN 1
@@ -45,7 +45,7 @@ WITH CTE AS (
       ,o.items_qty
       ,o.items_base_price
       ,o.items_buyer_paid_amount
-    FROM `marine-cycle-484213-b4.jushuitan.core_jushuitan_taobao_tmall_order_manual` AS o
+    FROM `marine-cycle-484213-b4.core.core_jushuitan__taobao_tmall_order_manual` AS o
     WHERE 1=1
       AND DATE_TRUNC(o.vn_order_date, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)
       --AND DATE_TRUNC(o.order_date, day) between '2026-02-01' and '2026-02-28'

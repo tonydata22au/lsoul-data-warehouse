@@ -98,7 +98,7 @@ Run syntax:
   ,'marine-cycle-484213-b4.stg_pancake.stg_customer'
   ,'marine-cycle-484213-b4.core_pancake.core_customer'
   ,'marine-cycle-484213-b4.core_pancake.sp_pancake_core_customer_insert'
-  ,'marine-cycle-484213-b4.raw_pancake.raw_customer'
+  ,'marine-cycle-484213-b4.raw.raw_customer'
 );
 
   ELSE 
@@ -114,7 +114,7 @@ Run syntax:
   ,'marine-cycle-484213-b4.stg_pancake.stg_customer'
   ,'marine-cycle-484213-b4.core_pancake.core_customer'
   ,'marine-cycle-484213-b4.core_pancake.sp_pancake_core_customer_insert'
-  ,'marine-cycle-484213-b4.raw_pancake.raw_customer'
+  ,'marine-cycle-484213-b4.raw.raw_customer'
   );  
 
   END IF;

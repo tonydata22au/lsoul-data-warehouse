@@ -17,5 +17,5 @@ DATETIME(PARSE_TIMESTAMP('%Y%m%d%H%M%S', updated_at)) AS updated_at,
 creator_id, 
 SAFE_CAST(order_id AS INT64) AS order_id, 
 order_to_returned_id
-FROM `marine-cycle-484213-b4.raw_pancake.raw_orders_returned`
+FROM `marine-cycle-484213-b4.raw.raw_orders_returned`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) =  TIMESTAMP(CURRENT_DATE())

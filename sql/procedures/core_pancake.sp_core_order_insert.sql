@@ -256,7 +256,7 @@ Run syntax:
   ,'marine-cycle-484213-b4.stg_pancake.stg_order'
   ,'marine-cycle-484213-b4.core_pancake.core_order'
   ,'marine-cycle-484213-b4.core_pancake.sp_core_order_insert'
-  ,'marine-cycle-484213-b4.raw_pancake.raw_order'
+  ,'marine-cycle-484213-b4.raw.raw_order'
 );
 
   ELSE 
@@ -272,7 +272,7 @@ Run syntax:
   ,'marine-cycle-484213-b4.stg_pancake.stg_order'
   ,'marine-cycle-484213-b4.core_pancake.core_order'
   ,'marine-cycle-484213-b4.core_pancake.sp_core_order_insert'
-  ,'marine-cycle-484213-b4.raw_pancake.raw_order'
+  ,'marine-cycle-484213-b4.raw.raw_order'
 );
 
   END IF;

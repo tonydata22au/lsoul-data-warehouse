@@ -103,5 +103,5 @@ SELECT
   SAFE_CAST(pays_amount AS FLOAT64) AS pays_amount,
   pays_pay_date
 
-FROM `marine-cycle-484213-b4.jushuitan.raw_jushuitan_order`
+FROM `marine-cycle-484213-b4.raw.raw_jushuitan_order`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP("2026-05-09")

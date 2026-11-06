@@ -34,12 +34,8 @@ SKIP_DIRS = {".venv", ".git", "credentials", "seeds", "data", "node_modules", "_
 
 # Pre-existing defects that are documented rather than fixed (see docs/troubleshooting.md).
 # Each entry: (description, text that must appear in the expected import error).
-KNOWN_BROKEN_SERVICES = {
-    "cloud-run-tiktok-thai-ads": (
-        "app_runner.py loads cr-tiktok-thai-ads.py but the folder contains cr-tiktok-ads.py",
-        "No such file or directory: '{service}/cr-tiktok-thai-ads.py'",
-    ),
-}
+# cloud-run-tiktok-thai-ads was fixed locally on 2026-11-06 (app_runner.py now loads cr-tiktok-ads.py).
+KNOWN_BROKEN_SERVICES = {}
 
 # Every credential the pipelines read from the environment (see .env.example).
 CREDENTIAL_ENV_VARS = [

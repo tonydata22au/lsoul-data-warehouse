@@ -208,6 +208,10 @@ def source_system(*texts):
         name = next((n for n in SOURCE_SYSTEMS if n in tokens), None)
         if name:
             return name
+    # Every raw table lives in the dataset `raw`. Other sources prefix their table names
+    # (raw_tiktok_*, raw_dianplus_*, Meta's raw_ads_reporting_*); Pancake's do not (raw.raw_order).
+    if texts and re.search(r"(^|\s)raw\.raw_(?!ads_reporting_)\w+", texts[-1]):
+        return "pancake"
     return None
 
 

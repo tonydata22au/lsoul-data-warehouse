@@ -271,7 +271,7 @@ def calculate_sign_for_auth_access_token(timestamp):
         f"timestamp{timestamp}"
     )
     
-    print(f"Raw string before MD5 encryption: {raw}")
+    # The raw string starts with the app secret: never print it (stdout goes to Cloud Logging)
     
     # Calculate MD5 hash
     sign = hashlib.md5(raw.encode('utf-8')).hexdigest()
@@ -362,7 +362,7 @@ def calculate_sign_for_api(access_token, biz_json, timestamp):
         f"version{VERSION}"
     )
     
-    print(f"Raw string before MD5 encryption: {raw}")
+    # The raw string starts with the app secret: never print it (stdout goes to Cloud Logging)
     
     # Calculate MD5 hash
     sign = hashlib.md5(raw.encode('utf-8')).hexdigest()
@@ -426,7 +426,8 @@ def _fetch_pages(token, headers, modified_begin=None, modified_end=None):
             }
 
             try:
-                print(f"  Request params: {json.dumps(params, indent=2, ensure_ascii=False)}")
+                # access_token, app_key and sign are credentials: mask them in the log
+                print(f"  Request params: {json.dumps({k: ('***' if k in ('access_token', 'app_key', 'sign') else v) for k, v in params.items()}, indent=2, ensure_ascii=False)}")
                 response = requests.post(API_URL, headers=headers, data=params, timeout=69)
                 print(f"  Response status code: {response.status_code}")
 
@@ -468,7 +469,8 @@ def _fetch_pages(token, headers, modified_begin=None, modified_end=None):
 
         if not page_success:
             print(f"  Failed to fetch page {page_num} after {max_retries} attempts. Stopping.")
-            break
+            # Fail the run: returning the pages so far would load a partial window as a success
+            raise RuntimeError(f"Jushuitan page {page_num} failed (HTTP error after {max_retries} attempts or API error)")
 
         if not orders:
             break
@@ -686,7 +688,7 @@ def clean_nulls_for_bigquery(df):
     return df
 
 
-def insert_to_bigquery(df, project_id=None, dataset_id="jushuitan", table_id="raw_jushuitan_order"):
+def insert_to_bigquery(df, project_id=None, dataset_id=os.getenv("BQ_RAW_DATASET", "raw"), table_id="raw_jushuitan_order"):
     """Insert DataFrame into BigQuery."""
     df = clean_nulls_for_bigquery(df)
 
@@ -726,7 +728,7 @@ def insert_to_bigquery(df, project_id=None, dataset_id="jushuitan", table_id="ra
         )
         load_job = client.load_table_from_dataframe(df, table_ref, job_config=job_config)
         load_job.result()
-        print(f"  ✓ Successfully loaded {load_job.output_rows} rows into {dataset_id}.{table_id}")
+        print(f"  ✓ Successfully loaded {load_job.output_rows} rows into {client.project}.{dataset_id}.{table_id} [{load_job.job_id}]")
     finally:
         client.close()
 

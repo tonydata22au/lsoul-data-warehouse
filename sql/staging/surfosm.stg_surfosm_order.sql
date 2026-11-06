@@ -59,5 +59,5 @@ SAFE_CAST(order_items_shipped_item_effective_qty  AS NUMERIC) AS order_items_shi
 SAFE_CAST(order_items_shipped_item_adjusted_total  AS NUMERIC) AS order_items_shipped_item_adjusted_total,
 SAFE_CAST(order_items_shipped_item_cost AS FLOAT64) AS order_items_shipped_item_cost,
 SAFE_CAST(order_items_shipped_item_selling AS FLOAT64) AS order_items_shipped_item_selling
-FROM `marine-cycle-484213-b4.surfosm.raw_surfosm_order`
+FROM `marine-cycle-484213-b4.raw.raw_surfosm_order`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-08-21")

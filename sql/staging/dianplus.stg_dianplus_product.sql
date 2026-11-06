@@ -45,5 +45,5 @@ is_multiTopCat,
 is_oneTimesTitle,    
 is_oneTimesSgtPrice,
 is_oneTimesSalPrice
-FROM `marine-cycle-484213-b4.dianplus.raw_dianplus_product` 
+FROM `marine-cycle-484213-b4.raw.raw_dianplus_product` 
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP("2026-04-29")

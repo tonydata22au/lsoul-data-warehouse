@@ -27,7 +27,7 @@ WITH CTE AS (
       ,buyer_id
       ,o.order_from
       ,'76be7836-6dc5-4b1c-9e48-b18e43127453' AS warehouse_id --warehouse_id cua Kho Trung Quốc (Back-up)
-      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
+      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core.core_pancake__warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
       ,CASE
         WHEN UPPER(oi.items_status) LIKE '%CANCELLED%' THEN 1
         --WHEN LEFT(oi.items_sku_id,2) IN ('TG','HT','HN','HH','TD','TU') THEN 1
@@ -38,8 +38,8 @@ WITH CTE AS (
       ,items_qty
       ,IF(IS_NAN(items_base_price), 0, items_base_price) AS items_base_price
       ,IF(IS_NAN(items_buyer_paid_amount), 0, items_buyer_paid_amount) AS items_buyer_paid_amount
-    FROM `marine-cycle-484213-b4.jushuitan.core_jushuitan_order` AS o
-    JOIN `marine-cycle-484213-b4.jushuitan.core_jushuitan_order_item` AS oi
+    FROM `marine-cycle-484213-b4.core.core_jushuitan__order` AS o
+    JOIN `marine-cycle-484213-b4.core.core_jushuitan__order_item` AS oi
       ON o.o_id = oi.o_id
     WHERE 1=1
       AND DATE_TRUNC(o.vn_order_date, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)
@@ -64,7 +64,7 @@ WITH CTE AS (
       ,buyer_id
       ,o.order_from
       ,'76be7836-6dc5-4b1c-9e48-b18e43127453' AS warehouse_id --warehouse_id cua Kho Trung Quốc (Back-up)
-      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
+      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core.core_pancake__warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
       ,CASE
         WHEN oi.items_refund_status LIKE 'success' AND status LIKE 'Cancelled' THEN 1
         WHEN IFNULL(SAFE_CAST(oi.items_seller_income_amount AS NUMERIC),0) <= 0 THEN 1
@@ -80,15 +80,15 @@ WITH CTE AS (
       ,items_qty
       ,IF(IS_NAN(items_base_price), 0, items_base_price) AS items_base_price
       ,IF(IS_NAN(items_buyer_paid_amount), 0, items_buyer_paid_amount) AS items_buyer_paid_amount
-    FROM `marine-cycle-484213-b4.jushuitan.core_jushuitan_order` AS o
-    JOIN `marine-cycle-484213-b4.jushuitan.core_jushuitan_order_item` AS oi
+    FROM `marine-cycle-484213-b4.core.core_jushuitan__order` AS o
+    JOIN `marine-cycle-484213-b4.core.core_jushuitan__order_item` AS oi
       ON o.so_id = oi.so_id
     WHERE 1=1
       AND DATE_TRUNC(o.vn_order_date, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)
       --AND DATE_TRUNC(o.order_date, day) between '2026-02-01' and '2026-02-28'
       --AND o.raw_so_id = 'REDACTED_EXAMPLE'
       AND (shop_name LIKE '%Xiaohongshu%' or LEFT(UPPER(o.raw_so_id),1) = 'P')
-      AND NOT (status = 'Merged' AND o.so_id IN (SELECT so_id FROM `marine-cycle-484213-b4.jushuitan.core_jushuitan_order` WHERE is_merge = 1))
+      AND NOT (status = 'Merged' AND o.so_id IN (SELECT so_id FROM `marine-cycle-484213-b4.core.core_jushuitan__order` WHERE is_merge = 1))
 )
 
 SELECT

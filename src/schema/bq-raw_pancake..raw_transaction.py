@@ -18,7 +18,7 @@ from google.cloud.exceptions import NotFound
 # ============================================================================
 
 # BigQuery Configuration
-DATASET_ID = 'raw_pancake'
+DATASET_ID = 'raw'
 TABLE_ID = 'raw_transaction'
 LOCATION = 'asia-southeast1'
 

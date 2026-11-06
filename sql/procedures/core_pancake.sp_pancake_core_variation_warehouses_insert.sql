@@ -72,7 +72,7 @@ Run syntax:
   ,'marine-cycle-484213-b4.stg_pancake.stg_variation_warehouses'
   ,'marine-cycle-484213-b4.core_pancake.core_variation_warehouses'
   ,'marine-cycle-484213-b4.core_pancake.sp_pancake_core_variation_warehouses_insert'
-  ,'marine-cycle-484213-b4.raw_pancake.raw_product_variations'
+  ,'marine-cycle-484213-b4.raw.raw_product_variations'
 );
 
   ELSE 
@@ -88,7 +88,7 @@ Run syntax:
   ,'marine-cycle-484213-b4.stg_pancake.stg_variation_warehouses'
   ,'marine-cycle-484213-b4.core_pancake.core_variation_warehouses'
   ,'marine-cycle-484213-b4.core_pancake.sp_pancake_core_variation_warehouses_insert'
-  ,'marine-cycle-484213-b4.raw_pancake.raw_product_variations'
+  ,'marine-cycle-484213-b4.raw.raw_product_variations'
   );  
 
   END IF;

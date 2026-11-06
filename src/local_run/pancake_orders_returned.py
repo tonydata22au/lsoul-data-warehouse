@@ -303,7 +303,7 @@ def normalize_id_strings(df):
             df[col] = df[col].apply(strip_floatish)
     return df
 
-def insert_to_bigquery(df, project_id=None, dataset_id="raw_pancake", table_id="raw_orders_returned"):
+def insert_to_bigquery(df, project_id=None, dataset_id="raw", table_id="raw_orders_returned"):
     """
     Insert DataFrame into BigQuery table.
     

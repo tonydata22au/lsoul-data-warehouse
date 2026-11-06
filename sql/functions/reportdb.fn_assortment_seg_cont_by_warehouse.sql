@@ -17,7 +17,7 @@ d_date
 FROM `marine-cycle-484213-b4.reportdb.report_order_product_inventory_summary` sp 
 LEFT JOIN (
     SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
-    FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+    FROM `marine-cycle-484213-b4.core.core_pancake__warehouse`
   ) cw ON cw.canonical_warehouse_id = sp.warehouse_id
 LEFT JOIN  `marine-cycle-484213-b4.reportdb.product_tree_csv` pt ON pt.string_field_1 = sp.variation_code
 WHERE 1=1

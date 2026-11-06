@@ -12,6 +12,14 @@ page, run `python3 scripts/build_pipeline_manifest.py`. `validate_repo.py` fails
 - **VN yesterday:** 00:00:00–23:59:59 yesterday in `Asia/Ho_Chi_Minh`.
 - **Schedule:** **unknown for every pipeline** except `cloud-run-pancake-order` and `cloud-run-pancake-product_variations`: Cloud Scheduler jobs `pancake-insert-raw_order` and `pancake-insert-raw_product_variations` send `GET /` daily at 07:20 ICT (details in their docstrings). No Cloud Scheduler, cron, CI or service URLs are in the repo. The SQL implies a daily run (see [architecture.md](architecture.md#runtime-and-deployment)).
 - **Dry run** (where it exists) **still calls the source API**; it only skips the BigQuery load.
+- **Raw dataset:** every raw table lives in the single dataset `raw` (table names unchanged). Cloud Run services read the
+  optional env var `BQ_RAW_DATASET` (default `raw`); `cloud-run-magento-order` and `cloud-run-surfosm-inventory` keep
+  their existing `BQ_DATASET` (default now `raw`). `local_run/` and `schema/` use the literal `raw`. Until the cutover in
+  [../tasks/raw-dataset-plan.md](../tasks/raw-dataset-plan.md) runs, the live tables are still in the old datasets
+  (`raw_pancake`, `raw_tiktok`, `raw_meta`, and `raw_*` tables in `dianplus`/`jushuitan`/`magento`/`surfosm`).
+  The exact service → table contract (config precedence, failure statuses, coverage totals) is in
+  [raw-destination-contract.md](raw-destination-contract.md); the next-run checks are in
+  [raw-dataset-next-run-monitoring.md](raw-dataset-next-run-monitoring.md).
 
 ## Cloud Run services: `src/cloud_run/<service>/`
 
@@ -20,36 +28,36 @@ with the default window below. The CLI is `python cr-<name>.py [flags]` in the s
 
 | Service folder | Source endpoint | Default window (HTTP `/`) | CLI flags | Destination | Load |
 |---|---|---|---|---|---|
-| cloud-run-dianplus-inventory | Dianplus `inventory/getInvs` | VN yesterday (sent as Shanghai time); HTTP also takes `?start_date`, `?end_date`, `?all=true` | `--project-id --start_date --end_date --ALL --dry-run` | `dianplus.raw_dianplus_inventory` | WA |
-| cloud-run-dianplus-order | Dianplus `order/getOrder` | VN yesterday; ranges > 15 days chunked | `--start-date --end-date --project-id --dry-run` | `dianplus.raw_dianplus_order` | WA |
-| cloud-run-dianplus-order-refund | Dianplus `order/getRefundOrder` | VN yesterday | `--start-date --end-date --project-id --dry-run` | `dianplus.raw_dianplus_order_refund` | WA |
-| cloud-run-dianplus-product | Dianplus `sku/getSku` | Full snapshot | `--project-id --dry-run` | `dianplus.raw_dianplus_product` | WA (full catalogue appended each run) |
-| cloud-run-jushuitan-order | Jushuitan `/open/orders/single/query` | Yesterday by container clock (UTC on Cloud Run); 7-day chunks | `--start-date --end-date --project-id --all --dry-run` | `jushuitan.raw_jushuitan_order` | WA |
-| cloud-run-magento-order | Magento `/rest/V1/orders` | VN yesterday (sent as UTC), 30-day chunks; routes `/`, `/run`, `/health`; `?all=1` or `?start_date&end_date` | none: running the file starts Flask on `$PORT`; no dry run | `${BQ_PROJECT:-marine-cycle-484213-b4}.${BQ_DATASET:-magento}.${BQ_TABLE:-raw_magento_order}` | WA |
-| cloud-run-meta-ads-reporting-a | Meta Graph v24.0 `/{account}/insights` (ad level, daily) | `date_preset=yesterday` | `--project-id --dataset-id --table-id --date-preset --all`; no dry run | `raw_meta.raw_ads_reporting_a` (creates dataset if missing) | WA |
-| cloud-run-meta-ads-reporting-ecom | Same, plus impressions/frequency | `date_preset=yesterday` | same as above | `raw_meta.raw_ads_reporting_ecom` | WA |
-| cloud-run-pancake-customer | Pancake `/customers` | VN yesterday | `--project-id --All --start-date --end-date --max-pages --dry-run` | `raw_pancake.raw_customer` | WA |
-| cloud-run-pancake-ecom-product | Pancake `/marketplace/products` | VN yesterday | same Pancake flags | `raw_pancake.raw_ecom_product` | WA |
-| cloud-run-pancake-inventory_histories | Pancake `/inventory_histories` | VN yesterday | Pancake flags + `--yesterday` (no effect) | `raw_pancake.raw_inventory_histories` | WA |
-| cloud-run-pancake-order | Pancake `/orders` (`updateStatus=updated_at`: orders **updated** in the window) | VN yesterday; GET or POST; `?start_date&end_date` (VN time) re-runs a window | Pancake flags + `--30days` (30 days ago to VN yesterday) | `raw_pancake.raw_order` | WA |
-| cloud-run-pancake-order_returned | **Older copy of pancake-order's code** (`/orders`; no `updateStatus`, old column set) ⚠ | Last 30 days | Pancake flags | **`raw_pancake.raw_order`** ⚠ (see [known issues](troubleshooting.md#known-issues)) | WA |
-| cloud-run-pancake-product | Pancake `/products` | VN yesterday | Pancake flags | `raw_pancake.raw_product` | WA |
-| cloud-run-pancake-product_variations | Pancake `/products/variations` | VN yesterday; GET or POST; `?start_date&end_date` (VN time); `/health` checks startup only | Pancake flags + `--yesterday` (ignored) | `raw_pancake.raw_product_variations` | WA |
-| cloud-run-pancake-stats_inventory_product | Pancake `/inventory_analytics/inventory_by_product` | VN yesterday | Pancake flags | `raw_pancake.raw_stats_inventory_product` | WA |
-| cloud-run-pancake-stats_inventory_variations | Pancake `/inventory_analytics/inventory` | VN yesterday | Pancake flags | `raw_pancake.raw_stats_inventory_variations` | WA |
-| cloud-run-pancake-stats_order | Pancake `/analytics/sale` | VN yesterday | Pancake flags | `raw_pancake.raw_stats_order` | WA |
-| cloud-run-pancake-stats_product | Same endpoint/params as stats_inventory_product | VN yesterday | Pancake flags | `raw_pancake.raw_stats_product` | WA |
-| cloud-run-pancake-variations | Pancake `/variations` | **Full snapshot** over HTTP (CLI default filters to yesterday client-side) | Pancake flags | `raw_pancake.raw_variations` | WA |
-| cloud-run-pancake-warehouse_transfer | Pancake `/transfers` | VN yesterday | Pancake flags | `raw_pancake.raw_warehouse_transfers_completed` | WA |
-| cloud-run-surfosm-inventory | Surfosm `/openapi/inventory` | Yesterday by container clock; routes `/`, `/run`, `/health`; `?date`, `?start_date&end_date`, `?dry_run=1`. `main.py` is a Cloud Functions entry point (`export_inventory`) | `--date --start_date --end_date --dry_run --project_id` | `${BQ_DATASET:-surfosm}.${BQ_TABLE:-raw_surfosm_inventory}`; project from `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT` | WA |
-| cloud-run-surfosm-order | Surfosm `/orders/list` + `/order/{n}/price-details` | **31 days** to yesterday (container clock) | `--project_id --yesterday --date --start_date --end_date --dry_run --http` | `surfosm.raw_surfosm_order` | WA |
-| cloud-run-surfosm-order_return | Surfosm `/return-documents/list` + return details | 31 days to yesterday | same as surfosm-order | `surfosm.raw_surfosm_order_return` | WA |
-| cloud-run-tiktok-ads | TikTok `/ad/get/` (VN account) | **Full snapshot** of all ads | `--start-date --end-date --dry-run` | `raw_tiktok.raw_tiktok_ads` | WA |
-| cloud-run-tiktok-gmv-max-report | TikTok `/gmv_max/report/get/` | VN yesterday, 30-day chunks | same as tiktok-ads | `raw_tiktok.raw_tiktok_gmv_max_report` | WA |
-| cloud-run-tiktok-reporting-basic-autction-ad | TikTok `/report/integrated/get/` | VN yesterday | same | `raw_tiktok.raw_tiktok_reporting_basic_auction_ad` | WA |
-| cloud-run-tiktok-thai-ads | TikTok `/ad/get/` (Thai account) | Full snapshot | same | `raw_tiktok.raw_tiktok_thai_ads` | WA. ⚠ **Can't start** (see known issues) |
-| cloud-run-tiktok-thai-gmv-max-report | TikTok `/gmv_max/report/get/` | VN yesterday | same | `raw_tiktok.raw_tiktok_thai_gmv_max_report` | WA |
-| cloud-run-tiktok-thai-reporting-basic-autction-ad | TikTok `/report/integrated/get/` | VN yesterday | same | `raw_tiktok.raw_tiktok_thai_reporting_basic_auction_ad` | WA |
+| cloud-run-dianplus-inventory | Dianplus `inventory/getInvs` | VN yesterday (sent as Shanghai time); HTTP also takes `?start_date`, `?end_date`, `?all=true` | `--project-id --start_date --end_date --ALL --dry-run` | `raw.raw_dianplus_inventory` | WA |
+| cloud-run-dianplus-order | Dianplus `order/getOrder` | VN yesterday; ranges > 15 days chunked | `--start-date --end-date --project-id --dry-run` | `raw.raw_dianplus_order` | WA |
+| cloud-run-dianplus-order-refund | Dianplus `order/getRefundOrder` | VN yesterday | `--start-date --end-date --project-id --dry-run` | `raw.raw_dianplus_order_refund` | WA |
+| cloud-run-dianplus-product | Dianplus `sku/getSku` | Full snapshot | `--project-id --dry-run` | `raw.raw_dianplus_product` | WA (full catalogue appended each run) |
+| cloud-run-jushuitan-order | Jushuitan `/open/orders/single/query` | Yesterday by container clock (UTC on Cloud Run); 7-day chunks | `--start-date --end-date --project-id --all --dry-run` | `raw.raw_jushuitan_order` | WA |
+| cloud-run-magento-order | Magento `/rest/V1/orders` | VN yesterday (sent as UTC), 30-day chunks; routes `/`, `/run`, `/healthz`; `?all=1` or `?start_date&end_date` | none: running the file starts Flask on `$PORT`; no dry run | `${BQ_PROJECT:-marine-cycle-484213-b4}.${BQ_DATASET:-raw}.${BQ_TABLE:-raw_magento_order}` | WA |
+| cloud-run-meta-ads-reporting-a | Meta Graph v24.0 `/{account}/insights` (ad level, daily) | `date_preset=yesterday` | `--project-id --dataset-id --table-id --date-preset --all`; no dry run | `raw.raw_ads_reporting_a` (creates dataset if missing) | WA |
+| cloud-run-meta-ads-reporting-ecom | Same, plus impressions/frequency | `date_preset=yesterday` | same as above | `raw.raw_ads_reporting_ecom` | WA |
+| cloud-run-pancake-customer | Pancake `/customers` | VN yesterday | `--project-id --All --start-date --end-date --max-pages --dry-run` | `raw.raw_customer` | WA |
+| cloud-run-pancake-ecom-product | Pancake `/marketplace/products` | VN yesterday | same Pancake flags | `raw.raw_ecom_product` | WA |
+| cloud-run-pancake-inventory_histories | Pancake `/inventory_histories` | VN yesterday | Pancake flags + `--yesterday` (no effect) | `raw.raw_inventory_histories` | WA |
+| cloud-run-pancake-order | Pancake `/orders` (`updateStatus=updated_at`: orders **updated** in the window) | VN yesterday; GET or POST; `?start_date&end_date` (VN time) re-runs a window | Pancake flags + `--30days` (30 days ago to VN yesterday) | `raw.raw_order` | WA |
+| cloud-run-pancake-order_returned | **Older copy of pancake-order's code** (`/orders`; no `updateStatus`, old column set) ⚠ | Last 30 days | Pancake flags | **`raw.raw_order`** ⚠ (see [known issues](troubleshooting.md#known-issues)) | WA |
+| cloud-run-pancake-product | Pancake `/products` | VN yesterday | Pancake flags | `raw.raw_product` | WA |
+| cloud-run-pancake-product_variations | Pancake `/products/variations` | VN yesterday; GET or POST; `?start_date&end_date` (VN time); `/health` checks startup only | Pancake flags + `--yesterday` (ignored) | `raw.raw_product_variations` | WA |
+| cloud-run-pancake-stats_inventory_product | Pancake `/inventory_analytics/inventory_by_product` | VN yesterday | Pancake flags | `raw.raw_stats_inventory_product` | WA |
+| cloud-run-pancake-stats_inventory_variations | Pancake `/inventory_analytics/inventory` | VN yesterday | Pancake flags | `raw.raw_stats_inventory_variations` | WA |
+| cloud-run-pancake-stats_order | Pancake `/analytics/sale` | VN yesterday | Pancake flags | `raw.raw_stats_order` | WA |
+| cloud-run-pancake-stats_product | Same endpoint/params as stats_inventory_product | VN yesterday | Pancake flags | `raw.raw_stats_product` | WA |
+| cloud-run-pancake-variations | Pancake `/variations` | **Full snapshot** over HTTP (CLI default filters to yesterday client-side) | Pancake flags | `raw.raw_variations` | WA |
+| cloud-run-pancake-warehouse_transfer | Pancake `/transfers` | VN yesterday | Pancake flags | `raw.raw_warehouse_transfers_completed` | WA |
+| cloud-run-surfosm-inventory | Surfosm `/openapi/inventory` | Yesterday by container clock; routes `/`, `/run`, `/healthz`; `?date`, `?start_date&end_date`, `?dry_run=1`. `main.py` is a Cloud Functions entry point (`export_inventory`) | `--date --start_date --end_date --dry_run --project_id` | `${BQ_DATASET:-raw}.${BQ_TABLE:-raw_surfosm_inventory}`; project from `GCP_PROJECT` / `GOOGLE_CLOUD_PROJECT` | WA |
+| cloud-run-surfosm-order | Surfosm `/orders/list` + `/order/{n}/price-details` | **31 days** to yesterday (container clock) | `--project_id --yesterday --date --start_date --end_date --dry_run --http` | `raw.raw_surfosm_order` | WA |
+| cloud-run-surfosm-order_return | Surfosm `/return-documents/list` + return details | 31 days to yesterday | same as surfosm-order | `raw.raw_surfosm_order_return` | WA |
+| cloud-run-tiktok-ads | TikTok `/ad/get/` (VN account) | **Full snapshot** of all ads | `--start-date --end-date --dry-run` | `raw.raw_tiktok_ads` | WA |
+| cloud-run-tiktok-gmv-max-report | TikTok `/gmv_max/report/get/` | VN yesterday, 30-day chunks | same as tiktok-ads | `raw.raw_tiktok_gmv_max_report` | WA |
+| cloud-run-tiktok-reporting-basic-autction-ad | TikTok `/report/integrated/get/` | VN yesterday | same | `raw.raw_tiktok_reporting_basic_auction_ad` | WA |
+| cloud-run-tiktok-thai-ads | TikTok `/ad/get/` (Thai account) | Full snapshot | same | `raw.raw_tiktok_thai_ads` | WA. ⚠ **Couldn't start; fixed locally 2026-11-06, not deployed** (see known issues; needs `TIKTOK_TH_ACCESS_TOKEN`) |
+| cloud-run-tiktok-thai-gmv-max-report | TikTok `/gmv_max/report/get/` | VN yesterday | same | `raw.raw_tiktok_thai_gmv_max_report` | WA |
+| cloud-run-tiktok-thai-reporting-basic-autction-ad | TikTok `/report/integrated/get/` | VN yesterday | same | `raw.raw_tiktok_thai_reporting_basic_auction_ad` | WA |
 
 Credentials (env vars): Pancake `PANCAKE_API_KEY`; Dianplus `DIANPLUS_APP_KEY`, `DIANPLUS_APP_SECRET`;
 Jushuitan `JUSHUITAN_APP_KEY`, `JUSHUITAN_APP_SECRET`; Magento `MAGENTO_USERNAME`, `MAGENTO_PASSWORD`;
@@ -68,31 +76,31 @@ service-account key at import from `credentials/google-credentials.json` in the 
 
 | File | Source | Default window | Flags | Destination |
 |---|---|---|---|---|
-| dianplus_inventory.py | Dianplus inventory | VN yesterday | `--start_date --end_date --ALL` | `dianplus.raw_dianplus_inventory` |
-| dianplus_order.py | Dianplus orders | VN yesterday | `--start_date --end_date` | `dianplus.raw_dianplus_order` |
-| dianplus_order_refund.py | Dianplus refunds | VN yesterday | `--start_date --end_date` | `dianplus.raw_dianplus_order_refund` |
-| dianplus_product.py | Dianplus SKUs | Full snapshot | none | `dianplus.raw_dianplus_product` |
-| jushuitan_inventory.py | Jushuitan `/open/inventory/query` | Prompts with `input()`; default yesterday | `--ALL --start_date --end_date --debug` | `jushuitan.raw_jushuitan_inventory` (local only) |
-| jushuitan_order.py | Jushuitan orders | Prompts with `input()`; default yesterday | `--ALL` | `jushuitan.raw_jushuitan_order` |
-| jushuitan_order_taobao_tmal_manual_import.py | Newest Excel file in `seeds/jushuitan_taobao_tmall_raw_data/` (no API) | n/a | none | `jushuitan.raw_jushuitan_taobao_tmall_order_manual` |
-| magento_order.py | Magento orders | Prompts; default VN yesterday | `--ALL --start_date --end_date` | `magento.raw_magento_order` |
-| meta_ads_a.py | Meta insights | `date_preset=yesterday` | `--project-id --dataset-id --table-id --date-preset --all` | `raw_meta.raw_ads_reporting_a` |
-| meta_ads_ecom.py | Meta insights | same | same | `raw_meta.raw_ads_reporting_ecom` |
-| meta_ads_my.py | Meta insights | same | same | `raw_meta.raw_ads_reporting_my` (local only) |
-| pancake_customer.py | Pancake customers | VN yesterday | `--project-id --All --start-date --end-date` | `raw_pancake.raw_customer` |
-| pancake_inventory_histories.py | Pancake inventory histories | VN yesterday | `--project-id --All --start-date --end-date --yesterday` | `raw_pancake.raw_inventory_histories` |
-| pancake_order.py | Pancake orders | VN yesterday; `--30days` = 30 days ago to VN yesterday | `--project-id --All --30days --start-date --end-date` | `raw_pancake.raw_order` |
-| pancake_orders_returned.py | Pancake `/orders_returned` | Last 30 days | `--list --project-id --All --start-date --end-date` | `raw_pancake.raw_orders_returned` |
-| pancake_product_variations.py | Pancake product variations | VN yesterday | `--project-id --All --start-date --end-date --yesterday` | `raw_pancake.raw_product_variations` |
-| pancake_stats_inventory_variations.py | Pancake inventory analytics | VN yesterday | `--project-id --All --start-date --end-date` | `raw_pancake.raw_stats_inventory_variations` |
-| pancake_stats_product.py | Pancake inventory by product | VN yesterday | `--project-id --All --start-date --end-date` | `raw_pancake.raw_stats_product` |
-| surfosm_inventory.py | Surfosm inventory | Yesterday (local clock) | `--date --start_date --end_date` | `surfosm.raw_surfosm_inventory` |
-| surfosm_order.py | Surfosm orders | 31 days | `--ALL/--all --yesterday --date --start_date --end_date --output` (unused) | `surfosm.raw_surfosm_order` |
-| surfosm_order_return.py | Surfosm returns | 31 days | `--yesterday --date --start_date --end_date --output` (unused) | `surfosm.raw_surfosm_order_return` |
-| tiktok_vn_ads.py, tiktok_vn_ad_group.py, tiktok_vn_campaign.py | TikTok `/ad/get/`, `/adgroup/get/`, `/campaign/get/` | All objects | `--start-date --end-date --list` | `raw_tiktok.raw_tiktok_{ads,ad_group,campaign}` |
-| tiktok_thai_ads.py, tiktok_thai_ad_group.py, tiktok_thai_campaign.py | same, Thai account | All objects | same | `raw_tiktok.raw_tiktok_thai_{ads,ad_group,campaign}` |
-| tiktok_vn_gmv_max.py, tiktok_vn_reporting_basic_auction_ad.py | GMV max / integrated report | VN yesterday, 30-day chunks | same | `raw_tiktok.raw_tiktok_gmv_max_report`, `raw_tiktok.raw_tiktok_reporting_basic_auction_ad` |
-| tiktok_thai_gmv_max.py, tiktok_thai_reporting_basic_auction_ad.py | same, Thai account | VN yesterday | same | `raw_tiktok.raw_tiktok_thai_gmv_max_report`, `raw_tiktok.raw_tiktok_thai_reporting_basic_auction_ad` |
+| dianplus_inventory.py | Dianplus inventory | VN yesterday | `--start_date --end_date --ALL` | `raw.raw_dianplus_inventory` |
+| dianplus_order.py | Dianplus orders | VN yesterday | `--start_date --end_date` | `raw.raw_dianplus_order` |
+| dianplus_order_refund.py | Dianplus refunds | VN yesterday | `--start_date --end_date` | `raw.raw_dianplus_order_refund` |
+| dianplus_product.py | Dianplus SKUs | Full snapshot | none | `raw.raw_dianplus_product` |
+| jushuitan_inventory.py | Jushuitan `/open/inventory/query` | Prompts with `input()`; default yesterday | `--ALL --start_date --end_date --debug` | `raw.raw_jushuitan_inventory` (local only) |
+| jushuitan_order.py | Jushuitan orders | Prompts with `input()`; default yesterday | `--ALL` | `raw.raw_jushuitan_order` |
+| jushuitan_order_taobao_tmal_manual_import.py | Newest Excel file in `seeds/jushuitan_taobao_tmall_raw_data/` (no API) | n/a | none | `raw.raw_jushuitan_taobao_tmall_order_manual` |
+| magento_order.py | Magento orders | Prompts; default VN yesterday | `--ALL --start_date --end_date` | `raw.raw_magento_order` |
+| meta_ads_a.py | Meta insights | `date_preset=yesterday` | `--project-id --dataset-id --table-id --date-preset --all` | `raw.raw_ads_reporting_a` |
+| meta_ads_ecom.py | Meta insights | same | same | `raw.raw_ads_reporting_ecom` |
+| meta_ads_my.py | Meta insights | same | same | `raw.raw_ads_reporting_my` (local only) |
+| pancake_customer.py | Pancake customers | VN yesterday | `--project-id --All --start-date --end-date` | `raw.raw_customer` |
+| pancake_inventory_histories.py | Pancake inventory histories | VN yesterday | `--project-id --All --start-date --end-date --yesterday` | `raw.raw_inventory_histories` |
+| pancake_order.py | Pancake orders | VN yesterday; `--30days` = 30 days ago to VN yesterday | `--project-id --All --30days --start-date --end-date` | `raw.raw_order` |
+| pancake_orders_returned.py | Pancake `/orders_returned` | Last 30 days | `--list --project-id --All --start-date --end-date` | `raw.raw_orders_returned` |
+| pancake_product_variations.py | Pancake product variations | VN yesterday | `--project-id --All --start-date --end-date --yesterday` | `raw.raw_product_variations` |
+| pancake_stats_inventory_variations.py | Pancake inventory analytics | VN yesterday | `--project-id --All --start-date --end-date` | `raw.raw_stats_inventory_variations` |
+| pancake_stats_product.py | Pancake inventory by product | VN yesterday | `--project-id --All --start-date --end-date` | `raw.raw_stats_product` |
+| surfosm_inventory.py | Surfosm inventory | Yesterday (local clock) | `--date --start_date --end_date` | `raw.raw_surfosm_inventory` |
+| surfosm_order.py | Surfosm orders | 31 days | `--ALL/--all --yesterday --date --start_date --end_date --output` (unused) | `raw.raw_surfosm_order` |
+| surfosm_order_return.py | Surfosm returns | 31 days | `--yesterday --date --start_date --end_date --output` (unused) | `raw.raw_surfosm_order_return` |
+| tiktok_vn_ads.py, tiktok_vn_ad_group.py, tiktok_vn_campaign.py | TikTok `/ad/get/`, `/adgroup/get/`, `/campaign/get/` | All objects | `--start-date --end-date --list` | `raw.raw_tiktok_{ads,ad_group,campaign}` |
+| tiktok_thai_ads.py, tiktok_thai_ad_group.py, tiktok_thai_campaign.py | same, Thai account | All objects | same | `raw.raw_tiktok_thai_{ads,ad_group,campaign}` |
+| tiktok_vn_gmv_max.py, tiktok_vn_reporting_basic_auction_ad.py | GMV max / integrated report | VN yesterday, 30-day chunks | same | `raw.raw_tiktok_gmv_max_report`, `raw.raw_tiktok_reporting_basic_auction_ad` |
+| tiktok_thai_gmv_max.py, tiktok_thai_reporting_basic_auction_ad.py | same, Thai account | VN yesterday | same | `raw.raw_tiktok_thai_gmv_max_report`, `raw.raw_tiktok_thai_reporting_basic_auction_ad` |
 
 Local credentials: same names as Cloud Run except Meta uses `META_ACCESS_TOKEN_LOCAL` and TikTok uses
 `TIKTOK_ACCESS_TOKEN`. Most TikTok local scripts don't load the repo-root `.env`; export it in the shell
@@ -147,41 +155,41 @@ then loads `CSV_PATH` with `WRITE_TRUNCATE`. Most `CSV_PATH` values are incomple
 
 | File | Creates | `--csv` |
 |---|---|---|
-| bq-raw_dianplus..inventory.py | `dianplus.raw_dianplus_inventory` | no |
-| bq-raw_dianplus..order.py | `dianplus.raw_dianplus_order` | no |
-| bq-raw_dianplus..order_return.py | `dianplus.raw_dianplus_order_return` (loaders write `raw_dianplus_order_refund`) | no |
-| bq-raw_dianplus..product.py | `dianplus.raw_dianplus_product` | no |
-| bq-raw_jushuitan..inventory.py | `jushuitan.raw_jushuitan_inventory` | no |
-| bq-raw_jushuitan..order.py | `jushuitan.raw_jushuitan_order` | no |
-| create_schema_bigquery_template.py | `jushuitan.raw_jushuitan_taobao_tmall_order_manual` | no |
-| bq-raw_magento..order.py | `magento.raw_magento_order` | no |
-| bq-raw_meta_ads_reporting_a.py | `raw_meta.raw_ads_reporting_a` | no |
-| bq-raw_pancake..raw_customer.py | `raw_pancake.raw_customer` | yes |
-| bq-raw_pancake..raw_ecom_product.py | `raw_pancake.raw_ecom_product` | yes |
-| bq-raw_pancake..raw_inventory_histories.py | `raw_pancake.raw_inventory_histories` | no |
-| bq-raw_pancake..raw_order.py | `raw_pancake.raw_order` | yes |
-| bq-raw_pancake..raw_orders_returned.py | `raw_pancake.raw_orders_returned` | no |
-| bq-raw_pancake..raw_product.py | `raw_pancake.raw_product` | yes |
-| bq-raw_pancake..raw_product_variations.py | `raw_pancake.raw_product_variations` | no |
-| bq-raw_pancake..raw_purchase.py | `raw_pancake.raw_purchase` | yes |
-| bq-raw_pancake..raw_stats_inventory_product.py | `raw_pancake.raw_stats_inventory_product` | yes |
-| bq-raw_pancake..raw_stats_inventory_variations.py | `raw_pancake.raw_stats_inventory_variations` | yes |
-| bq-raw_pancake..raw_stats_product.py | `raw_pancake.raw_stats_product` | yes |
-| bq-raw_pancake..raw_transaction.py | `raw_pancake.raw_transaction` | yes |
-| bq-raw_pancake..raw_warehouse_transfer_completed.py | `raw_pancake.raw_warehouse_transfers_completed` (hardcoded Windows key path) | yes |
-| bq-raw_pancake..stats_order.py | `raw_pancake.raw_stats_order` | yes |
-| bq-raw_variations.py | `raw_pancake.raw_variations` | yes |
-| bq-raw_surfosm..order.py | `surfosm.raw_surfosm_order` | no |
-| bq-raw_surfosm..order_return.py | `surfosm.raw_surfosm_order_return` | no |
-| bq-raw_surfosm.inventory.py | `surfosm.raw_surfosm_inventory` | no |
-| bq-raw_tiktok_ads.py | `raw_tiktok.raw_tiktok_thai_ads` (Thai, despite the name) | no |
-| bq-raw_tiktok_ad_group.py | `raw_tiktok.raw_tiktok_thai_ad_group` | no |
-| bq-raw_tiktok_campaign.py | `raw_tiktok.raw_tiktok_thai_campaign` | no |
-| bq-raw_tiktok_gmv_max_report.py | `raw_tiktok.raw_tiktok_thai_gmv_max_report` | no |
-| bq-raw_tiktok_reporting_basic_auction_ad.py | `raw_tiktok.raw_tiktok_reporting_basic_auction_ad` (VN) | no |
+| bq-raw_dianplus..inventory.py | `raw.raw_dianplus_inventory` | no |
+| bq-raw_dianplus..order.py | `raw.raw_dianplus_order` | no |
+| bq-raw_dianplus..order_return.py | `raw.raw_dianplus_order_refund` (the loaders' table; same 85 columns. Named `raw_dianplus_order_return` before 2026-11-06) | no |
+| bq-raw_dianplus..product.py | `raw.raw_dianplus_product` | no |
+| bq-raw_jushuitan..inventory.py | `raw.raw_jushuitan_inventory` | no |
+| bq-raw_jushuitan..order.py | `raw.raw_jushuitan_order` | no |
+| create_schema_bigquery_template.py | `raw.raw_jushuitan_taobao_tmall_order_manual` | no |
+| bq-raw_magento..order.py | `raw.raw_magento_order` | no |
+| bq-raw_meta_ads_reporting_a.py | `raw.raw_ads_reporting_a` | no |
+| bq-raw_pancake..raw_customer.py | `raw.raw_customer` | yes |
+| bq-raw_pancake..raw_ecom_product.py | `raw.raw_ecom_product` | yes |
+| bq-raw_pancake..raw_inventory_histories.py | `raw.raw_inventory_histories` | no |
+| bq-raw_pancake..raw_order.py | `raw.raw_order` | yes |
+| bq-raw_pancake..raw_orders_returned.py | `raw.raw_orders_returned` | no |
+| bq-raw_pancake..raw_product.py | `raw.raw_product` | yes |
+| bq-raw_pancake..raw_product_variations.py | `raw.raw_product_variations` | no |
+| bq-raw_pancake..raw_purchase.py | `raw.raw_purchase` | yes |
+| bq-raw_pancake..raw_stats_inventory_product.py | `raw.raw_stats_inventory_product` | yes |
+| bq-raw_pancake..raw_stats_inventory_variations.py | `raw.raw_stats_inventory_variations` | yes |
+| bq-raw_pancake..raw_stats_product.py | `raw.raw_stats_product` | yes |
+| bq-raw_pancake..raw_transaction.py | `raw.raw_transaction` | yes |
+| bq-raw_pancake..raw_warehouse_transfer_completed.py | `raw.raw_warehouse_transfers_completed` (hardcoded Windows key path) | yes |
+| bq-raw_pancake..stats_order.py | `raw.raw_stats_order` | yes |
+| bq-raw_variations.py | `raw.raw_variations` | yes |
+| bq-raw_surfosm..order.py | `raw.raw_surfosm_order` | no |
+| bq-raw_surfosm..order_return.py | `raw.raw_surfosm_order_return` | no |
+| bq-raw_surfosm.inventory.py | `raw.raw_surfosm_inventory` | no |
+| bq-raw_tiktok_ads.py | `raw.raw_tiktok_thai_ads` (Thai, despite the name) | no |
+| bq-raw_tiktok_ad_group.py | `raw.raw_tiktok_thai_ad_group` | no |
+| bq-raw_tiktok_campaign.py | `raw.raw_tiktok_thai_campaign` | no |
+| bq-raw_tiktok_gmv_max_report.py | `raw.raw_tiktok_thai_gmv_max_report` | no |
+| bq-raw_tiktok_reporting_basic_auction_ad.py | `raw.raw_tiktok_reporting_basic_auction_ad` (VN) | no |
 
 No schema script exists for the VN TikTok ads/ad_group/campaign/GMV tables, the Thai reporting table,
-or `raw_meta.raw_ads_reporting_ecom`/`_my`; load jobs create those tables (unpartitioned) on first load.
+or `raw.raw_ads_reporting_ecom`/`_my`; load jobs create those tables (unpartitioned) on first load.
 
 ## Downstream SQL
 
@@ -193,5 +201,5 @@ CSV exporters retain their existing serialization. Spreadsheet image rendering b
 in the spreadsheet, using a URL extracted by staging.
 
 Raw tables feed staging → core → reporting. See [../sql/README.md](../sql/README.md) for layers and
-example chains (e.g. `raw_pancake.raw_order` → `stg_pancake.stg_order` → `sp_core_order_insert` →
+example chains (e.g. `raw.raw_order` → `stg_pancake.stg_order` → `sp_core_order_insert` →
 `core_pancake.core_order`).

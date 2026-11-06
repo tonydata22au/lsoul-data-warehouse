@@ -29,7 +29,7 @@ SELECT
       SUM(oi.item_total_discount) AS item_total_discount,
       SUM(oi.sales_revenue) 
       - CASE 
-          WHEN SAFE_CAST(o.order_id AS INT64) IN (SELECT order_id  FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` ) 
+          WHEN SAFE_CAST(o.order_id AS INT64) IN (SELECT order_id  FROM `marine-cycle-484213-b4.core.core_pancake__orders_returned` ) 
           THEN 0 
           ELSE SUM(CASE WHEN oi.cart_quantity > 0 THEN item_total_discount ELSE 0 END) 
           END
@@ -39,7 +39,7 @@ SELECT
           ELSE advanced_platform_fee_marketplace_voucher 
           END
       - CASE 
-          WHEN SAFE_CAST(o.order_id AS INT64) IN (SELECT order_id  FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` )  or LENGTH(o.order_id) = 5 
+          WHEN SAFE_CAST(o.order_id AS INT64) IN (SELECT order_id  FROM `marine-cycle-484213-b4.core.core_pancake__orders_returned` )  or LENGTH(o.order_id) = 5 
           THEN 0  
           ELSE total_discount 
           END AS revenue,
@@ -51,18 +51,18 @@ SELECT
       --status_name,
       --assigning_seller_name,
       --creator_name,
-    FROM `marine-cycle-484213-b4.core_pancake.core_order_item` AS oi
-    JOIN `marine-cycle-484213-b4.core_pancake.core_order` AS o ON oi.order_id = o.order_id
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_product` AS p ON oi.product_id = p.raw_product_id
+    FROM `marine-cycle-484213-b4.core.core_pancake__order_item` AS oi
+    JOIN `marine-cycle-484213-b4.core.core_pancake__order` AS o ON oi.order_id = o.order_id
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__product` AS p ON oi.product_id = p.raw_product_id
     LEFT JOIN (
       SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
-      FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+      FROM `marine-cycle-484213-b4.core.core_pancake__warehouse`
     ) AS warehouse ON warehouse.canonical_warehouse_id = oi.warehouse_id
     WHERE 1=1    
       --AND o.order_id = 'REDACTED_EXAMPLE'
       --AND DATE_TRUNC(o.inserted_at, day) between '2026-01-01' and '2026-01-31'
       AND DATE_TRUNC(o.inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)
-      AND o.order_id NOT IN (SELECT order_to_returned_id FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` WHERE is_duplicate = 1)
+      AND o.order_id NOT IN (SELECT order_to_returned_id FROM `marine-cycle-484213-b4.core.core_pancake__orders_returned` WHERE is_duplicate = 1)
 
       AND status_name NOT IN ('canceled','returned','packing','returning')
       AND o.order_sources_name IN ('Tiktok', 'Shopee', 'Lazada')

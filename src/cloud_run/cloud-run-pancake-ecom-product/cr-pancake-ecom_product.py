@@ -214,7 +214,7 @@ def clean_empty_json(df):
     return df
 
 
-def insert_to_bigquery(df, project_id=None, dataset_id="raw_pancake", table_id="raw_ecom_product"):
+def insert_to_bigquery(df, project_id=None, dataset_id=os.getenv("BQ_RAW_DATASET", "raw"), table_id="raw_ecom_product"):
     """
     Insert DataFrame into BigQuery table.
     
@@ -297,7 +297,7 @@ def run_export(*, project_id=None, all_flag=False, start_date=None, end_date=Non
     # Check if there are any products
     if not ecom_products_raw or len(ecom_products_raw) == 0:
         print("0 entry found. No data to export.")
-        return
+        return "0 entry found. No data to export.", 200
 
     df = flatten_data(ecom_products_raw)
     df = rename_and_reorder_columns(df)

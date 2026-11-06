@@ -17,7 +17,7 @@ from google.oauth2 import service_account
 # ============================================================================
 
 # BigQuery Configuration
-DATASET_ID = 'raw_pancake'
+DATASET_ID = 'raw'
 TABLE_ID = 'raw_orders_returned'  # Change this to your desired table name
 LOCATION = 'asia-southeast1'
 

@@ -5,15 +5,16 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 326,
-     "table": "dianplus.raw_dianplus_inventory"
+     "line": 328,
+     "table": "raw.raw_dianplus_inventory"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "dianplus.raw_dianplus_inventory"
+     "table": "raw.raw_dianplus_inventory"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "DIANPLUS_APP_KEY",
     "DIANPLUS_APP_SECRET"
    ],
@@ -44,50 +45,50 @@
     },
     {
      "doc": "Load inventory data from Dianplus API.",
-     "end_line": 274,
+     "end_line": 276,
      "kind": "function",
      "name": "load_data",
      "start_line": 187
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 299,
+     "end_line": 301,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 277
+     "start_line": 279
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 324,
+     "end_line": 326,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 301
+     "start_line": 303
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 354,
+     "end_line": 356,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 326
+     "start_line": 328
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 407,
+     "end_line": 409,
      "kind": "function",
      "name": "run_export",
-     "start_line": 357
+     "start_line": 359
     },
     {
-     "end_line": 428,
+     "end_line": 430,
      "kind": "function",
      "name": "run",
-     "start_line": 413
+     "start_line": 415
     },
     {
-     "end_line": 447,
+     "end_line": 449,
      "kind": "function",
      "name": "main",
-     "start_line": 431
+     "start_line": 433
     }
    ],
    "variant": "cloud_run",
@@ -99,15 +100,16 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 550,
-     "table": "dianplus.raw_dianplus_order_refund"
+     "line": 552,
+     "table": "raw.raw_dianplus_order_refund"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "dianplus.raw_dianplus_order_refund"
+     "table": "raw.raw_dianplus_order_refund"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "DIANPLUS_APP_KEY",
     "DIANPLUS_APP_SECRET"
    ],
@@ -138,71 +140,71 @@
     },
     {
      "doc": "Load order data from Dianplus API for the given time range.",
-     "end_line": 348,
+     "end_line": 350,
      "kind": "function",
      "name": "load_data",
      "start_line": 261
     },
     {
      "doc": "Flatten order refund data, expanding return items into separate rows while preserving all fields.",
-     "end_line": 453,
+     "end_line": 455,
      "kind": "function",
      "name": "flatten_data",
-     "start_line": 350
+     "start_line": 352
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 477,
+     "end_line": 479,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 455
+     "start_line": 457
     },
     {
      "doc": "Split a date range into chunks of specified days.",
-     "end_line": 496,
+     "end_line": 498,
      "kind": "function",
      "name": "chunk_date_range",
-     "start_line": 479
+     "start_line": 481
     },
     {
      "doc": "Convert datetime columns from Shanghai timezone to Vietnam timezone,",
-     "end_line": 523,
+     "end_line": 525,
      "kind": "function",
      "name": "convert_datetime_format",
-     "start_line": 499
+     "start_line": 501
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 548,
+     "end_line": 550,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 525
+     "start_line": 527
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 578,
+     "end_line": 580,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 550
+     "start_line": 552
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 658,
+     "end_line": 660,
      "kind": "function",
      "name": "run_export",
-     "start_line": 581
+     "start_line": 583
     },
     {
-     "end_line": 672,
+     "end_line": 674,
      "kind": "function",
      "name": "run",
-     "start_line": 664
+     "start_line": 666
     },
     {
-     "end_line": 689,
+     "end_line": 691,
      "kind": "function",
      "name": "main",
-     "start_line": 675
+     "start_line": 677
     }
    ],
    "variant": "cloud_run",
@@ -214,15 +216,16 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 582,
-     "table": "dianplus.raw_dianplus_order"
+     "line": 584,
+     "table": "raw.raw_dianplus_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "dianplus.raw_dianplus_order"
+     "table": "raw.raw_dianplus_order"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "DIANPLUS_APP_KEY",
     "DIANPLUS_APP_SECRET"
    ],
@@ -253,71 +256,71 @@
     },
     {
      "doc": "Load order data from Dianplus API for the given time range.",
-     "end_line": 397,
+     "end_line": 399,
      "kind": "function",
      "name": "load_data",
      "start_line": 310
     },
     {
      "doc": "Flatten order data, expanding items into separate rows while preserving and normalizing all nested fields.",
-     "end_line": 485,
+     "end_line": 487,
      "kind": "function",
      "name": "flatten_data",
-     "start_line": 399
+     "start_line": 401
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 509,
+     "end_line": 511,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 487
+     "start_line": 489
     },
     {
      "doc": "Split a date range into chunks of specified days.",
-     "end_line": 528,
+     "end_line": 530,
      "kind": "function",
      "name": "chunk_date_range",
-     "start_line": 511
+     "start_line": 513
     },
     {
      "doc": "Convert datetime columns from Shanghai timezone to Vietnam timezone,",
-     "end_line": 555,
+     "end_line": 557,
      "kind": "function",
      "name": "convert_datetime_format",
-     "start_line": 531
+     "start_line": 533
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 580,
+     "end_line": 582,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 557
+     "start_line": 559
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 622,
+     "end_line": 624,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 582
+     "start_line": 584
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 702,
+     "end_line": 704,
      "kind": "function",
      "name": "run_export",
-     "start_line": 625
+     "start_line": 627
     },
     {
-     "end_line": 716,
+     "end_line": 718,
      "kind": "function",
      "name": "run",
-     "start_line": 708
+     "start_line": 710
     },
     {
-     "end_line": 733,
+     "end_line": 735,
      "kind": "function",
      "name": "main",
-     "start_line": 719
+     "start_line": 721
     }
    ],
    "variant": "cloud_run",
@@ -329,15 +332,16 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 468,
-     "table": "dianplus.raw_dianplus_product"
+     "line": 470,
+     "table": "raw.raw_dianplus_product"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "dianplus.raw_dianplus_product"
+     "table": "raw.raw_dianplus_product"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "DIANPLUS_APP_KEY",
     "DIANPLUS_APP_SECRET"
    ],
@@ -361,57 +365,57 @@
     },
     {
      "doc": "Load inventory data from Dianplus API.",
-     "end_line": 390,
+     "end_line": 392,
      "kind": "function",
      "name": "load_data",
      "start_line": 307
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 415,
+     "end_line": 417,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 393
+     "start_line": 395
     },
     {
      "doc": "Convert datetime columns from Shanghai timezone to Vietnam timezone,",
-     "end_line": 441,
+     "end_line": 443,
      "kind": "function",
      "name": "convert_datetime_format",
-     "start_line": 417
+     "start_line": 419
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 466,
+     "end_line": 468,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 443
+     "start_line": 445
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 496,
+     "end_line": 498,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 468
+     "start_line": 470
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 514,
+     "end_line": 516,
      "kind": "function",
      "name": "run_export",
-     "start_line": 499
+     "start_line": 501
     },
     {
-     "end_line": 528,
+     "end_line": 530,
      "kind": "function",
      "name": "run",
-     "start_line": 520
+     "start_line": 522
     },
     {
-     "end_line": 541,
+     "end_line": 543,
      "kind": "function",
      "name": "main",
-     "start_line": 531
+     "start_line": 533
     }
    ],
    "variant": "cloud_run",
@@ -423,15 +427,16 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 689,
-     "table": "jushuitan.raw_jushuitan_order"
+     "line": 691,
+     "table": "raw.raw_jushuitan_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "jushuitan.raw_jushuitan_order"
+     "table": "raw.raw_jushuitan_order"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "JUSHUITAN_APP_KEY",
     "JUSHUITAN_APP_SECRET"
    ],
@@ -462,71 +467,71 @@
     },
     {
      "doc": "Fetch all paginated order data for a single date window.",
-     "end_line": 483,
+     "end_line": 485,
      "kind": "function",
      "name": "_fetch_pages",
      "start_line": 372
     },
     {
      "doc": "Load all order data from the API.",
-     "end_line": 563,
+     "end_line": 565,
      "kind": "function",
      "name": "load_data",
-     "start_line": 486
+     "start_line": 488
     },
     {
      "doc": "Flatten order data, expanding items into separate rows while preserving and normalizing all nested fields.",
-     "end_line": 619,
+     "end_line": 621,
      "kind": "function",
      "name": "flatten_data",
-     "start_line": 565
+     "start_line": 567
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 643,
+     "end_line": 645,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 621
+     "start_line": 623
     },
     {
      "doc": "Format datetime columns from 'YYYY-MM-DD HH:MM:SS' to 'YYYYMMDDHHMMSS' (no timezone conversion).",
-     "end_line": 672,
+     "end_line": 674,
      "kind": "function",
      "name": "convert_datetime_format",
-     "start_line": 646
+     "start_line": 648
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 686,
+     "end_line": 688,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 675
+     "start_line": 677
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 731,
+     "end_line": 733,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 689
+     "start_line": 691
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 757,
+     "end_line": 759,
      "kind": "function",
      "name": "run_export",
-     "start_line": 734
+     "start_line": 736
     },
     {
-     "end_line": 771,
+     "end_line": 773,
      "kind": "function",
      "name": "run",
-     "start_line": 763
+     "start_line": 765
     },
     {
-     "end_line": 790,
+     "end_line": 792,
      "kind": "function",
      "name": "main",
-     "start_line": 774
+     "start_line": 776
     }
    ],
    "variant": "cloud_run",
@@ -539,11 +544,11 @@
     {
      "evidence": "code",
      "line": 60,
-     "table": "magento.raw_magento_order"
+     "table": "raw.raw_magento_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "magento.raw_magento_order"
+     "table": "raw.raw_magento_order"
     }
    ],
    "env_vars": [
@@ -567,64 +572,64 @@
     },
     {
      "doc": "Fetch orders from Magento.",
-     "end_line": 256,
+     "end_line": 257,
      "kind": "function",
      "name": "_fetch_pages",
      "start_line": 184
     },
     {
      "doc": "Convert \"YYYY-MM-DDTHH:MM:SS\" Vietnam time → \"YYYY-MM-DD HH:MM:SS\" UTC.",
-     "end_line": 264,
+     "end_line": 265,
      "kind": "function",
      "name": "vn_to_utc_str",
-     "start_line": 261
+     "start_line": 262
     },
     {
      "doc": "Flatten orders into one row per item (billing_address, payment promoted to top level).",
-     "end_line": 301,
+     "end_line": 302,
      "kind": "function",
      "name": "flatten_data",
-     "start_line": 269
+     "start_line": 270
     },
     {
      "doc": "Rename columns, format datetimes, clean empty lists, drop parent configurable rows.",
-     "end_line": 331,
+     "end_line": 332,
      "kind": "function",
      "name": "process_df",
-     "start_line": 304
+     "start_line": 305
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 344,
+     "end_line": 345,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 333
+     "start_line": 334
     },
     {
      "doc": "Insert DataFrame into BigQuery (WRITE_APPEND). Nulls stay NULL; values cast to STRING.",
-     "end_line": 389,
+     "end_line": 390,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 348
+     "start_line": 349
     },
     {
      "doc": "Authenticate → fetch → flatten → process → insert. Returns a summary dict.",
-     "end_line": 433,
+     "end_line": 434,
      "kind": "function",
      "name": "run_pipeline",
-     "start_line": 394
+     "start_line": 395
     },
     {
-     "end_line": 444,
+     "end_line": 445,
      "kind": "function",
      "name": "healthz",
-     "start_line": 438
+     "start_line": 439
     },
     {
-     "end_line": 471,
+     "end_line": 472,
      "kind": "function",
      "name": "run",
-     "start_line": 447
+     "start_line": 448
     }
    ],
    "variant": "cloud_run",
@@ -637,14 +642,15 @@
     {
      "evidence": "code",
      "line": 48,
-     "table": "raw_meta.raw_ads_reporting_a"
+     "table": "raw.raw_ads_reporting_a"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_meta.raw_ads_reporting_a"
+     "table": "raw.raw_ads_reporting_a"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "META_ACCESS_TOKEN"
    ],
    "path": "src/cloud_run/cloud-run-meta-ads-reporting-a/cr-meta-ads_reporting-a.py",
@@ -729,14 +735,15 @@
     {
      "evidence": "code",
      "line": 50,
-     "table": "raw_meta.raw_ads_reporting_ecom"
+     "table": "raw.raw_ads_reporting_ecom"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_meta.raw_ads_reporting_ecom"
+     "table": "raw.raw_ads_reporting_ecom"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "META_ACCESS_TOKEN"
    ],
    "path": "src/cloud_run/cloud-run-meta-ads-reporting-ecom/cr-meta-ads_reporting-ecom.py",
@@ -821,14 +828,15 @@
     {
      "evidence": "code",
      "line": 290,
-     "table": "raw_pancake.raw_customer"
+     "table": "raw.raw_customer"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_customer"
+     "table": "raw.raw_customer"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "PANCAKE_API_KEY"
    ],
    "path": "src/cloud_run/cloud-run-pancake-customer/cr-pancake-customer.py",
@@ -924,14 +932,15 @@
     {
      "evidence": "code",
      "line": 217,
-     "table": "raw_pancake.raw_ecom_product"
+     "table": "raw.raw_ecom_product"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_ecom_product"
+     "table": "raw.raw_ecom_product"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "PANCAKE_API_KEY"
    ],
    "path": "src/cloud_run/cloud-run-pancake-ecom-product/cr-pancake-ecom_product.py",
@@ -1014,14 +1023,15 @@
     {
      "evidence": "code",
      "line": 341,
-     "table": "raw_pancake.raw_inventory_histories"
+     "table": "raw.raw_inventory_histories"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_inventory_histories"
+     "table": "raw.raw_inventory_histories"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "PANCAKE_API_KEY"
    ],
    "path": "src/cloud_run/cloud-run-pancake-inventory_histories/cr-pancake-inventory_histories.py",
@@ -1123,14 +1133,15 @@
     {
      "evidence": "code",
      "line": 92,
-     "table": "raw_pancake.raw_order"
+     "table": "raw.raw_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_order"
+     "table": "raw.raw_order"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "K_SERVICE",
     "PANCAKE_API_KEY"
    ],
@@ -1271,14 +1282,15 @@
     {
      "evidence": "code",
      "line": 443,
-     "table": "raw_pancake.raw_order"
+     "table": "raw.raw_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_order"
+     "table": "raw.raw_order"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "PANCAKE_API_KEY"
    ],
    "path": "src/cloud_run/cloud-run-pancake-order_returned/cr-pancake-order.py",
@@ -1367,14 +1379,15 @@
     {
      "evidence": "code",
      "line": 289,
-     "table": "raw_pancake.raw_product"
+     "table": "raw.raw_product"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_product"
+     "table": "raw.raw_product"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "PANCAKE_API_KEY"
    ],
    "path": "src/cloud_run/cloud-run-pancake-product/cr-pancake-product.py",
@@ -1470,14 +1483,15 @@
     {
      "evidence": "code",
      "line": 387,
-     "table": "raw_pancake.raw_product_variations"
+     "table": "raw.raw_product_variations"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_product_variations"
+     "table": "raw.raw_product_variations"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "PANCAKE_API_KEY"
    ],
    "path": "src/cloud_run/cloud-run-pancake-product_variations/cr-pancake-product_variations.py",
@@ -1599,14 +1613,15 @@
     {
      "evidence": "code",
      "line": 240,
-     "table": "raw_pancake.raw_stats_inventory_product"
+     "table": "raw.raw_stats_inventory_product"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_stats_inventory_product"
+     "table": "raw.raw_stats_inventory_product"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "PANCAKE_API_KEY"
    ],
    "path": "src/cloud_run/cloud-run-pancake-stats_inventory_product/cr-pancake-stats_inventory_product.py",
@@ -1695,14 +1710,15 @@
     {
      "evidence": "code",
      "line": 258,
-     "table": "raw_pancake.raw_stats_inventory_variations"
+     "table": "raw.raw_stats_inventory_variations"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_stats_inventory_variations"
+     "table": "raw.raw_stats_inventory_variations"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "PANCAKE_API_KEY"
    ],
    "path": "src/cloud_run/cloud-run-pancake-stats_inventory_variations/cr-pancake-stats_inventory_variations.py",
@@ -1791,14 +1807,15 @@
     {
      "evidence": "code",
      "line": 256,
-     "table": "raw_pancake.raw_stats_order"
+     "table": "raw.raw_stats_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_stats_order"
+     "table": "raw.raw_stats_order"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "PANCAKE_API_KEY"
    ],
    "path": "src/cloud_run/cloud-run-pancake-stats_order/cr-pancake-stats_order.py",
@@ -1887,14 +1904,15 @@
     {
      "evidence": "code",
      "line": 221,
-     "table": "raw_pancake.raw_stats_product"
+     "table": "raw.raw_stats_product"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_stats_product"
+     "table": "raw.raw_stats_product"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "PANCAKE_API_KEY"
    ],
    "path": "src/cloud_run/cloud-run-pancake-stats_product/cr-pancake-stats_product.py",
@@ -1982,14 +2000,15 @@
     {
      "evidence": "code",
      "line": 322,
-     "table": "raw_pancake.raw_variations"
+     "table": "raw.raw_variations"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_variations"
+     "table": "raw.raw_variations"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "PANCAKE_API_KEY"
    ],
    "path": "src/cloud_run/cloud-run-pancake-variations/cr-pancake-variations.py",
@@ -2085,14 +2104,15 @@
     {
      "evidence": "code",
      "line": 295,
-     "table": "raw_pancake.raw_warehouse_transfers_completed"
+     "table": "raw.raw_warehouse_transfers_completed"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_warehouse_transfers_completed"
+     "table": "raw.raw_warehouse_transfers_completed"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "PANCAKE_API_KEY"
    ],
    "path": "src/cloud_run/cloud-run-pancake-warehouse_transfer/cr-pancake-warehouse_transfer.py",
@@ -2182,11 +2202,11 @@
     {
      "evidence": "code",
      "line": 45,
-     "table": "surfosm.raw_surfosm_inventory"
+     "table": "raw.raw_surfosm_inventory"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "surfosm.raw_surfosm_inventory"
+     "table": "raw.raw_surfosm_inventory"
     }
    ],
    "env_vars": [
@@ -2223,45 +2243,45 @@
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 189,
+     "end_line": 191,
      "kind": "function",
      "name": "insert_to_bigquery",
      "start_line": 169
     },
     {
      "doc": "Parse date strings from query params and return a date object.",
-     "end_line": 209,
+     "end_line": 211,
      "kind": "function",
      "name": "_parse_date_input",
-     "start_line": 192
+     "start_line": 194
     },
     {
      "doc": "Resolve date inputs into a list of YYYY-MM-DD strings.",
-     "end_line": 231,
+     "end_line": 233,
      "kind": "function",
      "name": "build_dates_to_fetch",
-     "start_line": 212
+     "start_line": 214
     },
     {
      "doc": "Run export flow used by Cloud Function and optional CLI.",
-     "end_line": 275,
+     "end_line": 277,
      "kind": "function",
      "name": "run_export",
-     "start_line": 234
+     "start_line": 236
     },
     {
      "doc": "Google Cloud Function HTTP entrypoint.",
-     "end_line": 306,
+     "end_line": 308,
      "kind": "function",
      "name": "export_inventory",
-     "start_line": 278
+     "start_line": 280
     },
     {
      "doc": "Optional CLI mode for local/manual execution.",
-     "end_line": 327,
+     "end_line": 329,
      "kind": "function",
      "name": "main",
-     "start_line": 309
+     "start_line": 311
     }
    ],
    "variant": "cloud_run",
@@ -2292,14 +2312,15 @@
     {
      "evidence": "code",
      "line": 325,
-     "table": "surfosm.raw_surfosm_order"
+     "table": "raw.raw_surfosm_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "surfosm.raw_surfosm_order"
+     "table": "raw.raw_surfosm_order"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "GCP_PROJECT",
     "PORT",
     "SURFOSM_API_KEY"
@@ -2379,14 +2400,15 @@
     {
      "evidence": "code",
      "line": 308,
-     "table": "surfosm.raw_surfosm_order_return"
+     "table": "raw.raw_surfosm_order_return"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "surfosm.raw_surfosm_order_return"
+     "table": "raw.raw_surfosm_order_return"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "GCP_PROJECT",
     "PORT",
     "SURFOSM_API_KEY"
@@ -2465,15 +2487,16 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 187,
-     "table": "raw_tiktok.raw_tiktok_ads"
+     "line": 188,
+     "table": "raw.raw_tiktok_ads"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_tiktok.raw_tiktok_ads"
+     "table": "raw.raw_tiktok_ads"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "TIKTOK_VN_ACCESS_TOKEN"
    ],
    "path": "src/cloud_run/cloud-run-tiktok-ads/cr-tiktok-ads.py",
@@ -2489,43 +2512,43 @@
     },
     {
      "doc": "Load ad data from TikTok Ad Management API with pagination.",
-     "end_line": 157,
+     "end_line": 158,
      "kind": "function",
      "name": "load_data",
      "start_line": 82
     },
     {
      "doc": "Flatten API rows into a DataFrame and reorder/rename columns.",
-     "end_line": 185,
+     "end_line": 186,
      "kind": "function",
      "name": "process_data",
-     "start_line": 164
+     "start_line": 165
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 211,
+     "end_line": 212,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 187
+     "start_line": 188
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 240,
+     "end_line": 241,
      "kind": "function",
      "name": "run_export",
-     "start_line": 214
+     "start_line": 215
     },
     {
-     "end_line": 254,
+     "end_line": 255,
      "kind": "function",
      "name": "run",
-     "start_line": 246
+     "start_line": 247
     },
     {
-     "end_line": 269,
+     "end_line": 270,
      "kind": "function",
      "name": "main",
-     "start_line": 257
+     "start_line": 258
     }
    ],
    "variant": "cloud_run",
@@ -2537,15 +2560,16 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 175,
-     "table": "raw_tiktok.raw_tiktok_gmv_max_report"
+     "line": 176,
+     "table": "raw.raw_tiktok_gmv_max_report"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_tiktok.raw_tiktok_gmv_max_report"
+     "table": "raw.raw_tiktok_gmv_max_report"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "TIKTOK_VN_ACCESS_TOKEN"
    ],
    "path": "src/cloud_run/cloud-run-tiktok-gmv-max-report/cr-tiktok-gmv-max-report.py",
@@ -2554,43 +2578,43 @@
    "symbols": [
     {
      "doc": "Load data from TikTok Reporting API with pagination.",
-     "end_line": 146,
+     "end_line": 147,
      "kind": "function",
      "name": "load_data",
      "start_line": 80
     },
     {
      "doc": "Flatten API rows into a flat DataFrame.",
-     "end_line": 173,
+     "end_line": 174,
      "kind": "function",
      "name": "process_data",
-     "start_line": 149
+     "start_line": 150
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 199,
+     "end_line": 200,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 175
+     "start_line": 176
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 240,
+     "end_line": 241,
      "kind": "function",
      "name": "run_export",
-     "start_line": 202
+     "start_line": 203
     },
     {
-     "end_line": 254,
+     "end_line": 255,
      "kind": "function",
      "name": "run",
-     "start_line": 246
+     "start_line": 247
     },
     {
-     "end_line": 269,
+     "end_line": 270,
      "kind": "function",
      "name": "main",
-     "start_line": 257
+     "start_line": 258
     }
    ],
    "variant": "cloud_run",
@@ -2602,15 +2626,16 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 291,
-     "table": "raw_tiktok.raw_tiktok_reporting_basic_auction_ad"
+     "line": 292,
+     "table": "raw.raw_tiktok_reporting_basic_auction_ad"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_tiktok.raw_tiktok_reporting_basic_auction_ad"
+     "table": "raw.raw_tiktok_reporting_basic_auction_ad"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "TIKTOK_VN_ACCESS_TOKEN"
    ],
    "path": "src/cloud_run/cloud-run-tiktok-reporting-basic-autction-ad/cr-tiktok-reporting-basic-auction-ad.py",
@@ -2619,43 +2644,43 @@
    "symbols": [
     {
      "doc": "Load data from TikTok Reporting API with pagination.",
-     "end_line": 262,
+     "end_line": 263,
      "kind": "function",
      "name": "load_data",
      "start_line": 194
     },
     {
      "doc": "Flatten API rows into a flat DataFrame.",
-     "end_line": 289,
+     "end_line": 290,
      "kind": "function",
      "name": "process_data",
-     "start_line": 265
+     "start_line": 266
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 315,
+     "end_line": 316,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 291
+     "start_line": 292
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 356,
+     "end_line": 357,
      "kind": "function",
      "name": "run_export",
-     "start_line": 318
+     "start_line": 319
     },
     {
-     "end_line": 370,
+     "end_line": 371,
      "kind": "function",
      "name": "run",
-     "start_line": 362
+     "start_line": 363
     },
     {
-     "end_line": 385,
+     "end_line": 386,
      "kind": "function",
      "name": "main",
-     "start_line": 373
+     "start_line": 374
     }
    ],
    "variant": "cloud_run",
@@ -2667,15 +2692,16 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 201,
-     "table": "raw_tiktok.raw_tiktok_thai_ads"
+     "line": 202,
+     "table": "raw.raw_tiktok_thai_ads"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_tiktok.raw_tiktok_thai_ads"
+     "table": "raw.raw_tiktok_thai_ads"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "TIKTOK_TH_ACCESS_TOKEN"
    ],
    "path": "src/cloud_run/cloud-run-tiktok-thai-ads/cr-tiktok-ads.py",
@@ -2691,43 +2717,43 @@
     },
     {
      "doc": "Load ad data from TikTok Ad Management API with pagination.",
-     "end_line": 171,
+     "end_line": 172,
      "kind": "function",
      "name": "load_data",
      "start_line": 96
     },
     {
      "doc": "Flatten API rows into a DataFrame and reorder/rename columns.",
-     "end_line": 199,
+     "end_line": 200,
      "kind": "function",
      "name": "process_data",
-     "start_line": 178
+     "start_line": 179
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 225,
+     "end_line": 226,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 201
+     "start_line": 202
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 254,
+     "end_line": 255,
      "kind": "function",
      "name": "run_export",
-     "start_line": 228
+     "start_line": 229
     },
     {
-     "end_line": 268,
+     "end_line": 269,
      "kind": "function",
      "name": "run",
-     "start_line": 260
+     "start_line": 261
     },
     {
-     "end_line": 283,
+     "end_line": 284,
      "kind": "function",
      "name": "main",
-     "start_line": 271
+     "start_line": 272
     }
    ],
    "variant": "cloud_run",
@@ -2739,15 +2765,16 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 177,
-     "table": "raw_tiktok.raw_tiktok_thai_gmv_max_report"
+     "line": 178,
+     "table": "raw.raw_tiktok_thai_gmv_max_report"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_tiktok.raw_tiktok_thai_gmv_max_report"
+     "table": "raw.raw_tiktok_thai_gmv_max_report"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "TIKTOK_TH_ACCESS_TOKEN"
    ],
    "path": "src/cloud_run/cloud-run-tiktok-thai-gmv-max-report/cr-tiktok-thai-gmv-max-report.py",
@@ -2756,43 +2783,43 @@
    "symbols": [
     {
      "doc": "Load data from TikTok Reporting API with pagination.",
-     "end_line": 148,
+     "end_line": 149,
      "kind": "function",
      "name": "load_data",
      "start_line": 82
     },
     {
      "doc": "Flatten API rows into a flat DataFrame.",
-     "end_line": 175,
+     "end_line": 176,
      "kind": "function",
      "name": "process_data",
-     "start_line": 151
+     "start_line": 152
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 201,
+     "end_line": 202,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 177
+     "start_line": 178
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 242,
+     "end_line": 243,
      "kind": "function",
      "name": "run_export",
-     "start_line": 204
+     "start_line": 205
     },
     {
-     "end_line": 256,
+     "end_line": 257,
      "kind": "function",
      "name": "run",
-     "start_line": 248
+     "start_line": 249
     },
     {
-     "end_line": 271,
+     "end_line": 272,
      "kind": "function",
      "name": "main",
-     "start_line": 259
+     "start_line": 260
     }
    ],
    "variant": "cloud_run",
@@ -2804,15 +2831,16 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 307,
-     "table": "raw_tiktok.raw_tiktok_thai_reporting_basic_auction_ad"
+     "line": 308,
+     "table": "raw.raw_tiktok_thai_reporting_basic_auction_ad"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_tiktok.raw_tiktok_thai_reporting_basic_auction_ad"
+     "table": "raw.raw_tiktok_thai_reporting_basic_auction_ad"
     }
    ],
    "env_vars": [
+    "BQ_RAW_DATASET",
     "TIKTOK_TH_ACCESS_TOKEN"
    ],
    "path": "src/cloud_run/cloud-run-tiktok-thai-reporting-basic-autction-ad/cr-tiktok-thai-reporting-basic-auction-ad.py",
@@ -2821,43 +2849,43 @@
    "symbols": [
     {
      "doc": "Load data from TikTok Reporting API with pagination.",
-     "end_line": 278,
+     "end_line": 279,
      "kind": "function",
      "name": "load_data",
      "start_line": 210
     },
     {
      "doc": "Flatten API rows into a flat DataFrame.",
-     "end_line": 305,
+     "end_line": 306,
      "kind": "function",
      "name": "process_data",
-     "start_line": 281
+     "start_line": 282
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 331,
+     "end_line": 332,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 307
+     "start_line": 308
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 372,
+     "end_line": 373,
      "kind": "function",
      "name": "run_export",
-     "start_line": 334
+     "start_line": 335
     },
     {
-     "end_line": 386,
+     "end_line": 387,
      "kind": "function",
      "name": "run",
-     "start_line": 378
+     "start_line": 379
     },
     {
-     "end_line": 401,
+     "end_line": 402,
      "kind": "function",
      "name": "main",
-     "start_line": 389
+     "start_line": 390
     }
    ],
    "variant": "cloud_run",
@@ -4942,11 +4970,11 @@
     {
      "evidence": "code",
      "line": 314,
-     "table": "dianplus.raw_dianplus_inventory"
+     "table": "raw.raw_dianplus_inventory"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "dianplus.raw_dianplus_inventory"
+     "table": "raw.raw_dianplus_inventory"
     }
    ],
    "env_vars": [
@@ -5017,11 +5045,11 @@
     {
      "evidence": "code",
      "line": 619,
-     "table": "dianplus.raw_dianplus_order"
+     "table": "raw.raw_dianplus_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "dianplus.raw_dianplus_order"
+     "table": "raw.raw_dianplus_order"
     }
    ],
    "env_vars": [
@@ -5127,11 +5155,11 @@
     {
      "evidence": "code",
      "line": 560,
-     "table": "dianplus.raw_dianplus_order_refund"
+     "table": "raw.raw_dianplus_order_refund"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "dianplus.raw_dianplus_order_refund"
+     "table": "raw.raw_dianplus_order_refund"
     }
    ],
    "env_vars": [
@@ -5230,11 +5258,11 @@
     {
      "evidence": "code",
      "line": 420,
-     "table": "dianplus.raw_dianplus_product"
+     "table": "raw.raw_dianplus_product"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "dianplus.raw_dianplus_product"
+     "table": "raw.raw_dianplus_product"
     }
    ],
    "env_vars": [
@@ -5306,11 +5334,11 @@
     {
      "evidence": "code",
      "line": 470,
-     "table": "jushuitan.raw_jushuitan_inventory"
+     "table": "raw.raw_jushuitan_inventory"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "jushuitan.raw_jushuitan_inventory"
+     "table": "raw.raw_jushuitan_inventory"
     }
    ],
    "env_vars": [
@@ -5408,11 +5436,11 @@
     {
      "evidence": "code",
      "line": 683,
-     "table": "jushuitan.raw_jushuitan_order"
+     "table": "raw.raw_jushuitan_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "jushuitan.raw_jushuitan_order"
+     "table": "raw.raw_jushuitan_order"
     }
    ],
    "env_vars": [
@@ -5511,11 +5539,11 @@
     {
      "evidence": "code",
      "line": 181,
-     "table": "jushuitan.raw_jushuitan_taobao_tmall_order_manual"
+     "table": "raw.raw_jushuitan_taobao_tmall_order_manual"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "jushuitan.raw_jushuitan_taobao_tmall_order_manual"
+     "table": "raw.raw_jushuitan_taobao_tmall_order_manual"
     }
    ],
    "env_vars": [],
@@ -5590,11 +5618,11 @@
     {
      "evidence": "code",
      "line": 705,
-     "table": "magento.raw_magento_order"
+     "table": "raw.raw_magento_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "magento.raw_magento_order"
+     "table": "raw.raw_magento_order"
     }
    ],
    "env_vars": [
@@ -5693,11 +5721,11 @@
     {
      "evidence": "code",
      "line": 51,
-     "table": "raw_meta.raw_ads_reporting_a"
+     "table": "raw.raw_ads_reporting_a"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_meta.raw_ads_reporting_a"
+     "table": "raw.raw_ads_reporting_a"
     }
    ],
    "env_vars": [
@@ -5780,11 +5808,11 @@
     {
      "evidence": "code",
      "line": 51,
-     "table": "raw_meta.raw_ads_reporting_ecom"
+     "table": "raw.raw_ads_reporting_ecom"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_meta.raw_ads_reporting_ecom"
+     "table": "raw.raw_ads_reporting_ecom"
     }
    ],
    "env_vars": [
@@ -5867,11 +5895,11 @@
     {
      "evidence": "code",
      "line": 51,
-     "table": "raw_meta.raw_ads_reporting_my"
+     "table": "raw.raw_ads_reporting_my"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_meta.raw_ads_reporting_my"
+     "table": "raw.raw_ads_reporting_my"
     }
    ],
    "env_vars": [
@@ -5954,11 +5982,11 @@
     {
      "evidence": "code",
      "line": 301,
-     "table": "raw_pancake.raw_customer"
+     "table": "raw.raw_customer"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_customer"
+     "table": "raw.raw_customer"
     }
    ],
    "env_vars": [
@@ -6044,11 +6072,11 @@
     {
      "evidence": "code",
      "line": 359,
-     "table": "raw_pancake.raw_inventory_histories"
+     "table": "raw.raw_inventory_histories"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_inventory_histories"
+     "table": "raw.raw_inventory_histories"
     }
    ],
    "env_vars": [
@@ -6140,11 +6168,11 @@
     {
      "evidence": "code",
      "line": 457,
-     "table": "raw_pancake.raw_order"
+     "table": "raw.raw_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_order"
+     "table": "raw.raw_order"
     }
    ],
    "env_vars": [
@@ -6223,11 +6251,11 @@
     {
      "evidence": "code",
      "line": 306,
-     "table": "raw_pancake.raw_orders_returned"
+     "table": "raw.raw_orders_returned"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_orders_returned"
+     "table": "raw.raw_orders_returned"
     }
    ],
    "env_vars": [
@@ -6326,11 +6354,11 @@
     {
      "evidence": "code",
      "line": 377,
-     "table": "raw_pancake.raw_product_variations"
+     "table": "raw.raw_product_variations"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_product_variations"
+     "table": "raw.raw_product_variations"
     }
    ],
    "env_vars": [
@@ -6436,11 +6464,11 @@
     {
      "evidence": "code",
      "line": 269,
-     "table": "raw_pancake.raw_stats_inventory_variations"
+     "table": "raw.raw_stats_inventory_variations"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_stats_inventory_variations"
+     "table": "raw.raw_stats_inventory_variations"
     }
    ],
    "env_vars": [
@@ -6519,11 +6547,11 @@
     {
      "evidence": "code",
      "line": 232,
-     "table": "raw_pancake.raw_stats_product"
+     "table": "raw.raw_stats_product"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_stats_product"
+     "table": "raw.raw_stats_product"
     }
    ],
    "env_vars": [
@@ -6601,11 +6629,11 @@
     {
      "evidence": "code",
      "line": 186,
-     "table": "surfosm.raw_surfosm_inventory"
+     "table": "raw.raw_surfosm_inventory"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "surfosm.raw_surfosm_inventory"
+     "table": "raw.raw_surfosm_inventory"
     }
    ],
    "env_vars": [
@@ -6660,11 +6688,11 @@
     {
      "evidence": "code",
      "line": 344,
-     "table": "surfosm.raw_surfosm_order"
+     "table": "raw.raw_surfosm_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "surfosm.raw_surfosm_order"
+     "table": "raw.raw_surfosm_order"
     }
    ],
    "env_vars": [
@@ -6732,11 +6760,11 @@
     {
      "evidence": "code",
      "line": 317,
-     "table": "surfosm.raw_surfosm_order_return"
+     "table": "raw.raw_surfosm_order_return"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "surfosm.raw_surfosm_order_return"
+     "table": "raw.raw_surfosm_order_return"
     }
    ],
    "env_vars": [
@@ -6804,7 +6832,7 @@
     {
      "evidence": "code",
      "line": 221,
-     "table": "raw_tiktok.raw_tiktok_thai_ad_group"
+     "table": "raw.raw_tiktok_thai_ad_group"
     }
    ],
    "env_vars": [
@@ -6859,7 +6887,7 @@
     {
      "evidence": "code",
      "line": 198,
-     "table": "raw_tiktok.raw_tiktok_thai_ads"
+     "table": "raw.raw_tiktok_thai_ads"
     }
    ],
    "env_vars": [
@@ -6914,7 +6942,7 @@
     {
      "evidence": "code",
      "line": 191,
-     "table": "raw_tiktok.raw_tiktok_thai_campaign"
+     "table": "raw.raw_tiktok_thai_campaign"
     }
    ],
    "env_vars": [
@@ -6969,7 +6997,7 @@
     {
      "evidence": "code",
      "line": 176,
-     "table": "raw_tiktok.raw_tiktok_thai_gmv_max_report"
+     "table": "raw.raw_tiktok_thai_gmv_max_report"
     }
    ],
    "env_vars": [
@@ -7017,7 +7045,7 @@
     {
      "evidence": "code",
      "line": 304,
-     "table": "raw_tiktok.raw_tiktok_thai_reporting_basic_auction_ad"
+     "table": "raw.raw_tiktok_thai_reporting_basic_auction_ad"
     }
    ],
    "env_vars": [
@@ -7065,7 +7093,7 @@
     {
      "evidence": "code",
      "line": 217,
-     "table": "raw_tiktok.raw_tiktok_ad_group"
+     "table": "raw.raw_tiktok_ad_group"
     }
    ],
    "env_vars": [
@@ -7120,7 +7148,7 @@
     {
      "evidence": "code",
      "line": 196,
-     "table": "raw_tiktok.raw_tiktok_ads"
+     "table": "raw.raw_tiktok_ads"
     }
    ],
    "env_vars": [
@@ -7175,7 +7203,7 @@
     {
      "evidence": "code",
      "line": 187,
-     "table": "raw_tiktok.raw_tiktok_campaign"
+     "table": "raw.raw_tiktok_campaign"
     }
    ],
    "env_vars": [
@@ -7230,7 +7258,7 @@
     {
      "evidence": "code",
      "line": 176,
-     "table": "raw_tiktok.raw_tiktok_gmv_max_report"
+     "table": "raw.raw_tiktok_gmv_max_report"
     }
    ],
    "env_vars": [
@@ -7278,7 +7306,7 @@
     {
      "evidence": "code",
      "line": 302,
-     "table": "raw_tiktok.raw_tiktok_reporting_basic_auction_ad"
+     "table": "raw.raw_tiktok_reporting_basic_auction_ad"
     }
    ],
    "env_vars": [
@@ -7326,11 +7354,11 @@
     {
      "evidence": "code",
      "line": 23,
-     "table": "dianplus.raw_dianplus_inventory"
+     "table": "raw.raw_dianplus_inventory"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "dianplus.raw_dianplus_inventory"
+     "table": "raw.raw_dianplus_inventory"
     }
    ],
    "env_vars": [
@@ -7369,11 +7397,11 @@
     {
      "evidence": "code",
      "line": 22,
-     "table": "dianplus.raw_dianplus_order"
+     "table": "raw.raw_dianplus_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "dianplus.raw_dianplus_order"
+     "table": "raw.raw_dianplus_order"
     }
    ],
    "env_vars": [
@@ -7412,11 +7440,11 @@
     {
      "evidence": "code",
      "line": 22,
-     "table": "dianplus.raw_dianplus_order_return"
+     "table": "raw.raw_dianplus_order_refund"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "dianplus.raw_dianplus_order_return"
+     "table": "raw.raw_dianplus_order_refund"
     }
    ],
    "env_vars": [
@@ -7455,11 +7483,11 @@
     {
      "evidence": "code",
      "line": 22,
-     "table": "dianplus.raw_dianplus_product"
+     "table": "raw.raw_dianplus_product"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "dianplus.raw_dianplus_product"
+     "table": "raw.raw_dianplus_product"
     }
    ],
    "env_vars": [
@@ -7498,11 +7526,11 @@
     {
      "evidence": "code",
      "line": 21,
-     "table": "jushuitan.raw_jushuitan_inventory"
+     "table": "raw.raw_jushuitan_inventory"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "jushuitan.raw_jushuitan_inventory"
+     "table": "raw.raw_jushuitan_inventory"
     }
    ],
    "env_vars": [
@@ -7541,39 +7569,37 @@
     {
      "evidence": "code",
      "line": 21,
-     "table": "jushuitan.raw_jushuitan_order"
+     "table": "raw.raw_jushuitan_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "jushuitan.raw_jushuitan_order"
+     "table": "raw.raw_jushuitan_order"
     }
    ],
-   "env_vars": [
-    "GOOGLE_APPLICATION_CREDENTIALS"
-   ],
+   "env_vars": [],
    "path": "src/schema/bq-raw_jushuitan..order.py",
    "service": null,
    "source_system": "jushuitan",
    "symbols": [
     {
      "doc": "Create dataset if it doesn't exist",
-     "end_line": 183,
+     "end_line": 184,
      "kind": "function",
      "name": "create_dataset_if_not_exists",
-     "start_line": 172
+     "start_line": 173
     },
     {
      "doc": "Create an empty table with the specified schema",
-     "end_line": 206,
+     "end_line": 207,
      "kind": "function",
      "name": "create_table_schema_only",
-     "start_line": 186
+     "start_line": 187
     },
     {
-     "end_line": 234,
+     "end_line": 235,
      "kind": "function",
      "name": "main",
-     "start_line": 210
+     "start_line": 211
     }
    ],
    "variant": "schema",
@@ -7584,11 +7610,11 @@
     {
      "evidence": "code",
      "line": 21,
-     "table": "magento.raw_magento_order"
+     "table": "raw.raw_magento_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "magento.raw_magento_order"
+     "table": "raw.raw_magento_order"
     }
    ],
    "env_vars": [
@@ -7627,11 +7653,11 @@
     {
      "evidence": "code",
      "line": 21,
-     "table": "raw_meta.raw_ads_reporting_a"
+     "table": "raw.raw_ads_reporting_a"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_meta.raw_ads_reporting_a"
+     "table": "raw.raw_ads_reporting_a"
     }
    ],
    "env_vars": [
@@ -7670,11 +7696,11 @@
     {
      "evidence": "code",
      "line": 25,
-     "table": "raw_pancake.raw_customer"
+     "table": "raw.raw_customer"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_customer"
+     "table": "raw.raw_customer"
     }
    ],
    "env_vars": [
@@ -7722,11 +7748,11 @@
     {
      "evidence": "code",
      "line": 25,
-     "table": "raw_pancake.raw_ecom_product"
+     "table": "raw.raw_ecom_product"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_ecom_product"
+     "table": "raw.raw_ecom_product"
     }
    ],
    "env_vars": [
@@ -7774,11 +7800,11 @@
     {
      "evidence": "code",
      "line": 23,
-     "table": "raw_pancake.raw_inventory_histories"
+     "table": "raw.raw_inventory_histories"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_inventory_histories"
+     "table": "raw.raw_inventory_histories"
     }
    ],
    "env_vars": [
@@ -7817,11 +7843,11 @@
     {
      "evidence": "code",
      "line": 22,
-     "table": "raw_pancake.raw_order"
+     "table": "raw.raw_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_order"
+     "table": "raw.raw_order"
     }
    ],
    "env_vars": [],
@@ -7867,11 +7893,11 @@
     {
      "evidence": "code",
      "line": 21,
-     "table": "raw_pancake.raw_orders_returned"
+     "table": "raw.raw_orders_returned"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_orders_returned"
+     "table": "raw.raw_orders_returned"
     }
    ],
    "env_vars": [
@@ -7910,11 +7936,11 @@
     {
      "evidence": "code",
      "line": 25,
-     "table": "raw_pancake.raw_product"
+     "table": "raw.raw_product"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_product"
+     "table": "raw.raw_product"
     }
    ],
    "env_vars": [
@@ -7962,11 +7988,11 @@
     {
      "evidence": "code",
      "line": 23,
-     "table": "raw_pancake.raw_product_variations"
+     "table": "raw.raw_product_variations"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_product_variations"
+     "table": "raw.raw_product_variations"
     }
    ],
    "env_vars": [],
@@ -8003,11 +8029,11 @@
     {
      "evidence": "code",
      "line": 22,
-     "table": "raw_pancake.raw_purchase"
+     "table": "raw.raw_purchase"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_purchase"
+     "table": "raw.raw_purchase"
     }
    ],
    "env_vars": [],
@@ -8053,11 +8079,11 @@
     {
      "evidence": "code",
      "line": 25,
-     "table": "raw_pancake.raw_stats_inventory_product"
+     "table": "raw.raw_stats_inventory_product"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_stats_inventory_product"
+     "table": "raw.raw_stats_inventory_product"
     }
    ],
    "env_vars": [
@@ -8105,11 +8131,11 @@
     {
      "evidence": "code",
      "line": 25,
-     "table": "raw_pancake.raw_stats_inventory_variations"
+     "table": "raw.raw_stats_inventory_variations"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_stats_inventory_variations"
+     "table": "raw.raw_stats_inventory_variations"
     }
    ],
    "env_vars": [
@@ -8157,11 +8183,11 @@
     {
      "evidence": "code",
      "line": 22,
-     "table": "raw_pancake.raw_stats_product"
+     "table": "raw.raw_stats_product"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_stats_product"
+     "table": "raw.raw_stats_product"
     }
    ],
    "env_vars": [],
@@ -8207,11 +8233,11 @@
     {
      "evidence": "code",
      "line": 22,
-     "table": "raw_pancake.raw_transaction"
+     "table": "raw.raw_transaction"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_transaction"
+     "table": "raw.raw_transaction"
     }
    ],
    "env_vars": [],
@@ -8257,11 +8283,11 @@
     {
      "evidence": "code",
      "line": 24,
-     "table": "raw_pancake.raw_warehouse_transfers_completed"
+     "table": "raw.raw_warehouse_transfers_completed"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_warehouse_transfers_completed"
+     "table": "raw.raw_warehouse_transfers_completed"
     }
    ],
    "env_vars": [],
@@ -8307,11 +8333,11 @@
     {
      "evidence": "code",
      "line": 25,
-     "table": "raw_pancake.raw_stats_order"
+     "table": "raw.raw_stats_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_stats_order"
+     "table": "raw.raw_stats_order"
     }
    ],
    "env_vars": [
@@ -8359,11 +8385,11 @@
     {
      "evidence": "code",
      "line": 22,
-     "table": "surfosm.raw_surfosm_order"
+     "table": "raw.raw_surfosm_order"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "surfosm.raw_surfosm_order"
+     "table": "raw.raw_surfosm_order"
     }
    ],
    "env_vars": [
@@ -8402,11 +8428,11 @@
     {
      "evidence": "code",
      "line": 22,
-     "table": "surfosm.raw_surfosm_order_return"
+     "table": "raw.raw_surfosm_order_return"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "surfosm.raw_surfosm_order_return"
+     "table": "raw.raw_surfosm_order_return"
     }
    ],
    "env_vars": [
@@ -8445,11 +8471,11 @@
     {
      "evidence": "code",
      "line": 21,
-     "table": "surfosm.raw_surfosm_inventory"
+     "table": "raw.raw_surfosm_inventory"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "surfosm.raw_surfosm_inventory"
+     "table": "raw.raw_surfosm_inventory"
     }
    ],
    "env_vars": [
@@ -8488,11 +8514,11 @@
     {
      "evidence": "code",
      "line": 22,
-     "table": "raw_tiktok.raw_tiktok_thai_ad_group"
+     "table": "raw.raw_tiktok_thai_ad_group"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_tiktok.raw_tiktok_thai_ad_group"
+     "table": "raw.raw_tiktok_thai_ad_group"
     }
    ],
    "env_vars": [
@@ -8531,11 +8557,11 @@
     {
      "evidence": "code",
      "line": 22,
-     "table": "raw_tiktok.raw_tiktok_thai_ads"
+     "table": "raw.raw_tiktok_thai_ads"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_tiktok.raw_tiktok_thai_ads"
+     "table": "raw.raw_tiktok_thai_ads"
     }
    ],
    "env_vars": [
@@ -8574,11 +8600,11 @@
     {
      "evidence": "code",
      "line": 22,
-     "table": "raw_tiktok.raw_tiktok_thai_campaign"
+     "table": "raw.raw_tiktok_thai_campaign"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_tiktok.raw_tiktok_thai_campaign"
+     "table": "raw.raw_tiktok_thai_campaign"
     }
    ],
    "env_vars": [
@@ -8617,11 +8643,11 @@
     {
      "evidence": "code",
      "line": 24,
-     "table": "raw_tiktok.raw_tiktok_thai_gmv_max_report"
+     "table": "raw.raw_tiktok_thai_gmv_max_report"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_tiktok.raw_tiktok_thai_gmv_max_report"
+     "table": "raw.raw_tiktok_thai_gmv_max_report"
     }
    ],
    "env_vars": [
@@ -8660,11 +8686,11 @@
     {
      "evidence": "code",
      "line": 23,
-     "table": "raw_tiktok.raw_tiktok_reporting_basic_auction_ad"
+     "table": "raw.raw_tiktok_reporting_basic_auction_ad"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_tiktok.raw_tiktok_reporting_basic_auction_ad"
+     "table": "raw.raw_tiktok_reporting_basic_auction_ad"
     }
    ],
    "env_vars": [
@@ -8703,11 +8729,11 @@
     {
      "evidence": "code",
      "line": 25,
-     "table": "raw_pancake.raw_variations"
+     "table": "raw.raw_variations"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "raw_pancake.raw_variations"
+     "table": "raw.raw_variations"
     }
    ],
    "env_vars": [
@@ -8755,11 +8781,11 @@
     {
      "evidence": "code",
      "line": 21,
-     "table": "jushuitan.raw_jushuitan_taobao_tmall_order_manual"
+     "table": "raw.raw_jushuitan_taobao_tmall_order_manual"
     },
     {
      "evidence": "docs/pipelines.md",
-     "table": "jushuitan.raw_jushuitan_taobao_tmall_order_manual"
+     "table": "raw.raw_jushuitan_taobao_tmall_order_manual"
     }
    ],
    "env_vars": [

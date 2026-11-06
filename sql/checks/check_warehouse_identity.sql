@@ -24,7 +24,7 @@ WITH policy AS (
   ])
 ), warehouses AS (
   SELECT warehouse_id, country, warehouse_type
-  FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+  FROM `marine-cycle-484213-b4.core.core_pancake__warehouse`
 )
 SELECT 'duplicate_id' AS finding, warehouse_id, CAST(COUNT(*) AS STRING) AS detail
 FROM warehouses GROUP BY warehouse_id HAVING COUNT(*) > 1

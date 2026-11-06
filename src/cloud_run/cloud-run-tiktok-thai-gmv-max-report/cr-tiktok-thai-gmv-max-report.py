@@ -119,12 +119,13 @@ def load_data(start_date, end_date):
             payload = response.json()
         except requests.RequestException as exc:
             print(f"  ✗ Request failed on page {page}: {exc}")
-            break
+            # Fail the run: returning the rows so far would load a partial day as a success
+            raise RuntimeError(f"TikTok request failed on page {page}: {exc}") from exc
 
         code = payload.get("code", -1)
         if code != 0:
             print(f"  ✗ API error (code={code}): {payload.get('message', 'unknown')}")
-            break
+            raise RuntimeError(f"TikTok API error on page {page} (code={code}): {payload.get('message', 'unknown')}")
 
         data = payload.get("data", {})
         rows = data.get("list", [])
@@ -174,7 +175,7 @@ def process_data(raw_rows):
 
     return df
 
-def insert_to_bigquery(df, project_id=None, dataset_id="raw_tiktok", table_id="raw_tiktok_thai_gmv_max_report"):
+def insert_to_bigquery(df, project_id=None, dataset_id=os.getenv("BQ_RAW_DATASET", "raw"), table_id="raw_tiktok_thai_gmv_max_report"):
     """Insert DataFrame into BigQuery."""
     # Convert all columns to string to match BQ schema
     df = df.astype(str)
@@ -194,7 +195,7 @@ def insert_to_bigquery(df, project_id=None, dataset_id="raw_tiktok", table_id="r
         )
         load_job = client.load_table_from_dataframe(df, table_ref, job_config=job_config)
         load_job.result()
-        print(f"  ✓ Successfully loaded {load_job.output_rows} rows into {dataset_id}.{table_id}")
+        print(f"  ✓ Successfully loaded {load_job.output_rows} rows into {client.project}.{dataset_id}.{table_id} [{load_job.job_id}]")
     finally:
         # Ensure client is properly closed
         client.close()

@@ -18,7 +18,7 @@ WITH dim_product AS (
     ,ANY_VALUE(product_name)        AS product_name
     ,ANY_VALUE(product_launch_date) AS product_launch_date
     ,MAX(CASE WHEN TRIM(UPPER(product_tags)) LIKE '%SYS_01_SALE_END%' THEN 1 ELSE 0 END) AS is_sale_end
-  FROM `marine-cycle-484213-b4.core_pancake.core_product`
+  FROM `marine-cycle-484213-b4.core.core_pancake__product`
   GROUP BY product_code
 )
 ,stage AS (
@@ -75,7 +75,7 @@ SELECT
 
       --WAREHOUSE
       '76be7836-6dc5-4b1c-9e48-b18e43127453' AS warehouse_id, --warehouse_id cua Kho Trung Quốc (Back-up)
-      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name,
+      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core.core_pancake__warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name,
 
       --SALE
       oi.sumSuggestPrice AS sales_revenue_cn_gmv,
@@ -93,11 +93,11 @@ SELECT
           ELSE 0
       END to_remove_record
 
-    FROM `marine-cycle-484213-b4.dianplus.core_dianplus_order` AS o
-    JOIN `marine-cycle-484213-b4.dianplus.core_dianplus_order_item` AS oi ON oi.orderID = o.orderId 
-    LEFT JOIN `marine-cycle-484213-b4.dianplus.core_dianplus_order_item_refund`AS ri ON o.orderId = ri.porderId AND oi.skuDjId = ri.skuDjId
+    FROM `marine-cycle-484213-b4.core.core_dianplus__order` AS o
+    JOIN `marine-cycle-484213-b4.core.core_dianplus__order_item` AS oi ON oi.orderID = o.orderId 
+    LEFT JOIN `marine-cycle-484213-b4.core.core_dianplus__order_item_refund`AS ri ON o.orderId = ri.porderId AND oi.skuDjId = ri.skuDjId
     LEFT JOIN dim_product AS p ON oi.product_code = p.product_code
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON oi.skuCode = v.variation_display_id
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__variations` AS v ON oi.skuCode = v.variation_display_id
     WHERE 1=1    
 )
 ,core AS (

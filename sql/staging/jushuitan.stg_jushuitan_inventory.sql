@@ -24,6 +24,6 @@ SELECT
   SAFE_CAST(allocate_qty AS NUMERIC) AS allocate_qty,
   SAFE_CAST(virtual_qty AS NUMERIC) AS virtual_qty
 
-FROM `marine-cycle-484213-b4.jushuitan.raw_jushuitan_inventory` 
+FROM `marine-cycle-484213-b4.raw.raw_jushuitan_inventory` 
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = TIMESTAMP("2026-06-01")
 

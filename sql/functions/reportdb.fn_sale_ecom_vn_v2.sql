@@ -15,7 +15,7 @@ WITH stage AS (
   SELECT
       order_date,
       o.order_id,
-      CASE WHEN o.order_id IN (SELECT CAST(order_id AS STRING) FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` where is_duplicate = 0) and status_name = 'delivered' THEN 'part-returned' ELSE status_name END AS status_name,
+      CASE WHEN o.order_id IN (SELECT CAST(order_id AS STRING) FROM `marine-cycle-484213-b4.core.core_pancake__orders_returned` where is_duplicate = 0) and status_name = 'delivered' THEN 'part-returned' ELSE status_name END AS status_name,
       'Sale Ecommerce' AS level_1,
       'VN Ecommerce' AS level_2,
       order_sources_name AS level_3,
@@ -52,7 +52,7 @@ WITH stage AS (
         WHEN customer_currency = 'SGD' THEN 202.66
         ELSE 1 
         END * 
-      CASE WHEN SAFE_CAST(o.order_id AS INT64) IN (SELECT order_id  FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` ) THEN 0 ELSE item_total_discount END
+      CASE WHEN SAFE_CAST(o.order_id AS INT64) IN (SELECT order_id  FROM `marine-cycle-484213-b4.core.core_pancake__orders_returned` ) THEN 0 ELSE item_total_discount END
        AS discount,
       
       CASE 
@@ -71,12 +71,12 @@ WITH stage AS (
         WHEN customer_currency = 'PHP' THEN 4
         WHEN customer_currency = 'SGD' THEN 202.66
         ELSE 1 
-        END * CASE WHEN SAFE_CAST(o.order_id AS INT64) IN (SELECT order_id  FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` ) or LENGTH(o.order_id) = 5 THEN 0 ELSE total_discount END 
+        END * CASE WHEN SAFE_CAST(o.order_id AS INT64) IN (SELECT order_id  FROM `marine-cycle-484213-b4.core.core_pancake__orders_returned` ) or LENGTH(o.order_id) = 5 THEN 0 ELSE total_discount END 
        AS total_discount,
       CASE WHEN LEFT(variation_display_id,2) NOT IN ('TG','HT','HN','HH','TD') THEN oi.cart_quantity ELSE 0 END AS item_qty,
      
     --ORDER DETAILS
-      CASE WHEN o.order_id IN (SELECT CAST(order_id AS STRING) FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` where is_duplicate = 0) THEN 1 ELSE 0 END is_returned_order,
+      CASE WHEN o.order_id IN (SELECT CAST(order_id AS STRING) FROM `marine-cycle-484213-b4.core.core_pancake__orders_returned` where is_duplicate = 0) THEN 1 ELSE 0 END is_returned_order,
       is_exchange_order,
       exchange_value,
       -- assigning_seller_name,creator_name
@@ -89,16 +89,16 @@ WITH stage AS (
             ELSE 0
       END to_remove_record
     
-    FROM `marine-cycle-484213-b4.core_pancake.core_order_item` AS oi
-    JOIN `marine-cycle-484213-b4.core_pancake.core_order` AS o ON oi.order_id = o.order_id
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_product` AS p ON oi.product_id = p.raw_product_id
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON oi.variation_id = v.variation_id
+    FROM `marine-cycle-484213-b4.core.core_pancake__order_item` AS oi
+    JOIN `marine-cycle-484213-b4.core.core_pancake__order` AS o ON oi.order_id = o.order_id
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__product` AS p ON oi.product_id = p.raw_product_id
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__variations` AS v ON oi.variation_id = v.variation_id
     LEFT JOIN (
       SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
-      FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+      FROM `marine-cycle-484213-b4.core.core_pancake__warehouse`
     ) AS warehouse ON warehouse.canonical_warehouse_id = oi.warehouse_id
     WHERE 1=1   
-      AND o.order_id NOT IN (SELECT order_to_returned_id FROM `marine-cycle-484213-b4.core_pancake.core_orders_returned` WHERE is_duplicate = 1)
+      AND o.order_id NOT IN (SELECT order_to_returned_id FROM `marine-cycle-484213-b4.core.core_pancake__orders_returned` WHERE is_duplicate = 1)
 
       AND status_name NOT IN ('canceled','returned','packing','returning')
       AND o.order_sources_name IN ('Tiktok', 'Shopee', 'Lazada')

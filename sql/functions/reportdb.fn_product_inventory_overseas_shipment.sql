@@ -34,13 +34,13 @@ SELECT
       END inventory_qty_returned_to_origin,
       oi.warehouse_id,
       cw.canonical_warehouse_name AS warehouse_name
-    FROM `marine-cycle-484213-b4.core_pancake.core_order` AS o 
-    JOIN  `marine-cycle-484213-b4.core_pancake.core_order_item` AS oi ON oi.order_id = o.order_id
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_product` AS p ON oi.product_id = p.raw_product_id
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON oi.variation_id = v.variation_id
+    FROM `marine-cycle-484213-b4.core.core_pancake__order` AS o 
+    JOIN  `marine-cycle-484213-b4.core.core_pancake__order_item` AS oi ON oi.order_id = o.order_id
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__product` AS p ON oi.product_id = p.raw_product_id
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__variations` AS v ON oi.variation_id = v.variation_id
     LEFT JOIN (
     SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
-    FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+    FROM `marine-cycle-484213-b4.core.core_pancake__warehouse`
   ) cw ON cw.canonical_warehouse_id = oi.warehouse_id
     WHERE 1=1
     AND DATE_TRUNC(o.inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)

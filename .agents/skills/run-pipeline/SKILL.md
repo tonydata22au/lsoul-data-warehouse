@@ -53,10 +53,12 @@ and read-only checks first.
    `csv_export/` → set `GOOGLE_APPLICATION_CREDENTIALS`.
 4. 401/403 → expired token (TikTok/Meta): the user must issue a new one; never ask them to paste it in chat.
    Ask them to update `.env` or the secret themselves.
-5. HTTP 500 `cannot unpack non-iterable NoneType` → empty window in one of the 10 affected services.
+5. HTTP 500 `cannot unpack non-iterable NoneType` → empty window in one of the 10 affected services
+   (fixed locally on 2026-11-06; still happens on revisions deployed before that fix).
 6. Schema errors → compare the table schema with `COLUMN_RENAME_MAP` and the `src/schema/` script.
 7. Core not updated → staging partition date vs today (Vietnam time); `sysdb.data_insert_log`.
-8. `cloud-run-tiktok-thai-ads` won't start → known issue (`app_runner.py` filename).
+8. `cloud-run-tiktok-thai-ads` won't start → known issue (`app_runner.py` filename), fixed locally on
+   2026-11-06; a revision deployed before that fix still can't boot.
 
 ## Operational limits
 

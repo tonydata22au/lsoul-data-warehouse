@@ -36,5 +36,5 @@ SELECT
   SAFE_CAST(items_refund_qty AS NUMERIC) AS items_refund_qty,
   SAFE_CAST(items_refund_amount AS NUMERIC) AS items_refund_amount
 
-FROM `marine-cycle-484213-b4.jushuitan.raw_jushuitan_taobao_tmall_order_manual`
+FROM `marine-cycle-484213-b4.raw.raw_jushuitan_taobao_tmall_order_manual`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-08-07")

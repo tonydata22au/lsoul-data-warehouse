@@ -56,7 +56,7 @@ SELECT DISTINCT
       o.order_source_id,
       'TQ Offline Store' AS sale_channel,
       '76be7836-6dc5-4b1c-9e48-b18e43127453' AS warehouse_id, --warehouse_id cua Kho Trung Quốc (Back-up)
-      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name,
+      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core.core_pancake__warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name,
       serviceGuides_staffName,
       vipMobilePhone,
       oi.amount - IFNULL(returnAmount,0)  AS units_sold,
@@ -71,11 +71,11 @@ SELECT DISTINCT
           ELSE oi.sumSuggestPrice - oi.sumSalePrice - IFNULL(returnMoney,0)
       END AS discount_amount
 
-    FROM `marine-cycle-484213-b4.dianplus.core_dianplus_order` AS o
-    JOIN `marine-cycle-484213-b4.dianplus.core_dianplus_order_item` AS oi ON oi.orderID = o.orderId
-    LEFT JOIN `marine-cycle-484213-b4.dianplus.core_dianplus_order_item_refund`AS ri ON o.orderId = ri.porderId AND oi.skuDjId = ri.skuDjId
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_product` AS p ON oi.product_code = p.product_code
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON oi.skuCode = v.variation_display_id
+    FROM `marine-cycle-484213-b4.core.core_dianplus__order` AS o
+    JOIN `marine-cycle-484213-b4.core.core_dianplus__order_item` AS oi ON oi.orderID = o.orderId
+    LEFT JOIN `marine-cycle-484213-b4.core.core_dianplus__order_item_refund`AS ri ON o.orderId = ri.porderId AND oi.skuDjId = ri.skuDjId
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__product` AS p ON oi.product_code = p.product_code
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__variations` AS v ON oi.skuCode = v.variation_display_id
     WHERE 1=1
       --AND o.orderId = 'REDACTED_EXAMPLE'
       --AND DATE_TRUNC(o.inserted_at, day) between '2026-02-01' and '2026-02-28'

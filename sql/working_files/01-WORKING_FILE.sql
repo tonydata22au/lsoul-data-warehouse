@@ -289,7 +289,7 @@ WITH mine AS (
 ),
 raw AS (
   SELECT ROUND(SUM(items_buyer_paid_amount)*3800/1e6) AS gmv_mVND
-  FROM `marine-cycle-484213-b4.jushuitan.core_jushuitan_taobao_tmall_order_manual`
+  FROM `marine-cycle-484213-b4.core.core_jushuitan__taobao_tmall_order_manual`
   WHERE shop_id IN (20209463,20209689) AND items_buyer_paid_amount > 0
     AND DATE(vn_order_date) BETWEEN '2026-08-03' AND '2026-08-09'
 )

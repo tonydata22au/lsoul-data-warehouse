@@ -128,6 +128,7 @@ through symlinks in `.claude/skills/`.
 | [add-ingestion-pipeline](.agents/skills/add-ingestion-pipeline/SKILL.md) | Add a new API source/endpoint or change what an existing pipeline fetches |
 | [run-pipeline](.agents/skills/run-pipeline/SKILL.md) | Run a pipeline (with authorization) and troubleshoot failures |
 | [bigquery-schema-and-loads](.agents/skills/bigquery-schema-and-loads/SKILL.md) | Change raw table schemas, load behavior, staging/core SQL |
+| [repoint-sql-sources](.agents/skills/repoint-sql-sources/SKILL.md) | Repoint functions/procedures to different source tables or datasets, baseline old results, review, deploy, verify new equals old |
 | [validate-changes](.agents/skills/validate-changes/SKILL.md) | Check any change before handing it back |
 
 ## Known issues
@@ -135,8 +136,11 @@ through symlinks in `.claude/skills/`.
 See [docs/troubleshooting.md](docs/troubleshooting.md#known-issues). The ones most likely to
 surprise you:
 
-- `cloud-run-tiktok-thai-ads` can't start: its `app_runner.py` loads a file that doesn't exist.
-- `cloud-run-pancake-order_returned` is a copy of `cloud-run-pancake-order` and also appends to `raw_pancake.raw_order`.
+- `cloud-run-tiktok-thai-ads` couldn't start (its `app_runner.py` loaded a file that doesn't exist). Fixed
+  locally on 2026-11-06 and **not deployed**: the live service stays broken until it is redeployed.
+  [docs/raw-destination-contract.md](docs/raw-destination-contract.md) lists every service, its table and
+  the other local fixes.
+- `cloud-run-pancake-order_returned` is a copy of `cloud-run-pancake-order` and also appends to `raw.raw_order`.
 - `local_run/` reads the key from the repo-root `credentials/google-credentials.json` and ignores
   `GOOGLE_APPLICATION_CREDENTIALS`. `schema/` and `csv_export/` still default to
   `src/credentials/google-credentials.json`, so set `GOOGLE_APPLICATION_CREDENTIALS` for them.

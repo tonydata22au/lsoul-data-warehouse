@@ -18,7 +18,7 @@ WITH dim_product AS (
     ,ANY_VALUE(product_name)        AS product_name
     ,ANY_VALUE(product_launch_date) AS product_launch_date
     ,MAX(CASE WHEN TRIM(UPPER(product_tags)) LIKE '%SYS_01_SALE_END%' THEN 1 ELSE 0 END) AS is_sale_end
-  FROM `marine-cycle-484213-b4.core_pancake.core_product`
+  FROM `marine-cycle-484213-b4.core.core_pancake__product`
   GROUP BY product_code
 )
 ,stage AS (
@@ -45,7 +45,7 @@ WITH dim_product AS (
 
       --WAREHOUSE
       '878504e9-fb75-4870-8504-b2ecdbc097ba' AS warehouse_id,
-      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '878504e9-fb75-4870-8504-b2ecdbc097ba') AS warehouse_name,
+      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core.core_pancake__warehouse` w WHERE w.warehouse_id = '878504e9-fb75-4870-8504-b2ecdbc097ba') AS warehouse_name,
 
       --SALE
       oi.original_price AS sales_revenue_thai_gmv,
@@ -62,10 +62,10 @@ WITH dim_product AS (
             ELSE 0
       END to_remove_record
 
-    FROM `marine-cycle-484213-b4.surfosm.core_surfosm_order` AS o
-    JOIN `marine-cycle-484213-b4.surfosm.core_surfosm_order_item` AS oi ON o.order_number = oi.order_number
+    FROM `marine-cycle-484213-b4.core.core_surfosm__order` AS o
+    JOIN `marine-cycle-484213-b4.core.core_surfosm__order_item` AS oi ON o.order_number = oi.order_number
     LEFT JOIN dim_product AS p ON oi.product_code = p.product_code
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON oi.product_sku = v.variation_display_id
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__variations` AS v ON oi.product_sku = v.variation_display_id
     WHERE 1=1
       AND UPPER(TRIM(channel)) LIKE '%ONLINE%' 
 )

@@ -702,7 +702,7 @@ def clean_nulls_for_bigquery(df):
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
 
-def insert_to_bigquery(df, project_id=None, dataset_id="magento", table_id="raw_magento_order"):
+def insert_to_bigquery(df, project_id=None, dataset_id="raw", table_id="raw_magento_order"):
     """Insert DataFrame into BigQuery. All columns are cast to STRING, nulls preserved as NULL."""
     # Clean nulls for BigQuery
     df = clean_nulls_for_bigquery(df)

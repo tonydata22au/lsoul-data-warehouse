@@ -30,5 +30,5 @@ SELECT
   SAFE_CAST(stocktaking_export AS FLOAT64) stocktaking_export, 
   SAFE_CAST(total_export AS FLOAT64) total_export, 
   SAFE_CAST(total_export_value AS FLOAT64) total_export_value
-FROM `marine-cycle-484213-b4.raw_pancake.raw_stats_inventory_variations`
+FROM `marine-cycle-484213-b4.raw.raw_stats_inventory_variations`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-01-01")

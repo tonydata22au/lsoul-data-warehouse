@@ -30,7 +30,7 @@ identity_id,
 SAFE_CAST(live_follows AS NUMERIC) AS live_follows,
 SAFE_CAST(live_views AS NUMERIC) AS live_views,
 tt_account_name 
-FROM `marine-cycle-484213-b4.raw_tiktok.raw_tiktok_gmv_max_report`
+FROM `marine-cycle-484213-b4.raw.raw_tiktok_gmv_max_report`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-06-12")
 
 

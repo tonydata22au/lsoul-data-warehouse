@@ -15,7 +15,7 @@ Deploy from the repository root (updates the existing service):
 
 Schedule: existing pancake-insert-raw_product_variations job, daily 07:20 Asia/Saigon.
     Attempt deadline 1800s, three retries with a minimum 600s backoff (matches live pancake-order).
-    Runs append to raw_pancake.raw_product_variations; repeated windows can duplicate rows.
+    Runs append to raw.raw_product_variations; repeated windows can duplicate rows.
 
 Usage (Cloud Run HTTP):
     GET or POST /    # Triggers yesterday's export
@@ -384,7 +384,7 @@ def clean_empty_json(df):
             df[col] = df[col].fillna('').astype(str).replace(['nan', '{}','[]','None','null'], '')
     return df
 
-def insert_to_bigquery(df, project_id=None, dataset_id="raw_pancake", table_id="raw_product_variations"):
+def insert_to_bigquery(df, project_id=None, dataset_id=os.getenv("BQ_RAW_DATASET", "raw"), table_id="raw_product_variations"):
     """
     Insert DataFrame into BigQuery table.
     

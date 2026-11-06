@@ -18,7 +18,7 @@ WITH dim_product AS (
     ,ANY_VALUE(product_name)        AS product_name
     ,ANY_VALUE(product_launch_date) AS product_launch_date
     ,MAX(CASE WHEN TRIM(UPPER(product_tags)) LIKE '%SYS_01_SALE_END%'  THEN 1 ELSE 0 END) AS is_sale_end
-  FROM `marine-cycle-484213-b4.core_pancake.core_product`
+  FROM `marine-cycle-484213-b4.core.core_pancake__product`
   GROUP BY product_code
 )
 ,base_order_daily AS (
@@ -44,7 +44,7 @@ WITH dim_product AS (
       ,buyer_id
       ,o.order_from
       ,'76be7836-6dc5-4b1c-9e48-b18e43127453' AS warehouse_id --warehouse_id cua Kho Trung Quốc (Back-up)
-      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
+      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core.core_pancake__warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
       ,CASE
             WHEN UPPER(oi.items_status) LIKE '%CANCELLED%' THEN 1
             WHEN LEFT(oi.items_sku_id,2) IN ('TG','HT','HN','HH','TD','TU') THEN 1
@@ -54,10 +54,10 @@ WITH dim_product AS (
       ,IF(IS_NAN(items_base_price), 0, items_base_price)                        AS sale_revenue_cn
       ,IF(IS_NAN(items_buyer_paid_amount), 0, items_buyer_paid_amount)          AS revenue_cn
       ,IF(IS_NAN(items_buyer_paid_amount), 0, items_buyer_paid_amount) * 3800   AS revenue_vn
-    FROM `marine-cycle-484213-b4.jushuitan.core_jushuitan_order` AS o
-    JOIN `marine-cycle-484213-b4.jushuitan.core_jushuitan_order_item` AS oi ON o.o_id = oi.o_id
+    FROM `marine-cycle-484213-b4.core.core_jushuitan__order` AS o
+    JOIN `marine-cycle-484213-b4.core.core_jushuitan__order_item` AS oi ON o.o_id = oi.o_id
     LEFT JOIN dim_product p ON oi.product_code = p.product_code
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON oi.items_sku_id = v.variation_display_id
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__variations` AS v ON oi.items_sku_id = v.variation_display_id
     WHERE 1=1
       AND DATE_TRUNC(o.vn_order_date, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)
       --AND DATE_TRUNC(o.order_date, day) between '2026-02-01' and '2026-02-28'
@@ -88,7 +88,7 @@ WITH dim_product AS (
       ,buyer_id
       ,o.order_from
       ,'76be7836-6dc5-4b1c-9e48-b18e43127453' AS warehouse_id --warehouse_id cua Kho Trung Quốc (Back-up)
-      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
+      ,(SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core.core_pancake__warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name
       ,CASE
         WHEN oi.items_refund_status LIKE 'success' AND status LIKE 'Cancelled' THEN 1
         WHEN IFNULL(SAFE_CAST(oi.items_seller_income_amount AS NUMERIC),0) <= 0 THEN 1
@@ -99,16 +99,16 @@ WITH dim_product AS (
       ,IF(IS_NAN(items_base_price), 0, items_base_price)                        AS sale_revenue_cn
       ,IF(IS_NAN(items_buyer_paid_amount), 0, items_buyer_paid_amount)          AS revenue_cn
       ,IF(IS_NAN(items_buyer_paid_amount), 0, items_buyer_paid_amount) * 3800   AS revenue_vn
-    FROM `marine-cycle-484213-b4.jushuitan.core_jushuitan_order` AS o
-    JOIN `marine-cycle-484213-b4.jushuitan.core_jushuitan_order_item` AS oi ON o.so_id = oi.so_id
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_product` AS p ON oi.product_code = p.product_code
-    LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variations` AS v ON oi.items_sku_id = v.variation_display_id
+    FROM `marine-cycle-484213-b4.core.core_jushuitan__order` AS o
+    JOIN `marine-cycle-484213-b4.core.core_jushuitan__order_item` AS oi ON o.so_id = oi.so_id
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__product` AS p ON oi.product_code = p.product_code
+    LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__variations` AS v ON oi.items_sku_id = v.variation_display_id
     WHERE 1=1
       AND DATE_TRUNC(o.vn_order_date, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)
       --AND DATE_TRUNC(o.order_date, day) between '2026-02-01' and '2026-02-28'
       --AND o.raw_so_id = 'REDACTED_EXAMPLE'
       AND (shop_name LIKE '%Xiaohongshu%' or LEFT(UPPER(o.raw_so_id),1) = 'P')
-      AND NOT (status = 'Merged' AND o.so_id IN (SELECT so_id FROM `marine-cycle-484213-b4.jushuitan.core_jushuitan_order` WHERE is_merge = 1))
+      AND NOT (status = 'Merged' AND o.so_id IN (SELECT so_id FROM `marine-cycle-484213-b4.core.core_jushuitan__order` WHERE is_merge = 1))
 )
 SELECT
 * EXCEPT (to_remove_record)

@@ -15,7 +15,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT = ROOT / 'sql/live/bigquery/reportdb/routines'
-DIMENSION = '`marine-cycle-484213-b4.core_pancake.core_warehouse`'
+DIMENSION = '`marine-cycle-484213-b4.core.core_pancake__warehouse`'
 CHINA_ID = '76be7836-6dc5-4b1c-9e48-b18e43127453'
 THAI_ID = '878504e9-fb75-4870-8504-b2ecdbc097ba'
 

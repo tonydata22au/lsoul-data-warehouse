@@ -122,8 +122,8 @@ prefix_ref AS (
     ,MAX(IFNULL(v.is_removed,0))                            AS is_removed
     ,MAX(IFNULL(v.is_hidden ,0))                            AS is_hidden
     ,MAX(CASE WHEN UPPER(IFNULL(p.product_tags,'')) LIKE '%SYS_01_SALE_END%' THEN 1 ELSE 0 END) AS is_sale_end
-  FROM `marine-cycle-484213-b4.core_pancake.core_variations` v
-  JOIN `marine-cycle-484213-b4.core_pancake.core_product`    p
+  FROM `marine-cycle-484213-b4.core.core_pancake__variations` v
+  JOIN `marine-cycle-484213-b4.core.core_pancake__product`    p
     ON v.product_id = p.raw_product_id
   GROUP BY variation_code
 )
@@ -353,8 +353,8 @@ ORDER BY rev_mn DESC;
    -- 2) new prefixes merchandising created since the map was written
    SELECT REGEXP_EXTRACT(UPPER(product_code), r'^([A-Z]+)') AS code_prefix,
           COUNT(*) skus, STRING_AGG(DISTINCT product_name, ' | ' LIMIT 5) examples
-   FROM `marine-cycle-484213-b4.core_pancake.core_variations` v
-   JOIN `marine-cycle-484213-b4.core_pancake.core_product` p ON v.product_id = p.raw_product_id
+   FROM `marine-cycle-484213-b4.core.core_pancake__variations` v
+   JOIN `marine-cycle-484213-b4.core.core_pancake__product` p ON v.product_id = p.raw_product_id
    WHERE REGEXP_EXTRACT(UPPER(product_code), r'^([A-Z]+)') NOT IN (
      'A','V','CV','B','J','Q','M','K','S','L','OQ','G','Z','LJG','TUI','VI','VO','SG','BT','PK',
      'DT','NH','X','HQ','HHT','HTG','HNQA','TDG','TGN','TGL','HT','DOIHANG')

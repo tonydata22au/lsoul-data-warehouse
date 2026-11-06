@@ -3,7 +3,7 @@ AS
 WITH dianplus_source AS (
   -- Keep source-system stock streams distinct from the shared reporting warehouse.
   SELECT i.* EXCEPT (warehouse_name), i.warehouse_name AS source_warehouse_name
-  FROM `marine-cycle-484213-b4.dianplus.core_dianplus_inventory` i
+  FROM `marine-cycle-484213-b4.core.core_dianplus__inventory` i
 )
 ,stock_store_cn AS (
 SELECT 
@@ -29,10 +29,10 @@ FROM
   FROM dianplus_source i
   LEFT JOIN (
     SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
-    FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+    FROM `marine-cycle-484213-b4.core.core_pancake__warehouse`
   ) cw ON cw.canonical_warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453'
-  LEFT JOIN  `marine-cycle-484213-b4.core_pancake.core_product` p ON i.skuCode = p.display_id
-  LEFT JOIN   `marine-cycle-484213-b4.core_pancake.core_variations` v ON i.skuCode = v.variation_display_id
+  LEFT JOIN  `marine-cycle-484213-b4.core.core_pancake__product` p ON i.skuCode = p.display_id
+  LEFT JOIN   `marine-cycle-484213-b4.core.core_pancake__variations` v ON i.skuCode = v.variation_display_id
   
 )
 ORDER BY 4,2 DESC
@@ -80,13 +80,13 @@ i.vn_modified ,i.product_code, i.sku_id, IFNULL(p.product_name,name) AS product_
 ,qty
 ,purchase_qty
 ,v.retail_price
-FROM `marine-cycle-484213-b4.jushuitan.core_jushuitan_inventory` i
+FROM `marine-cycle-484213-b4.core.core_jushuitan__inventory` i
 LEFT JOIN (
     SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
-    FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+    FROM `marine-cycle-484213-b4.core.core_pancake__warehouse`
   ) cw ON cw.canonical_warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453'
-LEFT JOIN  `marine-cycle-484213-b4.core_pancake.core_product` p ON i.sku_id = p.display_id
-LEFT JOIN   `marine-cycle-484213-b4.core_pancake.core_variations` v ON i.sku_id = v.variation_display_id
+LEFT JOIN  `marine-cycle-484213-b4.core.core_pancake__product` p ON i.sku_id = p.display_id
+LEFT JOIN   `marine-cycle-484213-b4.core.core_pancake__variations` v ON i.sku_id = v.variation_display_id
 WHERE TRIM(i.sku_id) NOT LIKE '001'
 )
 order by 4,2 desc

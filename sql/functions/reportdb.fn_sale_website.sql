@@ -38,8 +38,8 @@ SELECT
       CASE WHEN LEFT(oi.items_sku,2) NOT IN ('TG','HT','HN','HH','TD','TU') THEN oi.items_sku END AS product
       
       
-    FROM `marine-cycle-484213-b4.magento.core_magento_order` AS o
-    JOIN `marine-cycle-484213-b4.magento.core_magento_order_item` AS oi ON o.entity_id = oi.entity_id
+    FROM `marine-cycle-484213-b4.core.core_magento__order` AS o
+    JOIN `marine-cycle-484213-b4.core.core_magento__order_item` AS oi ON o.entity_id = oi.entity_id
     WHERE 1=1
       AND DATE_TRUNC(o.created_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)
       --AND DATE_TRUNC(o.created_at, day) between '2025-11-01' and '2025-11-30'

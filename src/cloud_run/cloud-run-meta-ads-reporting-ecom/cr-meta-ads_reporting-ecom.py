@@ -46,7 +46,7 @@ BASE_HEADERS = [
 ]
 
 # BigQuery config (borrowed from data_export_customer.py)
-DATASET_ID = "raw_meta"
+DATASET_ID = os.getenv("BQ_RAW_DATASET", "raw")
 TABLE_ID = "raw_ads_reporting_ecom"
 LOCATION = "asia-southeast1"
 

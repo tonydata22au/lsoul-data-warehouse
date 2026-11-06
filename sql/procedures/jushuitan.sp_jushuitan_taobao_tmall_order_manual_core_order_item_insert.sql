@@ -136,7 +136,7 @@ GROUP BY
   ,'marine-cycle-484213-b4.jushuitan.stg_jushuitan_taobao_tmall_order_manual'
   ,'marine-cycle-484213-b4.jushuitan.core_jushuitan_taobao_tmall_order_manual'
   ,'marine-cycle-484213-b4.jushuitan.sp_jushuitan_taobao_tmall_order_manual_core_order_item_insert'
-  ,'marine-cycle-484213-b4.jushuitan.raw_jushuitan_taobao_tmall_order_manual'
+  ,'marine-cycle-484213-b4.raw.raw_jushuitan_taobao_tmall_order_manual'
 );
 
   ELSE 
@@ -152,7 +152,7 @@ GROUP BY
   ,'marine-cycle-484213-b4.jushuitan.stg_jushuitan_taobao_tmall_order_manual'
   ,'marine-cycle-484213-b4.jushuitan.core_jushuitan_taobao_tmall_order_manual'
   ,'marine-cycle-484213-b4.jushuitan.sp_jushuitan_taobao_tmall_order_manual_core_order_item_insert'
-  ,'marine-cycle-484213-b4.jushuitan.raw_jushuitan_taobao_tmall_order_manual'
+  ,'marine-cycle-484213-b4.raw.raw_jushuitan_taobao_tmall_order_manual'
   );
 
   END IF;

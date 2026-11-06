@@ -183,7 +183,7 @@ def rename_and_reorder_columns(df):
     return result_df
 
 
-def insert_to_bigquery(df, project_id=None, dataset_id="surfosm", table_id="raw_surfosm_inventory"):
+def insert_to_bigquery(df, project_id=None, dataset_id="raw", table_id="raw_surfosm_inventory"):
     """Insert DataFrame into BigQuery."""
 
     # Convert all columns to string, preserving None as None

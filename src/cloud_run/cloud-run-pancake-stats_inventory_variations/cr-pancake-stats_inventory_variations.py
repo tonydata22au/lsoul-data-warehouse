@@ -255,7 +255,7 @@ def clean_empty_json(df):
             df[col] = df[col].astype(str).replace(['nan', '{}','[]','None'], '')
     return df
 
-def insert_to_bigquery(df, project_id=None, dataset_id="raw_pancake", table_id="raw_stats_inventory_variations"):
+def insert_to_bigquery(df, project_id=None, dataset_id=os.getenv("BQ_RAW_DATASET", "raw"), table_id="raw_stats_inventory_variations"):
     """
     Insert DataFrame into BigQuery table.
     
@@ -337,7 +337,7 @@ def run_export(*, project_id=None, all_flag=False, start_date=None, end_date=Non
    # Check if there are any orders
     if not entries_raw or len(entries_raw) == 0:
         print("0 entry found. No data to export.")
-        return
+        return "0 entry found. No data to export.", 200
     
     df = flatten_data(entries_raw)
     df = rename_and_reorder_columns(df)

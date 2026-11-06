@@ -58,7 +58,7 @@ day
 ,conversion_messaging_conversation_started_7d
 ,cost_conversion_messaging_conversation_started_7d
 ,CASE WHEN campaign_type IS NULL THEN 0 ELSE 1 END AS is_ads_sale_campaign
-FROM `marine-cycle-484213-b4.core_meta.core_ads_reporting_a` 
+FROM `marine-cycle-484213-b4.core.core_meta__ads_reporting_a` 
 WHERE DATE_TRUNC(day, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
 
 UNION ALL
@@ -87,7 +87,7 @@ day
 ,conversion_messaging_conversation_started_7d
 ,cost_conversion_messaging_conversation_started_7d
 ,CASE WHEN campaign_type IS NULL THEN 0 ELSE 1 END AS is_ads_sale_campaign
-FROM `marine-cycle-484213-b4.core_meta.core_ads_reporting_my` 
+FROM `marine-cycle-484213-b4.core.core_meta__ads_reporting_my` 
 WHERE DATE_TRUNC(day, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
 ORDER BY 1 DESC
 )
@@ -135,7 +135,7 @@ CASE
 ,0 AS `10_second_live_views`
 ,0 AS live_follows
 ,0 AS cost_per_live_view 
- FROM `marine-cycle-484213-b4.core_tiktok.core_reporting_basic_auction_ad` 
+ FROM `marine-cycle-484213-b4.core.core_tiktok__reporting_basic_auction_ad` 
  WHERE DATE_TRUNC(inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
 
 UNION ALL
@@ -158,7 +158,7 @@ inserted_at AS day
 ,`10_second_live_views`
 ,live_follows
 ,cost_per_live_view 
-FROM `marine-cycle-484213-b4.core_tiktok.core_tiktok_gmv_max_report` 
+FROM `marine-cycle-484213-b4.core.core_tiktok__gmv_max_report` 
 WHERE DATE_TRUNC(inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
 
 UNION ALL
@@ -187,7 +187,7 @@ inserted_at AS day
 ,0 AS `10_second_live_views`
 ,0 AS live_follows
 ,0 AS cost_per_live_view 
- FROM `marine-cycle-484213-b4.core_tiktok.core_thai_reporting_basic_auction_ad` 
+ FROM `marine-cycle-484213-b4.core.core_tiktok__thai_reporting_basic_auction_ad` 
  WHERE DATE_TRUNC(inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
 
 UNION ALL
@@ -210,7 +210,7 @@ inserted_at AS day
 ,`10_second_live_views`
 ,live_follows
 ,cost_per_live_view 
-FROM `marine-cycle-484213-b4.core_tiktok.core_tiktok_thai_gmv_max_report` 
+FROM `marine-cycle-484213-b4.core.core_tiktok__thai_gmv_max_report` 
 WHERE DATE_TRUNC(inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL i_number_year_back YEAR)
 ORDER BY 1 desc
 

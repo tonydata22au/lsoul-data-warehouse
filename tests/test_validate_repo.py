@@ -18,6 +18,13 @@ class RepositoryChecks(unittest.TestCase):
                 errors, _ = check()
                 self.assertEqual(errors, [])
 
+    def test_every_app_runner_loads_an_existing_module(self):
+        # gunicorn starts each service through app_runner:app; a missing target means the
+        # container cannot boot, so no service may be tolerated as "known broken"
+        self.assertEqual(validate_repo.KNOWN_BROKEN_SERVICES, {})
+        errors, warnings = validate_repo.check_cloud_run_services()
+        self.assertEqual((errors, warnings), ([], []))
+
 
 class CredentialScanner(unittest.TestCase):
     def scan(self, source, filename="pipeline.py"):

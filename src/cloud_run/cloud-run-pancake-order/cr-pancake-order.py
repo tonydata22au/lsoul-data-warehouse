@@ -1,9 +1,9 @@
 """
-Pancake POS orders -> BigQuery (raw_pancake.raw_order).
+Pancake POS orders -> BigQuery (raw.raw_order).
 
 Fetches the orders updated in a time window from the Pancake POS API, writes one row per order item,
 renames the columns (COLUMN_RENAME_MAP), casts everything to STRING and appends the rows to
-raw_pancake.raw_order. Runs on Cloud Run (gunicorn app_runner:app) or as a CLI.
+raw.raw_order. Runs on Cloud Run (gunicorn app_runner:app) or as a CLI.
 Default window: orders last updated yesterday, 00:00:00 to 23:59:59 Vietnam time (UTC+7).
 
 Full setup (secret, deploy, schedule, smoke test): README.md,
@@ -88,7 +88,7 @@ API_URL = "https://pos.pages.fm/api/v1/shops/1942246959/orders"
 PAGE_SIZE = 1000
 REQUEST_TIMEOUT_SECONDS = 169
 
-DATASET_ID = "raw_pancake"
+DATASET_ID = os.getenv("BQ_RAW_DATASET", "raw")
 TABLE_ID = "raw_order"
 
 VIETNAM_TZ = ZoneInfo("Asia/Ho_Chi_Minh")

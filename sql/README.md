@@ -67,12 +67,18 @@ Python loads (src/)            raw_<source> / <source>.raw_*   append-only, inge
   → working_files/ dash_*      reportdb dashboard tables/views
 ```
 
-Dataset naming: Pancake, TikTok and Meta use one dataset per layer (`raw_pancake`,
-`stg_pancake`, `core_pancake`, …); Dianplus, Jushuitan, Surfosm and Magento keep all layers
-in one dataset per source (`dianplus.raw_dianplus_order`, `dianplus.stg_…`, `dianplus.core_…`).
+Dataset naming: every raw table the loaders write lives in one dataset, `raw`
+(`raw.raw_order`, `raw.raw_tiktok_ads`, `raw.raw_dianplus_order`, …; table names unchanged;
+Cloud Run services read the optional `BQ_RAW_DATASET` env var, default `raw`). Above raw,
+Pancake, TikTok and Meta use one dataset per layer (`stg_pancake`, `core_pancake`, …);
+Dianplus, Jushuitan, Surfosm and Magento keep their staging and core layers in one dataset per
+source (`dianplus.stg_…`, `dianplus.core_…`). The move from the old raw datasets
+(`raw_pancake`, `raw_tiktok`, `raw_meta` and the `raw_*` tables in the source datasets) is
+planned in [../tasks/raw-dataset-plan.md](../tasks/raw-dataset-plan.md); the cutover script is
+[migrations/raw_dataset_consolidation.sql](migrations/raw_dataset_consolidation.sql).
 Shared datasets: `reportdb` (functions, dashboards), `sysdb` (load logging).
 
-Example chain: `raw_pancake.raw_order` → `stg_pancake.stg_order` → `sp_core_order_insert` →
+Example chain: `raw.raw_order` → `stg_pancake.stg_order` → `sp_core_order_insert` →
 `core_pancake.core_order` → `reportdb.fn_sale_ecom_vn_v2` → `reportdb.fn_order_master`.
 
 ## Behaviors to know before editing

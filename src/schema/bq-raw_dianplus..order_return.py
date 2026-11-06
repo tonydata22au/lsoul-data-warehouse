@@ -18,8 +18,8 @@ from google.oauth2 import service_account
 # ============================================================================
 
 # BigQuery Configuration
-DATASET_ID = 'dianplus'
-TABLE_ID = 'raw_dianplus_order_return'  # Change this to your desired table name
+DATASET_ID = 'raw'
+TABLE_ID = 'raw_dianplus_order_refund'  # Same 85 columns as the refund loaders, which write this live table
 LOCATION = 'asia-southeast1'
 
 

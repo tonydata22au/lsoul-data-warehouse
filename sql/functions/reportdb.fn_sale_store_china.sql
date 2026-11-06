@@ -16,7 +16,7 @@ WITH ORDER_REFUND AS (
   porderId,
   SUM(returnNum) AS units_refrund,
   SUM(returnMoney) AS amount_refund
-  FROM `marine-cycle-484213-b4.dianplus.core_dianplus_order_refund`
+  FROM `marine-cycle-484213-b4.core.core_dianplus__order_refund`
   GROUP BY porderId
 )
 
@@ -57,7 +57,7 @@ SELECT
       o.order_source_id,
       'TQ Offline Store' AS sale_channel,
       '76be7836-6dc5-4b1c-9e48-b18e43127453' AS warehouse_id, --warehouse_id cua Kho Trung Quốc (Back-up)
-      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name,
+      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core.core_pancake__warehouse` w WHERE w.warehouse_id = '76be7836-6dc5-4b1c-9e48-b18e43127453') AS warehouse_name,
       serviceGuides_staffName,
       vipMobilePhone,
       COUNT(distinct o.orderId) AS total_orders,
@@ -71,8 +71,8 @@ SELECT
       IFNULL(amount_refund,0)  AS total_amount_refund,
 
       CASE WHEN SUM(oi.sumSuggestPrice) - SUM(oi.sumSalePrice) - IFNULL(amount_refund,0)  < 0 THEN 0 ELSE SUM(oi.sumSuggestPrice) - SUM(oi.sumSalePrice) - IFNULL(SUM(amount_refund),0) END AS discount_amount
-    FROM `marine-cycle-484213-b4.dianplus.core_dianplus_order` AS o
-    LEFT JOIN `marine-cycle-484213-b4.dianplus.core_dianplus_order_item` AS oi ON oi.orderID = o.orderId AND oi.amount > 0
+    FROM `marine-cycle-484213-b4.core.core_dianplus__order` AS o
+    LEFT JOIN `marine-cycle-484213-b4.core.core_dianplus__order_item` AS oi ON oi.orderID = o.orderId AND oi.amount > 0
     LEFT JOIN ORDER_REFUND AS r ON o.orderId = r.porderId
     WHERE 1=1
       --AND o.orderId = 'REDACTED_EXAMPLE'

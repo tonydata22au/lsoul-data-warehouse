@@ -47,7 +47,7 @@ BASE_HEADERS = [
 ]
 
 # BigQuery config (borrowed from data_export_customer.py)
-DATASET_ID = "raw_meta"
+DATASET_ID = "raw"
 TABLE_ID = "raw_ads_reporting_my"
 LOCATION = "asia-southeast1"
 

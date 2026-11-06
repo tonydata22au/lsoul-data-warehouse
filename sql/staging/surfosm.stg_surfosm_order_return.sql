@@ -24,6 +24,6 @@ returns_detail_item_i_name,
 returns_detail_item_lot_number,
 SAFE_CAST(returns_detail_item_item_quantity AS INT64) AS returns_detail_item_item_quantity,
 returns_detail_item_status_item
-FROM `marine-cycle-484213-b4.surfosm.raw_surfosm_order_return`
+FROM `marine-cycle-484213-b4.raw.raw_surfosm_order_return`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-04-25")
 

@@ -319,7 +319,7 @@ def normalize_id_strings(df):
     return df
 
 
-def insert_to_bigquery(df, project_id=None, dataset_id="raw_pancake", table_id="raw_variations"):
+def insert_to_bigquery(df, project_id=None, dataset_id=os.getenv("BQ_RAW_DATASET", "raw"), table_id="raw_variations"):
     """
     Insert DataFrame into BigQuery table.
     
@@ -404,7 +404,7 @@ def run_export(*, project_id=None, all_flag=True, start_date=None, end_date=None
     # Check if there are any orders
     if not entries_raw or len(entries_raw) == 0:
         print("0 entry found. No data to export.")
-        return
+        return "0 entry found. No data to export.", 200
     
     df = flatten_data(entries_raw)
     df = rename_and_reorder_columns(df)

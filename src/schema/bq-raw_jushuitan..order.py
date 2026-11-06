@@ -4,7 +4,7 @@ Script to create BigQuery table with predefined schema.
 Default: Creates empty table with schema only.
 
 Usage:
-    python3 local-run/DDL/bq-create-schema-bigquery.py              # Create empty table with schema
+    python3 src/schema/bq-raw_jushuitan..order.py             # Create empty table with schema
 """
 import os
 from pathlib import Path
@@ -17,20 +17,21 @@ from google.oauth2 import service_account
 # ============================================================================
 
 # BigQuery Configuration
-DATASET_ID = 'jushuitan'  # Change this to your desired dataset name
+DATASET_ID = 'raw'  # Change this to your desired dataset name
 TABLE_ID = 'raw_jushuitan_order'  # Change this to your desired table name
 LOCATION = 'asia-southeast1'
 
 
-BASE_DIR = Path(__file__).resolve().parents[1]
-DEFAULT_SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
-SERVICE_ACCOUNT_FILE = Path(os.getenv("GOOGLE_APPLICATION_CREDENTIALS", str(DEFAULT_SERVICE_ACCOUNT_FILE)))
+# BigQuery config — this script is expected to run from local-run/<folder>/,
+# where credentials/google-credentials.json is a sibling of the script's parent.
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SERVICE_ACCOUNT_FILE = BASE_DIR / "credentials" / "google-credentials.json"
 credentials = service_account.Credentials.from_service_account_file(str(SERVICE_ACCOUNT_FILE))
 
 # Partitioning Configuration
 PARTITION_TYPE = bigquery.TimePartitioningType.DAY
 PARTITION_FIELD = None  # None = partition by ingestion time (_PARTITIONTIME), or specify a field name
-REQUIRE_PARTITION_FILTER = True
+REQUIRE_PARTITION_FILTER = True 
 
 # Schema Definition - aligned with meta ads insights export
 # Note: BigQuery field names cannot contain dots, using underscores instead.

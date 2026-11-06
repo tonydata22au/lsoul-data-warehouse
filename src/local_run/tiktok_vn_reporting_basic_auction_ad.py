@@ -299,7 +299,7 @@ def process_data(raw_rows):
     return df
 
 
-def insert_to_bigquery(df, project_id=None, dataset_id="raw_tiktok", table_id="raw_tiktok_reporting_basic_auction_ad"):
+def insert_to_bigquery(df, project_id=None, dataset_id="raw", table_id="raw_tiktok_reporting_basic_auction_ad"):
     """Insert DataFrame into BigQuery."""
     # Convert all columns to string to match BQ schema
     df = df.astype(str)

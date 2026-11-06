@@ -25,9 +25,9 @@ v.updated_at
 ,v.retail_price
 ,vw.warehouse_id
 ,IFNULL(vw.actual_remain_qty,0) AS actual_remain_qty
-FROM `marine-cycle-484213-b4.core_pancake.core_variations` v
-JOIN `marine-cycle-484213-b4.core_pancake.core_product` p ON v.product_id = p.raw_product_id
-LEFT JOIN `marine-cycle-484213-b4.core_pancake.core_variation_warehouses` vw ON v.variation_id = vw.variation_id
+FROM `marine-cycle-484213-b4.core.core_pancake__variations` v
+JOIN `marine-cycle-484213-b4.core.core_pancake__product` p ON v.product_id = p.raw_product_id
+LEFT JOIN `marine-cycle-484213-b4.core.core_pancake__variation_warehouses` vw ON v.variation_id = vw.variation_id
 WHERE 1=1
 ORDER BY 3, 1 DESC
 )
@@ -160,7 +160,7 @@ ORDER BY 3, 1 DESC
   ) s
   LEFT JOIN (
     SELECT warehouse_id AS canonical_warehouse_id, warehouse_name AS canonical_warehouse_name
-    FROM `marine-cycle-484213-b4.core_pancake.core_warehouse`
+    FROM `marine-cycle-484213-b4.core.core_pancake__warehouse`
   ) cw ON cw.canonical_warehouse_id = s.warehouse_id
   WHERE 1=1
   AND LEFT(variation_code,2) NOT IN ('TG','HT','HN','HH','TD')

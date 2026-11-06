@@ -27,7 +27,7 @@ WITH CTE_SURFOSM_ECOM_TL AS
       'TL Ecommerce' AS sale_channel,
       customer_phone_no AS customer_id,
       '878504e9-fb75-4870-8504-b2ecdbc097ba' AS warehouse_id,
-      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core_pancake.core_warehouse` w WHERE w.warehouse_id = '878504e9-fb75-4870-8504-b2ecdbc097ba') AS warehouse_name,
+      (SELECT w.warehouse_name FROM `marine-cycle-484213-b4.core.core_pancake__warehouse` w WHERE w.warehouse_id = '878504e9-fb75-4870-8504-b2ecdbc097ba') AS warehouse_name,
       COUNT(DISTINCT oi.order_number) AS total_orders,
       COUNT(DISTINCT CASE WHEN LEFT(oi.product_sku,2) NOT IN ('TG','HT','HN','HH','TD','TU') THEN  oi.product_code END) AS total_products,
       SUM(CASE WHEN LEFT(oi.product_sku,2) NOT IN ('TG','HT','HN','HH','TD','TU') THEN oi.effective_qty ELSE 0  END) AS total_units_sold,
@@ -37,8 +37,8 @@ WITH CTE_SURFOSM_ECOM_TL AS
       SUM(oi.original_price) -  SUM(oi.discount_seller) AS revenue_thai,
       SUM(oi.original_price * 800) AS sales_revenue_vn,
       SUM(oi.original_price * 800) -  SUM(oi.discount_seller * 800) AS revenue_vn
-    FROM `marine-cycle-484213-b4.surfosm.core_surfosm_order` AS o
-    JOIN `marine-cycle-484213-b4.surfosm.core_surfosm_order_item` AS oi
+    FROM `marine-cycle-484213-b4.core.core_surfosm__order` AS o
+    JOIN `marine-cycle-484213-b4.core.core_surfosm__order_item` AS oi
       ON o.order_number = oi.order_number
     WHERE 1=1
       AND DATE_TRUNC(o.inserted_at, YEAR) >= DATE_SUB(DATE_TRUNC(CURRENT_DATE(), YEAR), INTERVAL number_year_back YEAR)

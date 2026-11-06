@@ -17,5 +17,5 @@ SAFE_CAST(stock_quarantine AS INT64) AS stock_quarantine,
 SAFE_CAST(stock_expired AS INT64) AS stock_expired, 
 SAFE_CAST(stock_shelf_life_hold AS INT64) AS stock_shelf_life_hold, 
 SAFE_CAST(stock_pending_destruction AS INT64) AS stock_pending_destruction
-FROM `marine-cycle-484213-b4.surfosm.raw_surfosm_inventory`
+FROM `marine-cycle-484213-b4.raw.raw_surfosm_inventory`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) = '2026-07-17'

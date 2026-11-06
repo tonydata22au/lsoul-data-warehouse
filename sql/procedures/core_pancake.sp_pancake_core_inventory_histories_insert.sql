@@ -113,7 +113,7 @@ Run syntax:
   ,'marine-cycle-484213-b4.stg_pancake.stg_inventory_histories'
   ,'marine-cycle-484213-b4.core_pancake.core_inventory_histories'
   ,'marine-cycle-484213-b4.core_pancake.sp_pancake_core_inventory_histories_insert'
-  ,'marine-cycle-484213-b4.raw_pancake.raw_inventory_histories'
+  ,'marine-cycle-484213-b4.raw.raw_inventory_histories'
 );
 
   ELSE 
@@ -129,7 +129,7 @@ Run syntax:
   ,'marine-cycle-484213-b4.stg_pancake.stg_inventory_histories'
   ,'marine-cycle-484213-b4.core_pancake.core_inventory_histories'
   ,'marine-cycle-484213-b4.core_pancake.sp_pancake_core_inventory_histories_insert'
-  ,'marine-cycle-484213-b4.raw_pancake.raw_inventory_histories'
+  ,'marine-cycle-484213-b4.raw.raw_inventory_histories'
   );  
 
   END IF;

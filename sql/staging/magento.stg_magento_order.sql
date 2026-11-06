@@ -75,5 +75,5 @@ SAFE_CAST(payment_amount_authorized AS FLOAT64) AS payment_amount_authorized,
 SAFE_CAST(payment_amount_ordered AS FLOAT64) AS payment_amount_ordered,
 SAFE_CAST(payment_amount_paid AS FLOAT64) AS payment_amount_paid,
 mp_extra_fee
-FROM `marine-cycle-484213-b4.magento.raw_magento_order`
+FROM `marine-cycle-484213-b4.raw.raw_magento_order`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-07-04")

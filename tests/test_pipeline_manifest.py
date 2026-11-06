@@ -67,19 +67,19 @@ class RealRepositoryManifest(unittest.TestCase):
         for service in ("cloud-run-pancake-order", "cloud-run-pancake-order_returned"):
             p = entry(self.manifest, cr_path(service))
             with self.subTest(service=service):
-                self.assertIn("raw_pancake.raw_order", resolved(p))
+                self.assertIn("raw.raw_order", resolved(p))
                 self.assertEqual(p["source_system"], "pancake")
                 self.assertEqual(p["service"], service)
 
     def test_magento_env_default_destination_resolves(self):
         p = entry(self.manifest, cr_path("cloud-run-magento-order"))
-        self.assertIn("magento.raw_magento_order", resolved(p))
+        self.assertIn("raw.raw_magento_order", resolved(p))
         self.assertEqual(p["source_system"], "magento")
 
     def test_schema_script_destination(self):
         p = entry(self.manifest, "src/schema/bq-raw_dianplus..order.py")
         self.assertEqual(p["variant"], "schema")
-        self.assertIn("dianplus.raw_dianplus_order", resolved(p))
+        self.assertIn("raw.raw_dianplus_order", resolved(p))
 
     def test_source_system_falls_back_to_docs_then_destination(self):
         by_docs = entry(self.manifest, "src/csv_export/CSV_V1_data_export_variations.py")
@@ -113,6 +113,20 @@ class RealRepositoryManifest(unittest.TestCase):
 
     def test_render_is_deterministic(self):
         self.assertEqual(bpm.render(self.manifest), bpm.render(bpm.build_manifest(ROOT)))
+
+
+class SourceSystemFromRawDataset(unittest.TestCase):
+    """All raw tables share the dataset `raw`; only Pancake's table names carry no source prefix."""
+
+    def test_unprefixed_raw_table_is_pancake(self):
+        self.assertEqual(bpm.source_system("src/schema/x.py", "", "raw.raw_variations"), "pancake")
+
+    def test_prefixed_raw_table_keeps_its_source(self):
+        self.assertEqual(bpm.source_system("src/schema/x.py", "", "raw.raw_tiktok_ads"), "tiktok")
+        self.assertEqual(bpm.source_system("src/schema/x.py", "", "raw.raw_dianplus_order"), "dianplus")
+
+    def test_meta_ads_reporting_table_is_not_guessed_as_pancake(self):
+        self.assertIsNone(bpm.source_system("src/schema/x.py", "", "raw.raw_ads_reporting_a"))
 
 
 class SyntheticRepository(unittest.TestCase):

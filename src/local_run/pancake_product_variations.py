@@ -374,7 +374,7 @@ def clean_empty_json(df):
             df[col] = df[col].astype(str).replace(['nan', '{}','[]','None','null'], '')
     return df
 
-def insert_to_bigquery(df, project_id=None, dataset_id="raw_pancake", table_id="raw_product_variations"):
+def insert_to_bigquery(df, project_id=None, dataset_id="raw", table_id="raw_product_variations"):
     """
     Insert DataFrame into BigQuery table.
     

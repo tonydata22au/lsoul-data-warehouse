@@ -23,7 +23,7 @@ ad_text,
 tiktok_item_id,
 identity_type,
 campaign_automation_type
-FROM `marine-cycle-484213-b4.raw_tiktok.raw_tiktok_ads`
+FROM `marine-cycle-484213-b4.raw.raw_tiktok_ads`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-01-01")
 
 

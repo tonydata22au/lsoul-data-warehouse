@@ -16,5 +16,5 @@ SELECT DISTINCT
   SAFE_CAST(variations_warehouses_total_quantity AS INT64) AS total_qty,
   SAFE_CAST(variations_warehouses_returning_quantity AS INT64) AS returning_qty,
   SAFE_CAST(variations_warehouses_waiting_quantity AS INT64) AS waiting_qty
-FROM `marine-cycle-484213-b4.raw_pancake.raw_product_variations`
+FROM `marine-cycle-484213-b4.raw.raw_product_variations`
 WHERE TIMESTAMP_TRUNC(_PARTITIONTIME, DAY) >= TIMESTAMP("2026-01-01")

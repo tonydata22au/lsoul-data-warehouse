@@ -287,7 +287,7 @@ def normalize_id_strings(df):
     return df
 
 
-def insert_to_bigquery(df, project_id=None, dataset_id="raw_pancake", table_id="raw_customer"):
+def insert_to_bigquery(df, project_id=None, dataset_id=os.getenv("BQ_RAW_DATASET", "raw"), table_id="raw_customer"):
     """
     Insert DataFrame into BigQuery table.
     

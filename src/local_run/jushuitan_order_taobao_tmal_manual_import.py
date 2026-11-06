@@ -178,7 +178,7 @@ def clean_nulls_for_bigquery(df):
     return df
 
 
-def insert_to_bigquery(df, project_id=None, dataset_id="jushuitan", table_id="raw_jushuitan_taobao_tmall_order_manual"):
+def insert_to_bigquery(df, project_id=None, dataset_id="raw", table_id="raw_jushuitan_taobao_tmall_order_manual"):
     """Insert DataFrame into BigQuery."""
     df = clean_nulls_for_bigquery(df)
 

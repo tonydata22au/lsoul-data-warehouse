@@ -311,7 +311,7 @@ def rename_and_reorder_columns(df):
     # Reorder the dataframe and only keep specified columns
     return df_renamed[final_column_order]
 
-def insert_to_bigquery(df, project_id=None, dataset_id="dianplus", table_id="raw_dianplus_inventory"):
+def insert_to_bigquery(df, project_id=None, dataset_id="raw", table_id="raw_dianplus_inventory"):
     """Insert DataFrame into BigQuery."""
     # Convert all columns to string to match BQ schema
     df = df.astype(str)

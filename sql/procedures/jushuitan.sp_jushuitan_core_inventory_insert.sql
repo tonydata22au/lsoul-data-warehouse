@@ -72,7 +72,7 @@ Run syntax:
   ,'marine-cycle-484213-b4.jushuitan.stg_jushuitan_inventory'
   ,'marine-cycle-484213-b4.jushuitan.core_jushuitan_inventory'
   ,'marine-cycle-484213-b4.jushuitan.sp_jushuitan_core_inventory_insert'
-  ,'marine-cycle-484213-b4.jushuitan.raw_jushuitan_inventory'
+  ,'marine-cycle-484213-b4.raw.raw_jushuitan_inventory'
 );
 
   ELSE 
@@ -88,7 +88,7 @@ Run syntax:
   ,'marine-cycle-484213-b4.jushuitan.stg_jushuitan_inventory'
   ,'marine-cycle-484213-b4.jushuitan.core_jushuitan_inventory'
   ,'marine-cycle-484213-b4.jushuitan.sp_jushuitan_core_inventory_insert'
-  ,'marine-cycle-484213-b4.jushuitan.raw_jushuitan_inventory'
+  ,'marine-cycle-484213-b4.raw.raw_jushuitan_inventory'
 );
 
   END IF;

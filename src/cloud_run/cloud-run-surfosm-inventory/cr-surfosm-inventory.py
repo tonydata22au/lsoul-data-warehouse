@@ -41,7 +41,7 @@ API_KEY = os.environ["SURFOSM_API_KEY"]
 API_URL = "https://api-app.scaleup-fulfilment.com/openapi/inventory"
 
 # BigQuery configuration
-BQ_DATASET = os.getenv("BQ_DATASET", "surfosm")
+BQ_DATASET = os.getenv("BQ_DATASET", "raw")
 BQ_TABLE = os.getenv("BQ_TABLE", "raw_surfosm_inventory")
 
 COLUMN_RENAME_MAP = {
@@ -184,6 +184,8 @@ def insert_to_bigquery(df, project_id=None, dataset_id=BQ_DATASET, table_id=BQ_T
         )
         load_job = client.load_table_from_dataframe(df, table_ref, job_config=job_config)
         load_job.result()
+        logging.info("Loaded %s rows into %s.%s.%s [%s]", load_job.output_rows, client.project,
+                     dataset_id, table_id, load_job.job_id)
         return load_job.output_rows
     finally:
         client.close()

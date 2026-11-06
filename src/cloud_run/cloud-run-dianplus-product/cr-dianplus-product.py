@@ -297,7 +297,7 @@ def calculate_sign(app_id, brand_id, page_num, page_size, time_stamp):
         f"version{VERSION}"
     )
     
-    print(f"Raw string before MD5 encryption: {raw}")
+    # The raw string starts with the app secret: never print it (stdout goes to Cloud Logging)
     
     # Calculate MD5 hash
     sign = hashlib.md5(raw.encode('utf-8')).hexdigest()
@@ -344,20 +344,22 @@ def load_data():
         
         try:
             # Use POST with form data (not JSON)
-            print(f"Request params: {json.dumps(params, indent=2, ensure_ascii=False)}")
+            # app_id and sign are credentials: mask them in the log
+            print(f"Request params: {json.dumps({k: ('***' if k in ('app_id', 'sign') else v) for k, v in params.items()}, indent=2, ensure_ascii=False)}")
             response = requests.post(API_URL, headers=headers, data=params, timeout=69)
             print(f"Response status code: {response.status_code}")
             
             if response.status_code != 200:
                 print(f"Error fetching data: {response.status_code} - {response.text}")
-                break
+                # Fail the run: returning the pages so far would load a partial day as a success
+                raise RuntimeError(f"Dianplus page {page_num} failed with HTTP {response.status_code}")
             
             data = response.json()
             
             if data.get("resultCode") != "success":
                 error_msg = data.get('exceptionMessage') or 'Unknown error'
                 print(f"API error: {error_msg}")
-                break
+                raise RuntimeError(f"Dianplus API error on page {page_num}: {error_msg}")
             
             raw_data = data.get("resultObject", {}).get("results", [])
             
@@ -372,7 +374,7 @@ def load_data():
             
         except requests.exceptions.RequestException as e:
             print(f"Request error: {e}")
-            break
+            raise RuntimeError(f"Dianplus request failed on page {page_num}: {e}") from e
     
     if not all_rows:
         print("No data fetched.")
@@ -465,7 +467,7 @@ def clean_nulls_for_bigquery(df):
     
     return df
 
-def insert_to_bigquery(df, project_id=None, dataset_id="dianplus", table_id="raw_dianplus_product"):
+def insert_to_bigquery(df, project_id=None, dataset_id=os.getenv("BQ_RAW_DATASET", "raw"), table_id="raw_dianplus_product"):
     """Insert DataFrame into BigQuery."""
     # Clean null values first
     df = clean_nulls_for_bigquery(df)
@@ -489,7 +491,7 @@ def insert_to_bigquery(df, project_id=None, dataset_id="dianplus", table_id="raw
         )
         load_job = client.load_table_from_dataframe(df, table_ref, job_config=job_config)
         load_job.result()
-        print(f"  ✓ Successfully loaded {load_job.output_rows} rows into {dataset_id}.{table_id}")
+        print(f"  ✓ Successfully loaded {load_job.output_rows} rows into {client.project}.{dataset_id}.{table_id} [{load_job.job_id}]")
     finally:
         # Ensure client is properly closed
         client.close()

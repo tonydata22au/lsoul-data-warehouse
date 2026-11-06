@@ -54,6 +54,7 @@ def setUpModule():
         mock.patch.dict(os.environ, {}, clear=False),
     ):
         os.environ.pop("K_SERVICE", None)
+        os.environ.pop("BQ_RAW_DATASET", None)  # assert the built-in default below
         spec = importlib.util.spec_from_file_location("cr_pancake_order_under_test", SERVICE_FILE)
         svc = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(svc)
@@ -239,7 +240,7 @@ class LoadToBigQuery(unittest.TestCase):
 
         self.assertIsNone(client_cls.call_args.kwargs["credentials"])  # no key file -> ADC
         (sent, table_ref), kwargs = client.load_table_from_dataframe.call_args
-        self.assertEqual(str(table_ref), "test-project.raw_pancake.raw_order")
+        self.assertEqual(str(table_ref), "test-project.raw.raw_order")
         config = kwargs["job_config"]
         self.assertEqual(config.write_disposition, "WRITE_APPEND")
         self.assertEqual(
@@ -250,6 +251,29 @@ class LoadToBigQuery(unittest.TestCase):
         self.assertTrue(pd.isna(sent["total_price"].iloc[1]) or sent["total_price"].iloc[1] == "")
         self.assertTrue(client.close.called)
         self.assertIn("Unique entries: 1", message)
+
+
+class RawDatasetSetting(unittest.TestCase):
+    def load_service(self, env):
+        no_dotenv = types.SimpleNamespace(load_dotenv=lambda *args, **kwargs: None)
+        root = logging.getLogger()
+        saved_handlers, saved_level = root.handlers[:], root.level
+        try:
+            with mock.patch.dict(sys.modules, {"dotenv": no_dotenv}), mock.patch.dict(os.environ, env):
+                os.environ.pop("K_SERVICE", None)
+                spec = importlib.util.spec_from_file_location("cr_pancake_order_env_test", SERVICE_FILE)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+        finally:
+            root.handlers[:], root.level = saved_handlers, saved_level
+        return module
+
+    def test_defaults_to_the_raw_dataset(self):
+        self.assertEqual(svc.DATASET_ID, "raw")
+
+    def test_bq_raw_dataset_overrides_the_dataset(self):
+        module = self.load_service({"BQ_RAW_DATASET": "raw_pancake"})
+        self.assertEqual(module.DATASET_ID, "raw_pancake")
 
 
 class HttpRoute(unittest.TestCase):
