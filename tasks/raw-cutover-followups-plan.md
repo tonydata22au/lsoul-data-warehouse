@@ -49,8 +49,9 @@ follow-ups in this thread. Separate from `tasks/plan.md` / `tasks/todo.md` (othe
 | Session-only cron dies with the session | Med | Re-run scenario D by hand Sunday after 08:30 |
 | `grep 'Not found'` depends on bq's message text | Low | Unknown errors still fail closed |
 
-## Open questions (owner)
+## Owner decisions (2026-11-07)
 
-1. dbt schedule: keep `0 8` (update test + comment) or restore `0 9`?
-2. Deploy T2 to BigQuery? Drop the live T3 procedure?
-3. Push both repos (warehouse commit, lsoul_dbt `c0b393f`, `c519487`, `913f303`)?
+1. Push both repos: done.
+2. `fn_warehouse_operations` deployed and verified (see the cutover record).
+3. Jushuitan procedure dropped by the owner; confirmed gone and unreferenced.
+4. dbt daily build stays at 08:00 ICT (lsoul_dbt `9d9bf20`).

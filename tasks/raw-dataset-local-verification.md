@@ -376,17 +376,22 @@ tables again.
   (the repo file adds `raw` but still reads `core_meta`). **2026-11-07 follow-up:** the repo file now scans `core`,
   `stage` and `mart` and no longer scans the deleted datasets `core_meta`, `core_tiktok`, `dataform`, `stg_meta` and
   `stg_tiktok` (`sql/monitoring/looker_studio_*` regenerated). BigQuery dry run of the `CREATE OR REPLACE TABLE
-  FUNCTION` passed. Not deployed yet; deploying needs the owner's go-ahead.
+  FUNCTION` passed. **Deployed 2026-11-07 17:58 ICT** with the owner's go-ahead: the live body matches the repo file
+  (whitespace-insensitive SHA-256 `02f99a6b…`; BigQuery drops the trailing comment), and a call for 2026-11-01..07 returns
+  rows for every source. The previous live definition (failing on `core_meta`) is saved for rollback in
+  `sql/archive/zarchived-reportdb.fn_warehouse_operations.pre-raw-cutover-20261107.sql` (body hash `54976592…` = live).
 - `jushuitan.sp_jushuitan_core_inventory_insert` already fails validation (`jushuitan.stg_jushuitan_inventory` doesn't
   exist) and hasn't been called in 30 days. Only its provenance strings name the old table. Not redeployed.
   **2026-11-07 follow-up:** superseded by dbt `core.core_jushuitan__inventory`; the repo file moved to
-  `sql/archive/zarchived-jushuitan.sp_jushuitan_core_inventory_insert.sql`. The live procedure is left in place.
+  `sql/archive/zarchived-jushuitan.sp_jushuitan_core_inventory_insert.sql`. The owner dropped the live procedure on
+  2026-11-07; checked: no `jushuitan` routine remains in `asia-southeast1`, no routine references it and no job called it in 30 days.
 - Six Dataform repositories listed in the plan (`ppl-tiktok`, `ppl-meta`, `ppl-dianplus`, `ppl-jushuitan`,
   `ppl-surfosm`, `ppl-magento`) last ran on 2026-11-05 and no longer exist; dbt replaced them.
 - `lsoul_dbt/deploy/cloudrun.sh apply` stops at its grant step for `core_meta` (deleted); its `ROUTINE_READ_DATASETS`
   still lists `core_meta` and `core_tiktok`. Owner fix in lsoul_dbt. **2026-11-07 follow-up:** lsoul_dbt `c0b393f`
   makes the grant step skip a dataset that `bq show` reports as Not found (other errors still stop `apply`), tested in
-  `c519487`, narrowed to `Not found: Dataset` in `913f303`; not pushed.
+  `c519487`, narrowed to `Not found: Dataset` in `913f303`. The owner kept the daily build at 08:00 ICT; `9d9bf20` aligns the comment, test
+  and docs.
 - Ad hoc readers of old raw tables (30 days): `khuongduyle291@gmail.com` (queries on `raw_pancake`), `holistics@`
   (INFORMATION_SCHEMA metadata only). They now see frozen data unless repointed. Looker Studio sources can't be
   listed from BigQuery; owner check.
