@@ -373,13 +373,20 @@ tables again.
 ### Found during the cutover (not changed)
 
 - `reportdb.fn_warehouse_operations` already fails: it scans dataset `core_meta`, which no longer exists. Not redeployed
-  (the repo file adds `raw` but still reads `core_meta`).
+  (the repo file adds `raw` but still reads `core_meta`). **2026-11-07 follow-up:** the repo file now scans `core`,
+  `stage` and `mart` and no longer scans the deleted datasets `core_meta`, `core_tiktok`, `dataform`, `stg_meta` and
+  `stg_tiktok` (`sql/monitoring/looker_studio_*` regenerated). BigQuery dry run of the `CREATE OR REPLACE TABLE
+  FUNCTION` passed. Not deployed yet; deploying needs the owner's go-ahead.
 - `jushuitan.sp_jushuitan_core_inventory_insert` already fails validation (`jushuitan.stg_jushuitan_inventory` doesn't
   exist) and hasn't been called in 30 days. Only its provenance strings name the old table. Not redeployed.
+  **2026-11-07 follow-up:** superseded by dbt `core.core_jushuitan__inventory`; the repo file moved to
+  `sql/archive/zarchived-jushuitan.sp_jushuitan_core_inventory_insert.sql`. The live procedure is left in place.
 - Six Dataform repositories listed in the plan (`ppl-tiktok`, `ppl-meta`, `ppl-dianplus`, `ppl-jushuitan`,
   `ppl-surfosm`, `ppl-magento`) last ran on 2026-11-05 and no longer exist; dbt replaced them.
 - `lsoul_dbt/deploy/cloudrun.sh apply` stops at its grant step for `core_meta` (deleted); its `ROUTINE_READ_DATASETS`
-  still lists `core_meta` and `core_tiktok`. Owner fix in lsoul_dbt.
+  still lists `core_meta` and `core_tiktok`. Owner fix in lsoul_dbt. **2026-11-07 follow-up:** lsoul_dbt `c0b393f`
+  makes the grant step skip a dataset that `bq show` reports as Not found (other errors still stop `apply`), tested in
+  `c519487`; not pushed.
 - Ad hoc readers of old raw tables (30 days): `khuongduyle291@gmail.com` (queries on `raw_pancake`), `holistics@`
   (INFORMATION_SCHEMA metadata only). They now see frozen data unless repointed. Looker Studio sources can't be
   listed from BigQuery; owner check.
