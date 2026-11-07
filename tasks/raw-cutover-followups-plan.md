@@ -18,7 +18,8 @@ follow-ups in this thread. Separate from `tasks/plan.md` / `tasks/todo.md` (othe
 - [x] **T1 dbt deploy script** (`lsoul_dbt/deploy/cloudrun.sh`, 1 file, XS). `apply` must not stop at deleted datasets
   (`core_meta`, `core_tiktok`). Acceptance: a `Not found` from `bq show` skips the grant; any other `bq` error still fails;
   `plan` output unchanged. Verify: stub-`bq` harness (gone/ok/denied), `bash -n`, `plan`, unit tests (no new failures).
-  Done: local commits `c0b393f` (fix) and `c519487` (`GrantDatasetTest`: fails on the old script, passes now), not pushed.
+  Done: local commits `c0b393f` (fix) and `c519487` (`GrantDatasetTest`: fails on the old script, passes now), review fix `913f303` (skip only
+  `Not found: Dataset`, so a wrong project still fails); not pushed.
 - [x] **T2 `reportdb.fn_warehouse_operations`** (function + 3 generated `sql/monitoring/looker_studio_*`, S). Acceptance:
   no scan of a deleted dataset (`core_meta`, `core_tiktok`, `dataform`, `stg_meta`, `stg_tiktok`); dbt layer datasets
   `core`, `stage`, `mart` scanned and labelled by source. Verify: `validate_repo.py`, `sql_index.py --check`, unit tests;
@@ -52,4 +53,4 @@ follow-ups in this thread. Separate from `tasks/plan.md` / `tasks/todo.md` (othe
 
 1. dbt schedule: keep `0 8` (update test + comment) or restore `0 9`?
 2. Deploy T2 to BigQuery? Drop the live T3 procedure?
-3. Push both repos (warehouse commit, lsoul_dbt `c0b393f` + `c519487`)?
+3. Push both repos (warehouse commit, lsoul_dbt `c0b393f`, `c519487`, `913f303`)?

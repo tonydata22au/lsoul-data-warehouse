@@ -386,7 +386,7 @@ tables again.
 - `lsoul_dbt/deploy/cloudrun.sh apply` stops at its grant step for `core_meta` (deleted); its `ROUTINE_READ_DATASETS`
   still lists `core_meta` and `core_tiktok`. Owner fix in lsoul_dbt. **2026-11-07 follow-up:** lsoul_dbt `c0b393f`
   makes the grant step skip a dataset that `bq show` reports as Not found (other errors still stop `apply`), tested in
-  `c519487`; not pushed.
+  `c519487`, narrowed to `Not found: Dataset` in `913f303`; not pushed.
 - Ad hoc readers of old raw tables (30 days): `khuongduyle291@gmail.com` (queries on `raw_pancake`), `holistics@`
   (INFORMATION_SCHEMA metadata only). They now see frozen data unless repointed. Looker Studio sources can't be
   listed from BigQuery; owner check.
