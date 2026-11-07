@@ -9,7 +9,8 @@ after all fetching, so failing before the load is safe for a scheduler retry.
 READINESS_BLOCKERS lists behaviour that still reports a failure as success and needs an
 owner decision (tasks/raw-dataset-plan.md, decision 7); its tests would be expectedFailure.
 It is empty since the 2026-11-06 deploy decisions (tasks/raw-dataset-deploy-plan.md):
-D2 fixed the Surfosm detail skip, and D7 accepts partial loads on Dianplus/Jushuitan API codes. Needs the services' requirements (see
+D2 fixed the Surfosm detail skip, and D7 accepts partial loads on Jushuitan API codes (Dianplus no longer:
+decision U5, 2026-11-07, tasks/raw-dataset-plan.md "Cutover execution"). Needs the services' requirements (see
 tests/test_cloud_run_destinations.py for how to run).
 """
 
@@ -226,9 +227,11 @@ class Pagination(Base):
 
 class MidRunFailure(Base):
     CASES = ("page2_http_500", "page2_connection_reset", "page2_api_error", "all_mode_http_500")
-    # Decision D7/D8 (2026-11-06): a non-success API code from these services ends the fetch and keeps the
-    # pages so far (old behaviour, owner-approved); HTTP errors and connection failures still fail the run.
-    API_CODE_KEEPS_PAGES = frozenset(DIANPLUS) | {"cloud-run-jushuitan-order"}
+    # Decision D7/D8 (2026-11-06): a non-success Jushuitan API code ends the fetch and keeps the pages so far
+    # (old behaviour, owner-approved); HTTP errors and connection failures still fail the run.
+    # Decision U5 (2026-11-07): Dianplus no longer does. On 2026-11-07 its API rejected pageSize 2000 with a
+    # non-success resultCode and the run answered 200 "0 entries", so a non-success code now fails the run.
+    API_CODE_KEEPS_PAGES = frozenset({"cloud-run-jushuitan-order"})
 
     def test_a_failed_page_fails_the_run_and_loads_nothing(self):
         for service, results in RESULTS.items():
@@ -238,7 +241,20 @@ class MidRunFailure(Base):
                 with self.subTest(service=service, case=name):
                     self.assert_failed_without_load(self.result(service, name))
 
-    def test_dianplus_and_jushuitan_api_error_code_keeps_the_pages_so_far(self):
+    def test_dianplus_api_error_code_fails_the_run_and_loads_nothing(self):
+        for service in DIANPLUS:
+            with self.subTest(service=service):
+                self.assert_failed_without_load(self.result(service, "page2_api_error"))
+
+    def test_dianplus_requests_at_most_500_rows_per_page(self):
+        # The Dianplus API answers "分页数不能超过500!" (page size can't exceed 500) above that.
+        for service in DIANPLUS:
+            with self.subTest(service=service):
+                sizes = self.result(service, "two_pages")["page_sizes"]
+                self.assertTrue(sizes, "no pageSize sent")
+                self.assertTrue(all(0 < int(size) <= 500 for size in sizes), sizes)
+
+    def test_jushuitan_api_error_code_keeps_the_pages_so_far(self):
         for service in sorted(self.API_CODE_KEEPS_PAGES):
             with self.subTest(service=service):
                 result = self.result(service, "page2_api_error")

@@ -210,7 +210,7 @@ def load_data(start_time=None, end_time=None):
     
     all_rows = []
     page_num = 1
-    page_size = 2000
+    page_size = 500  # API maximum: larger sizes fail with "分页数不能超过500!" (2026-11-07)
     
     print(f"Fetching inventory data from Dianplus API (startModified={start_time}, endModified={end_time})...")
     
@@ -251,8 +251,9 @@ def load_data(start_time=None, end_time=None):
             if data.get("resultCode") != "success":
                 error_msg = data.get('exceptionMessage') or 'Unknown error'
                 print(f"API error: {error_msg}")
-                # Decision D7 (2026-11-06): a non-success resultCode ends the fetch and keeps the pages so far
-                break
+                # Decision U5 (2026-11-07): a non-success resultCode fails the run (no load), like an HTTP error.
+                # Breaking here answered 200 "0 entries" when the API rejected the request.
+                raise RuntimeError(f"Dianplus API error on page {page_num}: {redact_secrets(error_msg)}")
             
             raw_data = data.get("resultObject", {}).get("results", [])
             

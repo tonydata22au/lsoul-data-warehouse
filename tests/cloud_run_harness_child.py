@@ -228,8 +228,12 @@ def _connection_error(full_url):
 
 def fake_request(self, method, url, *args, **kwargs):
     full_url = _full_url(method, url, kwargs)
+    sent = {}
+    for key in ("params", "data", "json"):
+        if isinstance(kwargs.get(key), dict):
+            sent.update(kwargs[key])
     STATE["http_calls"].append({"method": method.upper(), "host": urlparse(url).netloc,
-                                "path": urlparse(url).path})
+                                "path": urlparse(url).path, "page_size": sent.get("pageSize")})
     if len(STATE["http_calls"]) > HTTP_CALL_LIMIT:
         raise HarnessAbort(f"more than {HTTP_CALL_LIMIT} HTTP calls (retry loop?)")
     http = STATE["scenario"].get("http", "unexpected")
@@ -344,6 +348,7 @@ def run_scenario(module, app, scenario):
                                        "key_file_reads", "sleep_calls")})
     out["http_calls"] = len(STATE["http_calls"])
     out["http_hosts"] = sorted({c["host"] for c in STATE["http_calls"]})
+    out["page_sizes"] = [c["page_size"] for c in STATE["http_calls"] if c["page_size"] is not None]
     out["clients_closed"] = all(c["closed"] for c in STATE["clients"]) if STATE["clients"] else None
     full_output = stdout.getvalue()
     out["output_tail"] = full_output[-1500:]

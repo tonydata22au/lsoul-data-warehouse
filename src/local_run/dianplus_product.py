@@ -299,7 +299,8 @@ def load_data():
                 if data.get("resultCode") != "success":
                     error_msg = data.get('exceptionMessage') or 'Unknown error'
                     print(f"API error: {error_msg}")
-                    break
+                    # A non-success resultCode fails the run (no load), like an HTTP error (2026-11-07)
+                    raise RuntimeError(f"Dianplus API error on page {page_num}: {error_msg}")
                 
                 raw_data = data.get("resultObject", {}).get("results", [])
                 
