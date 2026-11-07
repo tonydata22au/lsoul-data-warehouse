@@ -264,16 +264,16 @@ Offline checks for every code task: `python3 scripts/validate_repo.py`, `python3
 
 ### D. Verify, document, ship
 
-- [ ] **D1. First scheduled run (2026-11-08 07:00–08:30 ICT).** Use runbook scenario B: each scheduled table gets a load into `raw.*`,
+- [ ] **D1. First scheduled run (2026-11-08 07:00–08:30 ICT).** Pending at handoff (the cutover finished 2026-11-07 15:15); run scenario D of the runbook. Use runbook scenario B: each scheduled table gets a load into `raw.*`,
   0 failed jobs, old tables unchanged, Dataform and dbt jobs read only `raw`, and `dianplus-inventory` loads a non-empty answer.
   If the flow ends before 07:00, this is recorded as pending, with the exact commands.
 - [x] **D2. Docs.** Update `docs/pipelines.md`, `docs/raw-destination-contract.md`, AGENTS.md known issues, `docs/troubleshooting.md`,
   the runbook, `tasks/raw-dataset-local-verification.md` (the cutover record), and the plan status line.
-- [ ] **D3. Git (U6).** Run `validate-changes`, review the diff for secrets and data, commit on `main` (only this task's files), and push.
-- [ ] **D4. Graphify.** Build or refresh the AST graph for this repo (`graphify update`, no LLM): `src/`, `scripts/`, `tests/`,
+- [x] **D3. Git (U6).** Run `validate-changes`, review the diff for secrets and data, commit on `main` (only this task's files), and push.
+- [x] **D4. Graphify.** Build or refresh the AST graph for this repo (`graphify update`, no LLM): `src/`, `scripts/`, `tests/`,
   `docs/`, `sql/` text, excluding credentials, `.env`, `seeds/`, `data/` and notebooks. Refresh the `lsoul_dbt` graph if it is stale.
   Record where the graph lives.
-- [ ] **D5. AgentMemory.** Save durable lessons (the user asked for it). Candidates: the raw dataset consolidation and its new SA;
+- [x] **D5. AgentMemory.** Save durable lessons (the user asked for it). Candidates: the raw dataset consolidation and its new SA;
   the dataset is read in a function default argument; the Dianplus page size limit is 500; Dataform repositories are hosted in Dataform, not Git;
   the dbt job image must be redeployed to change sources; the BigQuery MCP needs ADC re-auth when it reports `invalid_rapt`. No secrets.
 
