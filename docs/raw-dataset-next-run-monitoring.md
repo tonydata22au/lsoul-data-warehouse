@@ -1,4 +1,4 @@
-# Next-run monitoring runbook: Saturday 2026-11-07 (ICT)
+# Next-run monitoring runbook: Saturday 2026-11-07 and, after the cutover, Sunday 2026-11-08 (ICT)
 
 Prepared 2026-11-06 16:40 ICT. Target day: **Saturday 2026-11-07, Asia/Ho_Chi_Minh (UTC+7)**, which is
 `2026-11-06 17:00 UTC` to `2026-11-07 17:00 UTC`. Every command below is **read-only**: it lists,
@@ -56,6 +56,33 @@ What differs from scenario A on 2026-11-07:
 The previous revisions are listed in [the verification record](../tasks/raw-dataset-local-verification.md#deploy-2026-11-06-night).
 The previous revisions use the old images, with credentials baked in, so a rollback only works **until those
 credentials are rotated**. Rotate only after the 2026-11-07 runs succeed.
+
+## Scenario D: first runs after the cutover (Sunday 2026-11-08 onwards)
+
+The cutover ran on 2026-11-07 ([record](../tasks/raw-dataset-local-verification.md#cutover-2026-11-07)). Scenario B's
+checks apply, with these specifics:
+
+- **Destinations:** every one of the 26 scheduled services loads `marine-cycle-484213-b4.raw.<same table>`, as
+  `lsoul-ingest-runner@marine-cycle-484213-b4.iam.gserviceaccount.com` (`user_email` of the LOAD job). A LOAD job
+  by `266174294882-compute@developer` or into an old dataset is MISROUTED.
+- **Old tables frozen:** `sysdb.raw_cutover_freeze` holds each old table's `last_modified` at the freeze; migration
+  script query 1c must still return 0 rows. A 403 `Access Denied: Dataset … <old dataset>` in a service log means a
+  stray old-dataset writer was stopped by the fence (FAILED, investigate the revision's env).
+- **Readers:** Dataform `ppl-pancake` (07:45) and `ppl-pancake-orders` (08:20) read `raw.*` (release compiled from
+  `main` on 2026-11-07); dbt `dbt-daily-build` (08:00) runs image `lsoul-dbt:67e1539b3459`, whose sources are on
+  `raw`. Check that no job after 07:00 references an old raw table:
+
+```sql
+SELECT user_email, job_type, COUNT(*) jobs
+FROM `marine-cycle-484213-b4`.`region-asia-southeast1`.INFORMATION_SCHEMA.JOBS_BY_PROJECT, UNNEST(referenced_tables) r
+WHERE creation_time >= TIMESTAMP('2026-11-08 07:00:00+07')
+  AND (r.dataset_id IN ('raw_pancake','raw_tiktok','raw_meta')
+       OR (r.dataset_id IN ('dianplus','jushuitan','magento','surfosm') AND STARTS_WITH(r.table_id,'raw_')))
+GROUP BY 1, 2;  -- expect 0 rows (ad hoc user queries excepted)
+```
+
+- **Dianplus:** a non-success API answer now fails the run with 500 ("Dianplus API error on page N"); inventory
+  requests 500 rows per page. `dianplus-inventory` should load a non-empty answer on 2026-11-08.
 
 ## Known schedules (unverified)
 

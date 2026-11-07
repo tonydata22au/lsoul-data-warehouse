@@ -4,7 +4,7 @@ Tasks: [raw-dataset-todo.md](raw-dataset-todo.md). Status: Build stage done offl
 Continuation planned on 2026-11-06: [local validation, destination contract and next-run monitoring](#continuation-2026-11-06-local-validation-destination-contract-and-next-run-monitoring) (Phase 3b in the todo).
 Phase 3b built on 2026-11-06 (offline, uncommitted). Local verdict **NOT READY** (2 Surfosm readiness blockers, plus 44 unittest failures from other work); see [raw-dataset-local-verification.md](raw-dataset-local-verification.md).
 
-Cutover execution planned on 2026-11-07: [Cutover execution (2026-11-07)](#cutover-execution-2026-11-07) (Phase 5 in the todo). Window: before 07:00 ICT Sunday 2026-11-08.
+**Cutover executed on 2026-11-07 (14:35–15:15 ICT):** all 32 raw tables are in `raw`; every scheduled writer and active reader uses it. [Plan section](#cutover-execution-2026-11-07), [record](raw-dataset-local-verification.md#cutover-2026-11-07). First scheduled runs on `raw`: 2026-11-08 07:00 ICT.
 
 ## Objective
 

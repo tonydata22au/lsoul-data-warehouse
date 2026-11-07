@@ -307,3 +307,80 @@ on 2026-11-07.
    scenario C).
 2. Once they succeed, rotate the credentials in the vendor consoles and add each new value as a new secret
    version; the next cold start reads `latest`.
+
+## Cutover 2026-11-07
+
+Plan: [Cutover execution (2026-11-07)](raw-dataset-plan.md#cutover-execution-2026-11-07) (decisions U1–U8, from the owner
+through in-thread forms). Executed by the Build stage of @thread:thr_ssazbmz9k4 as `ops.data@lsoul.com`, 14:35–15:15 ICT.
+All times ICT.
+
+**Result: every raw table lives in `marine-cycle-484213-b4.raw`; every scheduled writer and every active reader uses it.**
+The old tables are frozen in place as rollback copies (kept until the owner approves retiring them, U7).
+
+| Step | What ran | Evidence |
+|---|---|---|
+| Pre-check | 2026-11-07 07:00 runs: 21 tables loaded, 0 failed jobs. No load from 4 services: `dianplus-inventory` (API error swallowed; see A2), `pancake-product-variations`, `dianplus-order-refund`, `meta-raw-ads-reporting-ecom` | One authorized read-only call: the Pancake variations API answered `success: true`, 0 rows for 2026-11-06 (4,467 variations in total), so VALID EMPTY |
+| A1–A3 (code) | 32-table inventory; Dianplus fails on API errors, inventory page size 500; 3 live services recovered into the repo (`cloud-run-pancake-orders_returned`, `cloud-run-jushuitan-inventory`, `cloud-run-meta-ads-reporting-my`). Each recovered archive matched its live image digest via Cloud Build; its hardcoded credentials hash-matched the existing secrets (values never printed) and were replaced by env vars | Commits `8a32786`, `1253788`; tests: 0 new failures against the 46-failure baseline; `--imports` passes |
+| B1 | Created SA `lsoul-ingest-runner@`: project `bigquery.jobUser`; WRITER on dataset `raw`; `secretAccessor` on 11 secrets. `raw` ACL also gets READER `dbt-runner@` | `gcloud projects get-iam-policy` shows only `bigquery.jobUser` for it |
+| B2 | Rehearsal on scratch datasets (dropped afterwards): copy, fingerprint equal; a write after the copy detected by `last_modified_time`; **as the new SA, a load into the "old" dataset was denied** and into "raw" (same partition) succeeded; reverse copy equal, no duplicates | Fingerprint mismatches 0 / 0; case c `Access Denied: Dataset`; case d exit 0 |
+| C1 | Paused all 27 scheduler jobs (26 ingestion + `dbt-daily-build-trigger`). Query 1a: 0 running raw loads. `T_freeze` in `sysdb.raw_cutover_freeze`: 32 tables, 7,778,866 rows, newest write 07:16 | — |
+| C2 | `CREATE OR REPLACE TABLE raw.<t> COPY <old>.<t>` × 32 (14:43) | Section 3: **0 mismatching partitions of 3,484**; query 1c: 0 rows; 7,778,866 rows in `raw`; partitioning DAY ingestion-time on all 32, `require_partition_filter` as the source (31 true, `raw_jushuitan_order` false) |
+| C3 | Deployed 26 services from `src/cloud_run/<folder>` with `--service-account lsoul-ingest-runner@…`, removed `BQ_RAW_DATASET`/`BQ_DATASET` (code default `raw`); secrets unchanged (3 recovered services got their secret refs); `jushuitan-inventory` keeps Direct VPC egress | 26/26: Ready, 100% traffic on the new revision, new SA, no dataset override; no ERROR logs |
+| C4a | Repointed live SQL (live DDL with only the dataset qualifier changed): `core_pancake.sp_core_order_insert`, `reportdb.sp_stock_inventory_dashboard_daily`, and 7 views (`stg_pancake.stg_customer`, `stg_inventory_histories`, `stg_order`, `stg_orders_returned`, `stg_stats_inventory_variations`, `stg_variations`; `jushuitan.stg_jushuitan_taobao_tmall_order_manual`). Pre-cutover definitions: `sql/archive/zarchived-*.pre-raw-cutover-20261107.sql` | Dry runs passed; afterwards only 2 live routines still name old raw tables, both already broken (below) |
+| C4b | Dataform: `ppl-pancake` (4 declarations) and `ppl-pancake-orders` (2) changed `dataset:"raw_pancake"` → `"raw"` in workspace `raw-cutover-20261107`; committed and pushed to `main` (`65b17ab3c3`, `3ac6d407b4`); release configs compiled from `main` and set as the current release | 0 compilation errors; every declaration resolves to `raw`; no old raw dataset in the compiled graph |
+| C4c | dbt: created `raw.raw_orders_returned_history` (728 rows, assertion passed); deployed `lsoul_dbt` main as `lsoul-dbt:67e1539b3459`, then `212b04995c38` (fix: the `not_null` test had moved onto the nullable `images` column); full refresh of `core_pancake__variations` and `core_pancake__orders_returned`; granted `dbt-runner@` WRITER on `mart` and READER on `google_ads` (steps of `deploy/cloudrun.sh apply` that didn't run because it stops at the deleted dataset `core_meta`) | Full refresh: models built, the only failure was the misplaced test, fixed. Daily build: see D1 below |
+| C5 | Authorized backfill: `GET /` on `dianplus-inventory` (VN yesterday = 2026-11-06, the missed window) at 15:08 | HTTP 200; LOAD job by `lsoul-ingest-runner@` into `raw.raw_dianplus_inventory`, 297 rows, partition 2026-11-07, schema unchanged (13 columns). **Fence on a real table:** as the new SA, a load into `raw_pancake.raw_order` was denied (`Access Denied: Dataset`); query 1c still 0 rows. The temporary Token Creator grant used for these tests was removed |
+| C6 | Resumed the 26 ingestion scheduler jobs; first runs 2026-11-08 07:00–07:15 | 26 ENABLED |
+
+### Rollback targets
+
+| Service | Folder | Previous revision (rollback target; compute SA, old dataset) | New revision (lsoul-ingest-runner@, `raw`) |
+|---|---|---|---|
+| `pancake-stats-product` | `cloud-run-pancake-stats_product` | `pancake-stats-product-00002-ljq` | `pancake-stats-product-00003-jkf` |
+| `cr-tiktok-ads` | `cloud-run-tiktok-ads` | `cr-tiktok-ads-00003-fkz` | `cr-tiktok-ads-00004-wbn` |
+| `cr-tiktok-reporting-basic-auction-ad` | `cloud-run-tiktok-reporting-basic-autction-ad` | `cr-tiktok-reporting-basic-auction-ad-00004-sg2` | `cr-tiktok-reporting-basic-auction-ad-00005-v2j` |
+| `cr-tiktok-thai-ads` | `cloud-run-tiktok-thai-ads` | `cr-tiktok-thai-ads-00004-52j` | `cr-tiktok-thai-ads-00005-w9w` |
+| `cr-tiktok-thai-gmv-max-report` | `cloud-run-tiktok-thai-gmv-max-report` | `cr-tiktok-thai-gmv-max-report-00002-lnc` | `cr-tiktok-thai-gmv-max-report-00003-9f4` |
+| `cr-tiktok-thai-reporting-basic-auction-ad` | `cloud-run-tiktok-thai-reporting-basic-autction-ad` | `cr-tiktok-thai-reporting-basic-auction-ad-00002-g87` | `cr-tiktok-thai-reporting-basic-auction-ad-00003-xh6` |
+| `tiktok-gmv-max-report` | `cloud-run-tiktok-gmv-max-report` | `tiktok-gmv-max-report-00002-lrz` | `tiktok-gmv-max-report-00003-g9s` |
+| `dianplus-inventory` | `cloud-run-dianplus-inventory` | `dianplus-inventory-00005-zk6` | `dianplus-inventory-00006-gqv` |
+| `dianplus-order` | `cloud-run-dianplus-order` | `dianplus-order-00007-lst` | `dianplus-order-00008-5jn` |
+| `dianplus-order-refund` | `cloud-run-dianplus-order-refund` | `dianplus-order-refund-00002-g2g` | `dianplus-order-refund-00003-x9t` |
+| `dianplus-product` | `cloud-run-dianplus-product` | `dianplus-product-00005-dlp` | `dianplus-product-00006-g8z` |
+| `jushuitan-order` | `cloud-run-jushuitan-order` | `jushuitan-order-00018-rxc` | `jushuitan-order-00019-tcb` |
+| `magento-order` | `cloud-run-magento-order` | `magento-order-00003-qdm` | `magento-order-00004-mg5` |
+| `meta-raw-ads-reporting-a` | `cloud-run-meta-ads-reporting-a` | `meta-raw-ads-reporting-a-00007-t5k` | `meta-raw-ads-reporting-a-00008-6ld` |
+| `meta-raw-ads-reporting-ecom` | `cloud-run-meta-ads-reporting-ecom` | `meta-raw-ads-reporting-ecom-00005-zfg` | `meta-raw-ads-reporting-ecom-00006-596` |
+| `pancake-customer` | `cloud-run-pancake-customer` | `pancake-customer-00008-zrs` | `pancake-customer-00009-tdx` |
+| `pancake-inventory-histories` | `cloud-run-pancake-inventory_histories` | `pancake-inventory-histories-00003-xx4` | `pancake-inventory-histories-00004-952` |
+| `pancake-order` | `cloud-run-pancake-order` | `pancake-order-00015-wd8` | `pancake-order-00016-db7` |
+| `pancake-product-variations` | `cloud-run-pancake-product_variations` | `pancake-product-variations-00009-ww4` | `pancake-product-variations-00010-spv` |
+| `pancake-stats-inventory-variations` | `cloud-run-pancake-stats_inventory_variations` | `pancake-stats-inventory-variations-00004-jht` | `pancake-stats-inventory-variations-00005-jqv` |
+| `surfosm-inventory` | `cloud-run-surfosm-inventory` | `surfosm-inventory-00003-p9r` | `surfosm-inventory-00004-5gz` |
+| `surfosm-order` | `cloud-run-surfosm-order` | `surfosm-order-00004-cst` | `surfosm-order-00005-t9w` |
+| `surfosm-order-return` | `cloud-run-surfosm-order_return` | `surfosm-order-return-00003-nb2` | `surfosm-order-return-00004-5qp` |
+| `pancake-orders-returned` | `cloud-run-pancake-orders_returned` | `pancake-orders-returned-00001-lbs` | `pancake-orders-returned-00002-krb` |
+| `jushuitan-inventory` | `cloud-run-jushuitan-inventory` | `jushuitan-inventory-00001-v7l` | `jushuitan-inventory-00002-llx` |
+| `meta-raw-ads-reporting-my` | `cloud-run-meta-ads-reporting-my` | `meta-raw-ads-reporting-my-00005-fjc` | `meta-raw-ads-reporting-my-00006-jbr` |
+
+Rollback order (plan, "Rollback"): pause the 27 scheduler jobs; Section 5 of the migration script (reverse copy
+`raw` → old, verify); route each service to its previous revision (`gcloud run services update-traffic <svc>
+--region asia-southeast1 --project marine-cycle-484213-b4 --to-revisions <previous>=100`); redeploy the archived SQL
+definitions; in Dataform, revert the two cutover commits and recompile the releases; set the dbt job image back to
+`lsoul-dbt:4f7c66407258`. The previous revisions run as the compute SA (project Editor), so they can write the old
+tables again.
+
+### Found during the cutover (not changed)
+
+- `reportdb.fn_warehouse_operations` already fails: it scans dataset `core_meta`, which no longer exists. Not redeployed
+  (the repo file adds `raw` but still reads `core_meta`).
+- `jushuitan.sp_jushuitan_core_inventory_insert` already fails validation (`jushuitan.stg_jushuitan_inventory` doesn't
+  exist) and hasn't been called in 30 days. Only its provenance strings name the old table. Not redeployed.
+- Six Dataform repositories listed in the plan (`ppl-tiktok`, `ppl-meta`, `ppl-dianplus`, `ppl-jushuitan`,
+  `ppl-surfosm`, `ppl-magento`) last ran on 2026-11-05 and no longer exist; dbt replaced them.
+- `lsoul_dbt/deploy/cloudrun.sh apply` stops at its grant step for `core_meta` (deleted); its `ROUTINE_READ_DATASETS`
+  still lists `core_meta` and `core_tiktok`. Owner fix in lsoul_dbt.
+- Ad hoc readers of old raw tables (30 days): `khuongduyle291@gmail.com` (queries on `raw_pancake`), `holistics@`
+  (INFORMATION_SCHEMA metadata only). They now see frozen data unless repointed. Looker Studio sources can't be
+  listed from BigQuery; owner check.
+- `00_WORKING/content.sql` (Dataform scratch file) reads `dianplus.raw_dianplus_inventory`; unscheduled.

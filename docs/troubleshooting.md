@@ -21,8 +21,9 @@
 ## Known issues
 
 All of these existed before the 2026-10 restructure. Most are documented rather than fixed, because each
-fix changes production behavior and needs a decision. Items marked **fixed** were deployed on 2026-11-06 to 23 Cloud Run services
-(all except `pancake-orders-returned`, `jushuitan-inventory` and `meta-raw-ads-reporting-my`).
+fix changes production behavior and needs a decision. Items marked **fixed** were deployed on 2026-11-06 to 23 Cloud Run services,
+and on 2026-11-07 to all 26 (the three services above now have their source in this repo:
+`cloud-run-pancake-orders_returned`, `cloud-run-jushuitan-inventory`, `cloud-run-meta-ads-reporting-my`).
 
 1. **`cloud-run-tiktok-thai-ads` couldn't start. Fixed and deployed on 2026-11-06.** `app_runner.py`
    loaded `cr-tiktok-thai-ads.py`, but the folder contains `cr-tiktok-ads.py`; it now loads `cr-tiktok-ads.py`
@@ -33,8 +34,8 @@ fix changes production behavior and needs a decision. Items marked **fixed** wer
    `updateStatus=updated_at` and the `notes`/`print_notes`/`tags` columns (instead of `ad_id`/`page_id`);
    the copy still has the 30-day window and the old column set. It fetches `/orders` and appends
    to `raw.raw_order`. If both are deployed,
-   orders are loaded twice and nothing in Cloud Run fills `raw.raw_orders_returned`
-   (`local_run/pancake_orders_returned.py` uses the right endpoint and table).
+   orders are loaded twice. It is **not deployed**: the live service `pancake-orders-returned` runs
+   `cloud-run-pancake-orders_returned` (`/orders_returned` → `raw.raw_orders_returned`, recovered 2026-11-07).
 3. **`cloud-run-pancake-stats_product` and `cloud-run-pancake-stats_inventory_product`** call the
    same endpoint with the same parameters and load different tables.
 4. **Empty days return HTTP 500** in pancake-ecom-product, pancake-order_returned,
@@ -77,3 +78,19 @@ fix changes production behavior and needs a decision. Items marked **fixed** wer
     `access_token` (URL query), and a failed Dianplus auth included `appSecret`, in the 500 body and the logs.
     **Fixed and deployed on 2026-11-06 in `cloud_run/`** (decision D10, `redact_secrets()`); `local_run/` and
     `csv_export/` still echo them.
+
+## Raw dataset cutover (2026-11-07)
+
+- **A load fails with `Access Denied: Dataset marine-cycle-484213-b4:<old dataset>`.** Something still writes an old raw
+  dataset (`raw_pancake`, `raw_tiktok`, `raw_meta`, or `raw_*` in `dianplus`/`jushuitan`/`magento`/`surfosm`). The
+  ingestion SA `lsoul-ingest-runner@` can write only `raw`; that denial is the fence working. Find the revision's env
+  (`BQ_RAW_DATASET`/`BQ_DATASET` must be unset or `raw`).
+- **A Dianplus service answers 500 "Dianplus API error on page N".** Since 2026-11-07 a non-success `resultCode` fails
+  the run instead of loading "0 entries". On 2026-11-07 the inventory API rejected `pageSize` above 500
+  (`分页数不能超过500!`); `cloud-run-dianplus-inventory` now sends 500.
+- **`dianplus-inventory`, `pancake-product-variations`, `dianplus-order-refund` or `meta-raw-ads-reporting-ecom` load
+  nothing.** The last three often have genuinely empty days (on 2026-11-07 the Pancake variations API answered
+  `success: true` with 0 rows for 2026-11-06). Check the log line: "0 … found" after a successful fetch is VALID EMPTY.
+- **Rollback.** Follow "Rollback" in [../tasks/raw-dataset-plan.md](../tasks/raw-dataset-plan.md#cutover-and-rollback-protocol):
+  pause the schedulers, reverse-copy `raw` → old with `sql/migrations/raw_dataset_consolidation.sql` Section 5, then
+  route each service back to its previous revision (listed in the cutover record).

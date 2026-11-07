@@ -10,13 +10,19 @@ page, run `python3 scripts/build_pipeline_manifest.py`. `validate_repo.py` fails
 - **Project:** the client's default project unless noted. The warehouse SQL uses `marine-cycle-484213-b4`.
 - **WA:** `load_table_from_dataframe` with `WRITE_APPEND`, `ALLOW_FIELD_ADDITION`/`RELAXATION`, every column cast to STRING. Raw tables are ingestion-time partitioned.
 - **VN yesterday:** 00:00:00–23:59:59 yesterday in `Asia/Ho_Chi_Minh`.
-- **Schedule:** **unknown for every pipeline** except `cloud-run-pancake-order` and `cloud-run-pancake-product_variations`: Cloud Scheduler jobs `pancake-insert-raw_order` and `pancake-insert-raw_product_variations` send `GET /` daily at 07:20 ICT (details in their docstrings). No Cloud Scheduler, cron, CI or service URLs are in the repo. The SQL implies a daily run (see [architecture.md](architecture.md#runtime-and-deployment)).
+- **Schedule (read live on 2026-11-07):** 26 Cloud Scheduler jobs in `asia-southeast1` call the 26 deployed services daily
+  between 07:00 and 07:15 `Asia/Saigon` (names like `pancake-insert-raw_order`, `dianplus-insert-raw_dianplus_inventory`).
+  Then Dataform `ppl-pancake` 07:45, `ppl-pancake-orders` 08:20, `ppl-reports` 08:40, and the dbt job
+  `dbt-daily-build` (trigger `dbt-daily-build-trigger`) at 08:00. None of this is in the repo
+  (see [architecture.md](architecture.md#runtime-and-deployment)).
 - **Dry run** (where it exists) **still calls the source API**; it only skips the BigQuery load.
 - **Raw dataset:** every raw table lives in the single dataset `raw` (table names unchanged). Cloud Run services read the
   optional env var `BQ_RAW_DATASET` (default `raw`); `cloud-run-magento-order` and `cloud-run-surfosm-inventory` keep
-  their existing `BQ_DATASET` (default now `raw`). `local_run/` and `schema/` use the literal `raw`. Until the cutover in
-  [../tasks/raw-dataset-plan.md](../tasks/raw-dataset-plan.md) runs, the live tables are still in the old datasets
-  (`raw_pancake`, `raw_tiktok`, `raw_meta`, and `raw_*` tables in `dianplus`/`jushuitan`/`magento`/`surfosm`).
+  their existing `BQ_DATASET` (default now `raw`). `local_run/` and `schema/` use the literal `raw`. The cutover in
+  [../tasks/raw-dataset-plan.md](../tasks/raw-dataset-plan.md) ran on 2026-11-07: the 32 live tables were copied to
+  `raw`, and the old tables (`raw_pancake`, `raw_tiktok`, `raw_meta`, and `raw_*` tables in
+  `dianplus`/`jushuitan`/`magento`/`surfosm`) stay frozen as rollback copies. Deployed services run as
+  `lsoul-ingest-runner@marine-cycle-484213-b4.iam.gserviceaccount.com`, which can write only `raw`.
   The exact service → table contract (config precedence, failure statuses, coverage totals) is in
   [raw-destination-contract.md](raw-destination-contract.md); the next-run checks are in
   [raw-dataset-next-run-monitoring.md](raw-dataset-next-run-monitoring.md).
@@ -65,7 +71,8 @@ with the default window below. The CLI is `python cr-<name>.py [flags]` in the s
 Credentials (env vars): Pancake `PANCAKE_API_KEY`; Dianplus `DIANPLUS_APP_KEY`, `DIANPLUS_APP_SECRET`;
 Jushuitan `JUSHUITAN_APP_KEY`, `JUSHUITAN_APP_SECRET`; Magento `MAGENTO_USERNAME`, `MAGENTO_PASSWORD`;
 Surfosm `SURFOSM_API_KEY`; Meta `META_ACCESS_TOKEN`; TikTok VN `TIKTOK_VN_ACCESS_TOKEN`, Thai `TIKTOK_TH_ACCESS_TOKEN`.
-BigQuery auth: Application Default Credentials (the Cloud Run service identity). `cloud-run-pancake-order`
+BigQuery auth: Application Default Credentials (the Cloud Run service identity, `lsoul-ingest-runner@` since 2026-11-07;
+deploy with `--service-account lsoul-ingest-runner@marine-cycle-484213-b4.iam.gserviceaccount.com`). `cloud-run-pancake-order`
 also uses `credentials/google-credentials.json` from the repo root when that file exists (local runs only;
 the file isn't in the image, so the deployed service uses the service identity).
 

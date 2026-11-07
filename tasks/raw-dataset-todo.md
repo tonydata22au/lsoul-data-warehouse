@@ -186,18 +186,18 @@ Offline checks for every code task: `python3 scripts/validate_repo.py`, `python3
 
 ### A. Code and inventory (offline, plus read-only live reads)
 
-- [ ] **A1. Inventory 31 → 32.** Add `jushuitan.raw_jushuitan_order` to `sql/migrations/raw_dataset_consolidation.sql`
+- [x] **A1. Inventory 31 → 32.** Add `jushuitan.raw_jushuitan_order` to `sql/migrations/raw_dataset_consolidation.sql`
   (copy, fingerprint, freeze and reverse sections) and to the guard test's expected set; fix the "31" mentions in the plan, checklist and runbook.
   - Acceptance: the guard test asserts exactly 32 `(old, raw)` pairs; the script's section counts all equal 32.
   - Verify: `python3 -m unittest tests.test_raw_dataset_refs`; `grep -c` per section.
   - Files: `sql/migrations/raw_dataset_consolidation.sql`, `tests/test_raw_dataset_refs.py`, `tasks/raw-dataset-local-verification.md`, `docs/raw-dataset-next-run-monitoring.md`.
-- [ ] **A2. Fix `dianplus-inventory` (U5).** Set a page size within the API limit (≤ 500). When Dianplus returns a non-success code or message,
+- [x] **A2. Fix `dianplus-inventory` (U5).** Set a page size within the API limit (≤ 500). When Dianplus returns a non-success code or message,
   the HTTP route returns non-2xx and the CLI exits non-zero; "0 entries" is reserved for a real empty answer.
   Audit the other 3 Dianplus services for the same swallow and fix them the same way. Update the matching `local_run/` variant.
   - Acceptance: regression tests cover the API-error body → non-success, a legitimate empty page → valid empty, and pagination at the new page size.
   - Verify: focused unittest plus the standard checks.
   - Files: `src/cloud_run/cloud-run-dianplus-inventory/cr-*.py` (+ up to 3 sibling Dianplus services), `src/local_run/dianplus_inventory*.py`, `tests/…`.
-- [ ] **A3. Recover the 3 services with no repo source (U4).** For `pancake-orders-returned`, `jushuitan-inventory` and
+- [x] **A3. Recover the 3 services with no repo source (U4).** For `pancake-orders-returned`, `jushuitan-inventory` and
   `meta-raw-ads-reporting-my`: fetch the deployed source (the Cloud Run source bucket `run-sources-266174294882-asia-southeast1`,
   or the live image's `/app` layer) into thread storage. Scan it for credentials first and never print a value. Add each as
   `src/cloud_run/cloud-run-<live-service-name>/` with `Dockerfile`, `requirements.txt`, `app_runner.py` and `cr-*.py`. Use the
@@ -209,15 +209,15 @@ Offline checks for every code task: `python3 scripts/validate_repo.py`, `python3
   - Verify: the standard checks plus `--imports`.
   - Files: 3 new folders (≤ 4 files each), `tests/test_cloud_run_services*.py`, `docs/raw-destination-contract.md`, `docs/pipelines.md`.
   - If a source can't be recovered: stop for that service and ask (fallback in the plan risks).
-- [ ] **A4. Reader inventory (read-only).** Find the readers of old raw tables over 30 days: `referenced_tables` by principal,
+- [x] **A4. Reader inventory (read-only).** Find the readers of old raw tables over 30 days: `referenced_tables` by principal,
   `INFORMATION_SCHEMA.VIEWS`/`ROUTINES` in every dataset, Data Transfer scheduled queries. Diff the live routines against `sql/`
   (`sql_index.py --drift`).
   - Acceptance: a reader table in the verification record; each reader is marked repointed-in-C4 or owner-action.
-- [ ] **A5. Dataform scan and prepared edits (U2).** For all 11 repositories, read the files of the default workspace or the
+- [x] **A5. Dataform scan and prepared edits (U2).** For all 11 repositories, read the files of the default workspace or the
   latest commit through the API. List every old raw declaration or reference, including declarations that inherit a default dataset.
   Prepare the edits in a new workspace `raw-cutover-20261107`: don't commit or push yet.
   - Acceptance: every hit is listed with file:line; a compile of the prepared workspace shows no old raw table in its dependencies.
-- [ ] **A6. dbt job wiring.** Find how `dbt-daily-build-trigger` gets its code (the Cloud Run job image, its build source and ref).
+- [x] **A6. dbt job wiring.** Find how `dbt-daily-build-trigger` gets its code (the Cloud Run job image, its build source and ref).
   Prepare a rebuild from `lsoul_dbt` `67e1539`.
   - Acceptance: the exact build and deploy command is recorded, plus the previous image digest for rollback.
 
@@ -225,39 +225,39 @@ Offline checks for every code task: `python3 scripts/validate_repo.py`, `python3
 
 ### B. Live preparation (no effect on current writers)
 
-- [ ] **B1. Runtime SA and grants (U3).** Create `lsoul-ingest-runner@`. Grant project `bigquery.jobUser`, `dataEditor` on `raw`
+- [x] **B1. Runtime SA and grants (U3).** Create `lsoul-ingest-runner@`. Grant project `bigquery.jobUser`, `dataEditor` on `raw`
   only, and `secretAccessor` per secret. Grant `dataViewer` on `raw` to the readers from A4 (`dbt-runner@`, the Dataform agent, …).
   - Verify: `bq show --format=prettyjson raw`; `gcloud projects get-iam-policy` shows no Editor for the new SA.
-- [ ] **B2. Rehearsal (R13), with the new SA.** In a scratch pair, `zz_cutover_rehearsal_old` and `zz_cutover_rehearsal_raw`, run the full
+- [x] **B2. Rehearsal (R13), with the new SA.** In a scratch pair, `zz_cutover_rehearsal_old` and `zz_cutover_rehearsal_raw`, run the full
   forward and rollback protocol, appending into the same partition (cases a–d). Add a write as the new SA to the scratch "old" dataset,
   which must be denied (the fence), and to the scratch "raw" dataset, which must succeed. Then drop the scratch datasets.
   - Acceptance: fingerprints equal in both directions; the case (b) write is detected; the case (c) write is denied.
-- [ ] **B3. SQL baselines.** Use the `repoint-sql-sources` skill: for each SQL object to repoint (repo `sql/` drift list plus A4 routines), save the
+- [x] **B3. SQL baselines.** Use the `repoint-sql-sources` skill: for each SQL object to repoint (repo `sql/` drift list plus A4 routines), save the
   current live definition and a fixed-window result (e.g. 2026-10-01 to 2026-11-06) to `sysdb` baseline tables or thread storage.
 
 ### Checkpoint B: rehearsal passed; SA permissions proven; baselines saved. Gate: it is before 23:00 ICT, otherwise ask
 
 ### C. Cutover window (2026-11-07 evening, done by 06:30 ICT on 2026-11-08)
 
-- [ ] **C1. Freeze.** Pause the 26 ingestion scheduler jobs and `dbt-daily-build-trigger`. Run migration Section 1: no running raw
+- [x] **C1. Freeze.** Pause the 26 ingestion scheduler jobs and `dbt-daily-build-trigger`. Run migration Section 1: no running raw
   load jobs, and `last_modified_time` stable for ≥ 10 min. Record `T_freeze` in `sysdb.raw_cutover_freeze`.
-- [ ] **C2. Copy 32 tables and verify.** Run Sections 2–3: `CREATE TABLE raw.<t> COPY <old>.<t>` for all 32, compare the fingerprints, then
+- [x] **C2. Copy 32 tables and verify.** Run Sections 2–3: `CREATE TABLE raw.<t> COPY <old>.<t>` for all 32, compare the fingerprints, then
   recheck `T_freeze`. Any mismatch → back to C1.
   - Acceptance: 32/32 equal `(p, n, x)`; partitioning, clustering and `require_partition_filter` match the source.
-- [ ] **C3. Switch writers.** Deploy the 23 repo services plus the 3 recovered ones from `src/cloud_run/<folder>`, with
+- [x] **C3. Switch writers.** Deploy the 23 repo services plus the 3 recovered ones from `src/cloud_run/<folder>`, with
   `--service-account lsoul-ingest-runner@…` and `--remove-env-vars BQ_RAW_DATASET` (for magento and surfosm-inventory, also `BQ_DATASET`).
   Secrets stay unchanged. The Dianplus fix ships with it. Run 3–4 deploys in parallel; the canary `pancake-stats-product` goes first.
   - Acceptance: per service: Ready, 100% traffic on the new revision, the new SA, no dataset override, startup probe passed, and no ERROR.
     Record the previous revision as the rollback target.
-- [ ] **C4. Switch readers.** (a) Deploy the repointed SQL objects and compare old and new results against B3 for the fixed window.
+- [x] **C4. Switch readers.** (a) Deploy the repointed SQL objects and compare old and new results against B3 for the fixed window.
   (b) Dataform: commit and push the workspace, then compile each release config and confirm no old raw dependency. (c) dbt: rebuild
   and deploy the job image from `67e1539`, then run the job once. It must pass and its `referenced_tables` must include `raw.*`
   and no old raw dataset.
   - Acceptance: every SQL object returns old = new; every Dataform release compiles clean; the dbt run succeeds and reads `raw`.
-- [ ] **C5. Live write proof and backfill (U5).** Run the authorized `dianplus-inventory` backfill for the missed 2026-11-06 window
+- [x] **C5. Live write proof and backfill (U5).** Run the authorized `dianplus-inventory` backfill for the missed 2026-11-06 window
   through the deployed service, with its CLI or route parameters for that window. It must load into `raw.raw_dianplus_inventory` as the new SA.
   Then confirm the fence: no old table's `last_modified_time` changed since `T_freeze`.
-- [ ] **C6. Resume.** Resume all 27 scheduler jobs.
+- [x] **C6. Resume.** Resume all 27 scheduler jobs.
   - Acceptance: `gcloud scheduler jobs list` shows all ENABLED, and the next run times are 2026-11-08 07:00–08:00.
 
 ### Checkpoint C: writers on `raw` through the new SA; readers on `raw`; old tables frozen. If anything is not done by 06:30, run the rollback protocol before 07:00
@@ -267,7 +267,7 @@ Offline checks for every code task: `python3 scripts/validate_repo.py`, `python3
 - [ ] **D1. First scheduled run (2026-11-08 07:00–08:30 ICT).** Use runbook scenario B: each scheduled table gets a load into `raw.*`,
   0 failed jobs, old tables unchanged, Dataform and dbt jobs read only `raw`, and `dianplus-inventory` loads a non-empty answer.
   If the flow ends before 07:00, this is recorded as pending, with the exact commands.
-- [ ] **D2. Docs.** Update `docs/pipelines.md`, `docs/raw-destination-contract.md`, AGENTS.md known issues, `docs/troubleshooting.md`,
+- [x] **D2. Docs.** Update `docs/pipelines.md`, `docs/raw-destination-contract.md`, AGENTS.md known issues, `docs/troubleshooting.md`,
   the runbook, `tasks/raw-dataset-local-verification.md` (the cutover record), and the plan status line.
 - [ ] **D3. Git (U6).** Run `validate-changes`, review the diff for secrets and data, commit on `main` (only this task's files), and push.
 - [ ] **D4. Graphify.** Build or refresh the AST graph for this repo (`graphify update`, no LLM): `src/`, `scripts/`, `tests/`,

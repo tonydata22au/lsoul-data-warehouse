@@ -1,9 +1,11 @@
 # Raw destination contract: every Cloud Run service and the table it writes
 
-Status (2026-11-06 night): this code is **deployed to 23 existing Cloud Run services**, each pinned to its
-**current** dataset with `BQ_RAW_DATASET` / `BQ_DATASET` and reading credentials from Secret Manager
-([deploy record](../tasks/raw-dataset-local-verification.md#deploy-2026-11-06-night)). The move to the `raw`
-dataset ([plan](../tasks/raw-dataset-plan.md)) is still a separate, not-yet-run cutover. Verified offline, with mocks, by
+Status (2026-11-07, after the cutover): **all 26 scheduled ingestion services run this repo's code and write
+`marine-cycle-484213-b4.raw`** (no dataset override, so the code default `raw` applies). They run as the dedicated
+service account `lsoul-ingest-runner@marine-cycle-484213-b4.iam.gserviceaccount.com`, which can write only
+dataset `raw` (plus project `bigquery.jobUser` and access to its secrets), and read credentials from Secret Manager.
+The 32 old raw tables were copied, fingerprint-verified and frozen in place as rollback copies; that SA can't write
+them ([cutover record](../tasks/raw-dataset-local-verification.md#cutover-2026-11-07)). Verified offline, with mocks, by
 `tests/test_cloud_run_destinations.py`, `tests/test_cloud_run_routes.py` and `tests/test_cloud_run_fetch.py`
 (see [the verification record](../tasks/raw-dataset-local-verification.md)).
 
@@ -14,7 +16,7 @@ Configuration, highest precedence first:
 
 | Services | Project | Dataset | Table |
 |---|---|---|---|
-| 28 standard services | runtime credentials (ADC project of the Cloud Run service account); `cloud-run-surfosm-order(_return)` routes pass `GCP_PROJECT` when set | `BQ_RAW_DATASET`, default `raw` | fixed in code |
+| 31 standard services | runtime credentials (ADC project of the Cloud Run service account); `cloud-run-surfosm-order(_return)` routes pass `GCP_PROJECT` when set | `BQ_RAW_DATASET`, default `raw` | fixed in code |
 | `cloud-run-magento-order` | `BQ_PROJECT`, default `marine-cycle-484213-b4` | `BQ_DATASET`, default `raw` | `BQ_TABLE`, default `raw_magento_order` |
 | `cloud-run-surfosm-inventory` | route: `GCP_PROJECT`, then `GOOGLE_CLOUD_PROJECT`, then ADC | `BQ_DATASET`, default `raw` | `BQ_TABLE`, default `raw_surfosm_inventory` |
 
@@ -42,15 +44,18 @@ Line numbers are the loader's `def`, or the dataset/table constant for Magento, 
 | cloud-run-dianplus-order | Dianplus → orders | `raw.raw_dianplus_order` | LIVE | `cr-dianplus-order.py:583` | `dianplus_order.py` / `bq-raw_dianplus..order.py` |
 | cloud-run-dianplus-order-refund | Dianplus → refunds | `raw.raw_dianplus_order_refund` | LIVE | `cr-dianplus-order-refund.py:551` | `dianplus_order_refund.py` / `bq-raw_dianplus..order_return.py` (now names `raw_dianplus_order_refund`) |
 | cloud-run-dianplus-product | Dianplus → products | `raw.raw_dianplus_product` | LIVE | `cr-dianplus-product.py:469` | `dianplus_product.py` / `bq-raw_dianplus..product.py` |
-| cloud-run-jushuitan-order | Jushuitan → orders | `raw.raw_jushuitan_order` | CODE | `cr-jushuitan-order.py:690` | `jushuitan_order.py` / `bq-raw_jushuitan..order.py` |
+| cloud-run-jushuitan-inventory | Jushuitan `/open/inventory/query` → inventory (live service `jushuitan-inventory`, source recovered 2026-11-07; Direct VPC egress for the allowlisted NAT IP) | `raw.raw_jushuitan_inventory` | LIVE | `cr-jushuitan-inventory.py` `insert_to_bigquery` | — / — |
+| cloud-run-jushuitan-order | Jushuitan → orders | `raw.raw_jushuitan_order` | LIVE (found 2026-11-06) | `cr-jushuitan-order.py:690` | `jushuitan_order.py` / `bq-raw_jushuitan..order.py` |
 | cloud-run-magento-order | Magento → orders | `raw.raw_magento_order` | LIVE | `cr-magento-order.py:58-60` | `magento_order.py` / `bq-raw_magento..order.py` |
 | cloud-run-meta-ads-reporting-a | Meta Graph insights, account `act_785254401088992` | `raw.raw_ads_reporting_a` | LIVE | `cr-meta-ads_reporting-a.py:47-48` | `meta_ads_a.py` / `bq-raw_meta_ads_reporting_a.py` |
 | cloud-run-meta-ads-reporting-ecom | Meta Graph insights, e-commerce account | `raw.raw_ads_reporting_ecom` | LIVE | `cr-meta-ads_reporting-ecom.py:49-50` | `meta_ads_ecom.py` / — |
+| cloud-run-meta-ads-reporting-my | Meta Graph insights, account `act_362205996260102` (live service `meta-raw-ads-reporting-my`, source recovered 2026-11-07; a copy of reporting-a with its own account and table) | `raw.raw_ads_reporting_my` | LIVE | `cr-meta-ads_reporting-my.py` `TABLE_ID` | — / — |
 | cloud-run-pancake-customer | Pancake → customers | `raw.raw_customer` | LIVE | `cr-pancake-customer.py:290` | `pancake_customer.py` / `bq-raw_pancake..raw_customer.py` |
 | cloud-run-pancake-ecom-product | Pancake → e-commerce products | `raw.raw_ecom_product` | CODE | `cr-pancake-ecom_product.py:217` | — / `bq-raw_pancake..raw_ecom_product.py` |
 | cloud-run-pancake-inventory_histories | Pancake → inventory histories | `raw.raw_inventory_histories` | LIVE | `cr-pancake-inventory_histories.py:341` | `pancake_inventory_histories.py` / `bq-raw_pancake..raw_inventory_histories.py` |
 | cloud-run-pancake-order | Pancake → `/orders` | `raw.raw_order` | LIVE | `cr-pancake-order.py:591` (dataset `:91-92`) | `pancake_order.py` / `bq-raw_pancake..raw_order.py` |
-| cloud-run-pancake-order_returned | Pancake → **`/orders`** (not returns, see finding 1) | `raw.raw_order` | LIVE | `cr-pancake-order.py:443` (fetch `:259`) | — (the returns pipeline is `pancake_orders_returned.py` → `raw_orders_returned`) |
+| cloud-run-pancake-order_returned | Pancake → **`/orders`** (not returns, see finding 1); **not deployed** | `raw.raw_order` | LIVE | `cr-pancake-order.py:443` (fetch `:259`) | — (the returns pipeline is `pancake_orders_returned.py` → `raw_orders_returned`) |
+| cloud-run-pancake-orders_returned | Pancake → `/orders_returned`: the code live service `pancake-orders-returned` runs (recovered 2026-11-07); 30 days ending VN yesterday on `inserted_at`, appended every run | `raw.raw_orders_returned` | LIVE | `cr-pancake-orders_returned.py` `insert_to_bigquery` | `pancake_orders_returned.py` / — |
 | cloud-run-pancake-product | Pancake → products | `raw.raw_product` | CODE | `cr-pancake-product.py:289` | — / `bq-raw_pancake..raw_product.py` |
 | cloud-run-pancake-product_variations | Pancake → product variations | `raw.raw_product_variations` | LIVE | `cr-pancake-product_variations.py:387` | `pancake_product_variations.py` / `bq-raw_pancake..raw_product_variations.py` |
 | cloud-run-pancake-stats_inventory_product | Pancake → inventory stats by product | `raw.raw_stats_inventory_product` | CODE | `cr-pancake-stats_inventory_product.py:240` | — / `bq-raw_pancake..raw_stats_inventory_product.py` |
@@ -78,11 +83,12 @@ Every other trigger is **unknown**; the runbook discovers them.
 
 | Count | What |
 |---|---|
-| 30 | Cloud Run service folders, each tested |
-| 29 | Distinct destination tables (`raw_order` is written by both pancake-order and pancake-order_returned) |
-| 22 | of them are live tables (31 live in total) |
-| 7 | are code-only, not live: `raw_jushuitan_order`, `raw_ecom_product`, `raw_product`, `raw_stats_inventory_product`, `raw_stats_order`, `raw_variations`, `raw_warehouse_transfers_completed` |
-| 9 | live tables with **no Cloud Run writer**, filled only by `local_run/` or manual loads: `raw_orders_returned`, `raw_tiktok_ad_group`, `raw_tiktok_campaign`, `raw_tiktok_reporting_basic_auction_campaign` (no writer in this repo at all), `raw_tiktok_thai_ad_group`, `raw_tiktok_thai_campaign`, `raw_ads_reporting_my`, `raw_jushuitan_inventory`, `raw_jushuitan_taobao_tmall_order_manual` |
+| 33 | Cloud Run service folders, each tested (30 + 3 recovered from live on 2026-11-07) |
+| 26 | of them are deployed and scheduled (Cloud Scheduler, 07:00–07:15 ICT); all write `raw` |
+| 32 | Distinct destination tables (`raw_order` is written by both pancake-order and pancake-order_returned) |
+| 26 | of them are live tables (32 live raw tables in total, all in dataset `raw` since 2026-11-07) |
+| 6 | are code-only, not live: `raw_ecom_product`, `raw_product`, `raw_stats_inventory_product`, `raw_stats_order`, `raw_variations`, `raw_warehouse_transfers_completed` |
+| 6 | live tables with **no Cloud Run writer**, filled only by `local_run/` or manual loads: `raw_tiktok_ad_group`, `raw_tiktok_campaign`, `raw_tiktok_reporting_basic_auction_campaign` (no writer in this repo at all), `raw_tiktok_thai_ad_group`, `raw_tiktok_thai_campaign`, `raw_jushuitan_taobao_tmall_order_manual` |
 
 ## HTTP and CLI behaviour
 
@@ -91,7 +97,7 @@ Every other trigger is **unknown**; the runbook discovers them.
 | Routes | `GET /` for 27 services. `GET`/`POST /`: pancake-order, pancake-product_variations. `/`, `/run` any method + `GET /healthz`: surfosm-inventory. `GET /`, `/run`, `/healthz`: magento-order. **A scheduler job that sends POST to a GET-only route gets 405 and nothing runs.** |
 | Success | 2xx, one load job, and the log line `… N rows into|to <dataset>.<table> [<job_id>]` (job ID and project added to 15 services on 2026-11-06) |
 | Valid empty source | 2xx with no load job. Messages: "No data found", "No data", "0 entries found", "0 entries found. No data to export.", "0 entry found. No data to export.", "0 records returned; nothing to load." (Meta), "No data to insert." (surfosm-inventory), "0 order numbers found. No data to export." / "No data to export after flattening." (Surfosm orders/returns), Magento `{"orders_fetched": 0}`. **Not proof of an empty source** on Surfosm orders/returns ("0 order details found" can mean every detail call failed: a readiness blocker), or on any revision deployed before 2026-11-06 (see the runbook) |
-| Fetch failure (connection error, HTTP 5xx, API error code, a later page failing, any failed Surfosm order detail) | non-2xx and no load job (exception: a non-success Dianplus `resultCode` / Jushuitan `code` keeps the pages so far, decision D7): 500 everywhere except surfosm-inventory, which answers **400** because its handler maps `ValueError` to 400. Still a failed attempt for Cloud Scheduler |
+| Fetch failure (connection error, HTTP 5xx, API error code, a later page failing, any failed Surfosm order detail) | non-2xx and no load job (exception: a non-success Jushuitan `code` keeps the pages so far, decision D7; Dianplus no longer does since decision U5, 2026-11-07): 500 everywhere except surfosm-inventory, which answers **400** because its handler maps `ValueError` to 400. Still a failed attempt for Cloud Scheduler |
 | Load failure | 500 (no rows-loaded claim). CLI: uncaught exception or exit 1 |
 | CLI | `main()` in 29 services. A failure exits non-zero. Magento has no CLI: running the file starts Flask |
 

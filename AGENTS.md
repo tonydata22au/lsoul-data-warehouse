@@ -137,10 +137,12 @@ See [docs/troubleshooting.md](docs/troubleshooting.md#known-issues). The ones mo
 surprise you:
 
 - `cloud-run-tiktok-thai-ads`'s `app_runner.py` loaded a file that doesn't exist (the live service ran an older
-  image, so it kept working). Fixed and deployed on 2026-11-06 with the other fixes: 23 services now run this repo's
-  code, pinned to their current datasets, with credentials from Secret Manager.
-  [docs/raw-destination-contract.md](docs/raw-destination-contract.md) lists every service, its table and
-  the other local fixes.
+  image, so it kept working). Fixed and deployed on 2026-11-06 with the other fixes.
+- **Raw dataset cutover done on 2026-11-07:** all 32 raw tables live in dataset `raw`; the 26 scheduled
+  services write it as `lsoul-ingest-runner@` (can write only `raw`). The old tables stay frozen as rollback copies
+  until the owner approves retiring them. [docs/raw-destination-contract.md](docs/raw-destination-contract.md) lists
+  every service and table; [the cutover record](tasks/raw-dataset-local-verification.md#cutover-2026-11-07) has the
+  rollback steps.
 - `cloud-run-pancake-order_returned` is a copy of `cloud-run-pancake-order` and also appends to `raw.raw_order`.
 - `local_run/` reads the key from the repo-root `credentials/google-credentials.json` and ignores
   `GOOGLE_APPLICATION_CREDENTIALS`. `schema/` and `csv_export/` still default to
