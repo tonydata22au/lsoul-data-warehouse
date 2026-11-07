@@ -4,6 +4,8 @@ Tasks: [raw-dataset-todo.md](raw-dataset-todo.md). Status: Build stage done offl
 Continuation planned on 2026-11-06: [local validation, destination contract and next-run monitoring](#continuation-2026-11-06-local-validation-destination-contract-and-next-run-monitoring) (Phase 3b in the todo).
 Phase 3b built on 2026-11-06 (offline, uncommitted). Local verdict **NOT READY** (2 Surfosm readiness blockers, plus 44 unittest failures from other work); see [raw-dataset-local-verification.md](raw-dataset-local-verification.md).
 
+Cutover execution planned on 2026-11-07: [Cutover execution (2026-11-07)](#cutover-execution-2026-11-07) (Phase 5 in the todo). Window: before 07:00 ICT Sunday 2026-11-08.
+
 ## Objective
 
 Move every raw table (written by the Python loaders) into one dataset,
@@ -349,3 +351,101 @@ harness. Imagined failures are hypotheses to test, not findings.
   **Verdict rule:** `READY FOR CUTOVER REVIEW` only if `READINESS_BLOCKERS` is empty, no required check failed,
   and no in-scope service is still broken. Otherwise the verdict is `NOT READY — <every blocker>`: each
   `READINESS_BLOCKERS` entry, each failed required check, and each unresolved startup or routing defect.
+
+
+## Cutover execution (2026-11-07)
+
+Source: the user's request in @thread:thr_ssazbmz9k4 ("start the migration and fully deploy, make sure everything
+works perfectly"), continuing @thread:thr_zxeivhttts. Tasks: [Phase 5 in the todo](raw-dataset-todo.md#phase-5-cutover-execution-2026-11-07).
+This section supersedes the Phase 4 W-task order where they differ. The protocol, fingerprint and rollback above
+still apply unchanged.
+
+### Live facts read in Plan (2026-11-07 13:55–14:15 ICT, read-only `bq`/`gcloud`)
+
+- **Dataset `raw` already exists** in `asia-southeast1` (created 2026-11-06 23:48 ICT), **with 0 tables**. Its ACL is the
+  project defaults (projectWriters/Owners/Readers, owner `ops.data@lsoul.com`).
+- **Today's 07:00 runs:** 21 raw tables loaded, 0 failed load jobs. No load for 4 scheduled services:
+  - `dianplus-inventory`: **swallowed API error.** The Dianplus API answered `系统处理异常:分页数不能超过500!`
+    ("page size cannot exceed 500"). The service sends `pageSize 2000`, logged "0 entries found" and returned 200, so
+    today's inventory is missing. This is a regression: before the 2026-11-06 deploy it loaded.
+  - `pancake-product-variations`: "Successfully fetched 0 variations" for the 2026-11-06 window. `dianplus-order-refund` and
+    `meta-raw-ads-reporting-ecom`: the API returned 0 rows. No error was logged, so these are VALID EMPTY until shown
+    otherwise. Build checks whether `pancake-product-variations` ever loads on an ordinary day (3rd consecutive empty day).
+- **The inventory is 32 tables:** the 31 listed in the plan, plus `jushuitan.raw_jushuitan_order`, which loads daily. The migration script and
+  guard test still name 31 (`raw_jushuitan_order` count 0 in both).
+- **Writer set (Cloud Scheduler, `asia-southeast1`):** 26 HTTP jobs to Cloud Run (all at 07:00–07:15 Asia/Saigon), plus
+  `dbt-daily-build-trigger` (08:00, a Cloud Run job). All 26 services run as `266174294882-compute@developer`, which
+  holds project `roles/editor`.
+- **Dataform:** 11 repositories, all in `asia-southeast1`; no other location has any. Only `ppl-pancake` and
+  `ppl-pancake-orders` match the plan's `ppl-*` list. `ppl-tiktok`, `ppl-meta`, `ppl-dianplus`, `ppl-jushuitan`,
+  `ppl-surfosm` and `ppl-magento` do not exist live. The others (`ppl-reports`, `ppl-manual-data_insert`, `ppl-AI`,
+  `00_WORKING`, `ai_*`, `LSOUL_Category_Share_Report`, …) must be scanned for old raw references. Only
+  `opsdatalsoul/lsoul_document` is Git-linked.
+- **dbt:** `lsoul_dbt` `main` = `origin/main` = `67e1539` already declares sources on `raw`. Today's production run
+  (dbt-runner, after 07:30) still read `raw_pancake`, `raw_tiktok`, `raw_meta`, `dianplus`, `jushuitan`, `magento`, `surfosm`,
+  so the job runs an older image or ref. Redeploying it is part of the cutover.
+- **Credentials:** the BigQuery MCP's ADC token needs re-authentication (`invalid_rapt`). `bq`/`gcloud` work as
+  `ops.data@lsoul.com`. Build and the live steps use `bq`/`gcloud`.
+
+### Decisions (user answers, 2026-11-07, through in-thread forms)
+
+| # | Decision | Answer |
+|---|---|---|
+| U1 | Window | **Today, finished before 07:00 ICT Sunday 2026-11-08** (target: writers resumed by 06:30) |
+| U2 | Dataform | **The agent edits through the Dataform API:** workspace, then edit, compile, commit, push, and verify the release config compiles |
+| U3 | Old-table fence | **New least-privilege runtime service account.** Every ingestion service moves to it; it can write only `raw` |
+| U4 | Three services with no repo source (`pancake-orders-returned`, `jushuitan-inventory`, `meta-raw-ads-reporting-my`) | **Recover the deployed source, add it to the repo, repoint to `raw`, test, deploy** |
+| U5 | `dianplus-inventory` defect | **Fix it** (page size within the API limit; an API error returns non-success), **then backfill** the missed 2026-11-06 window into `raw` after cutover |
+| U6 | Git | **Commit on the current branch `main` and push** once production checks pass |
+| U7 | Old tables | **Keep them until the user approves retirement.** Nothing is dropped; remind after about 14 clean days |
+| U8 | Orbyn work mode | **simple** (edit in this checkout). `harness.py setup` could not save it ("no workspace found"), so it applies to this task only |
+
+The user's request authorizes the live actions in Phase 5, each named there: create the SA and grants, run the
+rehearsal, pause and resume schedulers, copy the tables, deploy the services, deploy SQL, edit Dataform, redeploy and run the dbt job,
+and run one backfill. Each step still runs only after its preconditions pass. Anything outside that list, or a failed
+gate, stops and is asked about through a form. Deleting old tables, rotating credentials (vendor consoles) and
+deleting old images are **out of scope**.
+
+### Fence design (U3)
+
+New SA `lsoul-ingest-runner@marine-cycle-484213-b4.iam.gserviceaccount.com`:
+- project `roles/bigquery.jobUser` (run load jobs)
+- `roles/bigquery.dataEditor` on dataset `raw` only, granted in the dataset ACL
+- `roles/secretmanager.secretAccessor` on each of the 11 secrets the services use (`pancake_pos` plus the ten from 2026-11-06),
+  plus any secret created for a recovered service
+- no project Editor and no access to the old datasets
+
+Every ingestion service is deployed with `--service-account` set to the new SA. A stray write to an old table then fails
+with 403 instead of silently splitting data. The compute default SA keeps Editor (removing it is a follow-up; other
+workloads may use it). Readers of `raw`: `dbt-runner@` (`dataViewer`), the Dataform service agent (`dataViewer`), and
+the principals W1 finds reading old raw tables (from `JOBS_BY_PROJECT.referenced_tables`, 30 days). Check what the
+Meta `create_dataset_if_not_exists` path needs (only `datasets.get` when `raw` exists).
+
+### Reader inventory (closes plan risk "consumers outside the repos")
+
+Before freezing, list every principal or job that read an old raw table in the last 30 days
+(`referenced_tables` by `user_email`), plus views (`INFORMATION_SCHEMA.VIEWS` in every dataset) and routines
+(`INFORMATION_SCHEMA.ROUTINES`) whose definitions name an old raw table, and BigQuery scheduled queries
+(Data Transfer configs). Each one is repointed in Phase 5 or listed as an owner action (for example Looker
+Studio data sources, which only the owner can edit). The old tables stay frozen, so an unrepointed reader sees
+stale data, not an error. The handoff names every such reader.
+
+### Rollback
+
+Use the plan's reverse reconciliation. Per service: `gcloud run services update-traffic <svc> --to-revisions <prev>=100`.
+The previous revisions run as the compute SA and write the old datasets, so do the reverse copy first. SQL: redeploy
+the baseline definitions saved in B3. Dataform: revert the workspace commit and push. dbt: redeploy the previous job
+image. Rollback is possible until credentials are rotated (out of scope).
+
+### Risks added on 2026-11-07
+
+| Risk | Impact | Mitigation |
+|---|---|---|
+| A recovered service's source holds baked credentials | High (a secret ends up in Git) | Scan before adding; move each value to Secret Manager through the BB secrets form; `validate_repo.py` credential scan; never print the values |
+| The source can't be recovered for one of the 3 services | Med | Fallback for that service, asked through a form: env-var repoint if its code reads one, otherwise rebuild it from the closest repo service (`local_run/pancake_orders_returned.py` exists) |
+| The new SA is missing a permission the code needs | High (loads fail at 07:00) | Rehearse with the new SA in B2. The C6 backfill is a live write through the new SA before the schedulers resume |
+| 26 source deploys take too long for the window | Med | About 5 min each. Run 3–4 at a time; start by 16:00. Gate: writers must resume by 06:30, otherwise roll back the readers and resume on the old datasets |
+| A Dataform repo not on the plan's list reads old raw tables | High (stale core and reportdb) | A6 scans all 11 repositories' files, not only the names on the list |
+| The dbt job image or ref can't be updated cleanly | Med | B4 finds how `dbt-daily-build-trigger` gets code before freezing; if unclear, ask through a form |
+| 44 unrelated unit-test failures hide a new regression | Med | Compare failing test IDs before and after; any new failure blocks |
+| A source of the 4 no-load services is really broken (not empty) | Low | Report it; it doesn't block the cutover |
