@@ -25,16 +25,20 @@ EXPECTED_TABLES = {
     "cloud-run-dianplus-order": "raw_dianplus_order",  # LIVE (old dataset: dianplus)
     "cloud-run-dianplus-order-refund": "raw_dianplus_order_refund",  # LIVE (old dataset: dianplus)
     "cloud-run-dianplus-product": "raw_dianplus_product",  # LIVE (old dataset: dianplus)
-    "cloud-run-jushuitan-order": "raw_jushuitan_order",  # CODE (not in the live inventory)
+    "cloud-run-jushuitan-inventory": "raw_jushuitan_inventory",  # LIVE (old dataset: jushuitan); source recovered 2026-11-07
+    "cloud-run-jushuitan-order": "raw_jushuitan_order",  # LIVE (old dataset: jushuitan; found 2026-11-06)
     "cloud-run-magento-order": "raw_magento_order",  # LIVE (old dataset: magento)
     "cloud-run-meta-ads-reporting-a": "raw_ads_reporting_a",  # LIVE (old dataset: raw_meta)
     "cloud-run-meta-ads-reporting-ecom": "raw_ads_reporting_ecom",  # LIVE (old dataset: raw_meta)
+    "cloud-run-meta-ads-reporting-my": "raw_ads_reporting_my",  # LIVE (old dataset: raw_meta); source recovered 2026-11-07
     "cloud-run-pancake-customer": "raw_customer",  # LIVE (old dataset: raw_pancake)
     "cloud-run-pancake-ecom-product": "raw_ecom_product",  # CODE
     "cloud-run-pancake-inventory_histories": "raw_inventory_histories",  # LIVE
     "cloud-run-pancake-order": "raw_order",  # LIVE
     # Fetches ordinary /orders, a copy of pancake-order (decision 4 in the plan): pinned as-is.
     "cloud-run-pancake-order_returned": "raw_order",  # LIVE
+    # The live pancake-orders-returned code (/orders_returned), recovered 2026-11-07.
+    "cloud-run-pancake-orders_returned": "raw_orders_returned",  # LIVE (old dataset: raw_pancake)
     "cloud-run-pancake-product": "raw_product",  # CODE
     "cloud-run-pancake-product_variations": "raw_product_variations",  # LIVE
     "cloud-run-pancake-stats_inventory_product": "raw_stats_inventory_product",  # CODE
@@ -164,10 +168,10 @@ class DefaultDestination(unittest.TestCase):
 
 
 class MissingDataset(unittest.TestCase):
-    META = {"cloud-run-meta-ads-reporting-a", "cloud-run-meta-ads-reporting-ecom"}
+    META = {"cloud-run-meta-ads-reporting-a", "cloud-run-meta-ads-reporting-ecom", "cloud-run-meta-ads-reporting-my"}
 
     def test_only_meta_creates_a_missing_raw_dataset_in_asia_southeast1(self):
-        # Every other service just loads (BigQuery then fails if the dataset is missing); the two
+        # Every other service just loads (BigQuery then fails if the dataset is missing); the three
         # Meta services create `raw` themselves, so a Meta run before the cutover creates the dataset
         for service in EXPECTED_TABLES:
             with self.subTest(service=service):

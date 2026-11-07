@@ -5,7 +5,7 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 335,
+     "line": 336,
      "table": "raw.raw_dianplus_inventory"
     },
     {
@@ -52,50 +52,50 @@
     },
     {
      "doc": "Load inventory data from Dianplus API.",
-     "end_line": 283,
+     "end_line": 284,
      "kind": "function",
      "name": "load_data",
      "start_line": 193
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 308,
+     "end_line": 309,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 286
+     "start_line": 287
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 333,
+     "end_line": 334,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 310
+     "start_line": 311
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 363,
+     "end_line": 364,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 335
+     "start_line": 336
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 416,
+     "end_line": 417,
      "kind": "function",
      "name": "run_export",
-     "start_line": 366
+     "start_line": 367
     },
     {
-     "end_line": 437,
+     "end_line": 438,
      "kind": "function",
      "name": "run",
-     "start_line": 422
+     "start_line": 423
     },
     {
-     "end_line": 456,
+     "end_line": 457,
      "kind": "function",
      "name": "main",
-     "start_line": 440
+     "start_line": 441
     }
    ],
    "variant": "cloud_run",
@@ -107,7 +107,7 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 559,
+     "line": 560,
      "table": "raw.raw_dianplus_order_refund"
     },
     {
@@ -154,71 +154,71 @@
     },
     {
      "doc": "Load order data from Dianplus API for the given time range.",
-     "end_line": 357,
+     "end_line": 358,
      "kind": "function",
      "name": "load_data",
      "start_line": 267
     },
     {
      "doc": "Flatten order refund data, expanding return items into separate rows while preserving all fields.",
-     "end_line": 462,
+     "end_line": 463,
      "kind": "function",
      "name": "flatten_data",
-     "start_line": 359
+     "start_line": 360
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 486,
+     "end_line": 487,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 464
+     "start_line": 465
     },
     {
      "doc": "Split a date range into chunks of specified days.",
-     "end_line": 505,
+     "end_line": 506,
      "kind": "function",
      "name": "chunk_date_range",
-     "start_line": 488
+     "start_line": 489
     },
     {
      "doc": "Convert datetime columns from Shanghai timezone to Vietnam timezone,",
-     "end_line": 532,
+     "end_line": 533,
      "kind": "function",
      "name": "convert_datetime_format",
-     "start_line": 508
+     "start_line": 509
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 557,
+     "end_line": 558,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 534
+     "start_line": 535
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 587,
+     "end_line": 588,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 559
+     "start_line": 560
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 667,
+     "end_line": 668,
      "kind": "function",
      "name": "run_export",
-     "start_line": 590
+     "start_line": 591
     },
     {
-     "end_line": 681,
+     "end_line": 682,
      "kind": "function",
      "name": "run",
-     "start_line": 673
+     "start_line": 674
     },
     {
-     "end_line": 698,
+     "end_line": 699,
      "kind": "function",
      "name": "main",
-     "start_line": 684
+     "start_line": 685
     }
    ],
    "variant": "cloud_run",
@@ -230,7 +230,7 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 591,
+     "line": 592,
      "table": "raw.raw_dianplus_order"
     },
     {
@@ -277,71 +277,71 @@
     },
     {
      "doc": "Load order data from Dianplus API for the given time range.",
-     "end_line": 406,
+     "end_line": 407,
      "kind": "function",
      "name": "load_data",
      "start_line": 316
     },
     {
      "doc": "Flatten order data, expanding items into separate rows while preserving and normalizing all nested fields.",
-     "end_line": 494,
+     "end_line": 495,
      "kind": "function",
      "name": "flatten_data",
-     "start_line": 408
+     "start_line": 409
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 518,
+     "end_line": 519,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 496
+     "start_line": 497
     },
     {
      "doc": "Split a date range into chunks of specified days.",
-     "end_line": 537,
+     "end_line": 538,
      "kind": "function",
      "name": "chunk_date_range",
-     "start_line": 520
+     "start_line": 521
     },
     {
      "doc": "Convert datetime columns from Shanghai timezone to Vietnam timezone,",
-     "end_line": 564,
+     "end_line": 565,
      "kind": "function",
      "name": "convert_datetime_format",
-     "start_line": 540
+     "start_line": 541
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 589,
+     "end_line": 590,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 566
+     "start_line": 567
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 631,
+     "end_line": 632,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 591
+     "start_line": 592
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 711,
+     "end_line": 712,
      "kind": "function",
      "name": "run_export",
-     "start_line": 634
+     "start_line": 635
     },
     {
-     "end_line": 725,
+     "end_line": 726,
      "kind": "function",
      "name": "run",
-     "start_line": 717
+     "start_line": 718
     },
     {
-     "end_line": 742,
+     "end_line": 743,
      "kind": "function",
      "name": "main",
-     "start_line": 728
+     "start_line": 729
     }
    ],
    "variant": "cloud_run",
@@ -353,7 +353,7 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 477,
+     "line": 478,
      "table": "raw.raw_dianplus_product"
     },
     {
@@ -393,57 +393,194 @@
     },
     {
      "doc": "Load inventory data from Dianplus API.",
-     "end_line": 399,
+     "end_line": 400,
      "kind": "function",
      "name": "load_data",
      "start_line": 313
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 424,
+     "end_line": 425,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 402
+     "start_line": 403
     },
     {
      "doc": "Convert datetime columns from Shanghai timezone to Vietnam timezone,",
-     "end_line": 450,
+     "end_line": 451,
      "kind": "function",
      "name": "convert_datetime_format",
-     "start_line": 426
+     "start_line": 427
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 475,
+     "end_line": 476,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 452
+     "start_line": 453
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 505,
+     "end_line": 506,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 477
+     "start_line": 478
     },
     {
      "doc": "Run export flow used by both CLI and HTTP handler.",
-     "end_line": 523,
+     "end_line": 524,
      "kind": "function",
      "name": "run_export",
-     "start_line": 508
+     "start_line": 509
     },
     {
-     "end_line": 537,
+     "end_line": 538,
      "kind": "function",
      "name": "run",
-     "start_line": 529
+     "start_line": 530
     },
     {
-     "end_line": 550,
+     "end_line": 551,
      "kind": "function",
      "name": "main",
-     "start_line": 540
+     "start_line": 541
+    }
+   ],
+   "variant": "cloud_run",
+   "write_dispositions": [
+    "WRITE_APPEND"
+   ]
+  },
+  {
+   "destinations": [
+    {
+     "evidence": "code",
+     "line": 509,
+     "table": "raw.raw_jushuitan_inventory"
+    },
+    {
+     "evidence": "docs/pipelines.md",
+     "table": "raw.raw_jushuitan_inventory"
+    }
+   ],
+   "env_vars": [
+    "BQ_RAW_DATASET",
+    "JUSHUITAN_APP_KEY",
+    "JUSHUITAN_APP_SECRET",
+    "PORT"
+   ],
+   "path": "src/cloud_run/cloud-run-jushuitan-inventory/cr-jushuitan-inventory.py",
+   "service": "cloud-run-jushuitan-inventory",
+   "source_system": "jushuitan",
+   "symbols": [
+    {
+     "doc": "Fetch the current outbound IP as seen by external services.",
+     "end_line": 66,
+     "kind": "function",
+     "name": "_get_outbound_ip",
+     "start_line": 60
+    },
+    {
+     "end_line": 84,
+     "kind": "function",
+     "name": "_debug_print",
+     "start_line": 82
+    },
+    {
+     "doc": "Calculate MD5 sign for the auth token endpoint.",
+     "end_line": 133,
+     "kind": "function",
+     "name": "calculate_sign_for_auth_access_token",
+     "start_line": 107
+    },
+    {
+     "doc": "Get authentication token from Jushuitan API.",
+     "end_line": 193,
+     "kind": "function",
+     "name": "get_auth_access_token",
+     "start_line": 135
+    },
+    {
+     "doc": "Calculate MD5 sign for the inventory data endpoint.",
+     "end_line": 224,
+     "kind": "function",
+     "name": "calculate_sign_for_api",
+     "start_line": 195
+    },
+    {
+     "doc": "Fetch all paginated order data for a single date window.",
+     "end_line": 358,
+     "kind": "function",
+     "name": "_fetch_pages",
+     "start_line": 226
+    },
+    {
+     "doc": "Load all inventory data from the API.",
+     "end_line": 438,
+     "kind": "function",
+     "name": "load_data",
+     "start_line": 361
+    },
+    {
+     "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
+     "end_line": 462,
+     "kind": "function",
+     "name": "rename_and_reorder_columns",
+     "start_line": 440
+    },
+    {
+     "doc": "Format datetime columns from 'YYYY-MM-DD HH:MM:SS' to 'YYYYMMDDHHMMSS' (no timezone conversion).",
+     "end_line": 491,
+     "kind": "function",
+     "name": "convert_datetime_format",
+     "start_line": 465
+    },
+    {
+     "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
+     "end_line": 505,
+     "kind": "function",
+     "name": "clean_nulls_for_bigquery",
+     "start_line": 494
+    },
+    {
+     "doc": "Insert DataFrame into BigQuery.",
+     "end_line": 532,
+     "kind": "function",
+     "name": "insert_to_bigquery",
+     "start_line": 509
+    },
+    {
+     "doc": "Run export flow used by both CLI and HTTP handler.",
+     "end_line": 564,
+     "kind": "function",
+     "name": "run_export",
+     "start_line": 535
+    },
+    {
+     "doc": "Log outbound IP on the first request to confirm Cloud NAT routing.",
+     "end_line": 579,
+     "kind": "function",
+     "name": "_log_ip_once",
+     "start_line": 570
+    },
+    {
+     "doc": "Health check endpoint — returns current outbound IP for verification.",
+     "end_line": 589,
+     "kind": "function",
+     "name": "healthz",
+     "start_line": 582
+    },
+    {
+     "end_line": 600,
+     "kind": "function",
+     "name": "run",
+     "start_line": 592
+    },
+    {
+     "end_line": 625,
+     "kind": "function",
+     "name": "main",
+     "start_line": 603
     }
    ],
    "variant": "cloud_run",
@@ -858,6 +995,106 @@
      "kind": "function",
      "name": "run_http",
      "start_line": 263
+    }
+   ],
+   "variant": "cloud_run",
+   "write_dispositions": [
+    "WRITE_APPEND"
+   ]
+  },
+  {
+   "destinations": [
+    {
+     "evidence": "code",
+     "line": 48,
+     "table": "raw.raw_ads_reporting_my"
+    },
+    {
+     "evidence": "docs/pipelines.md",
+     "table": "raw.raw_ads_reporting_my"
+    }
+   ],
+   "env_vars": [
+    "BQ_RAW_DATASET",
+    "META_ACCESS_TOKEN"
+   ],
+   "path": "src/cloud_run/cloud-run-meta-ads-reporting-my/cr-meta-ads_reporting-my.py",
+   "service": "cloud-run-meta-ads-reporting-my",
+   "source_system": "meta",
+   "symbols": [
+    {
+     "doc": "Mask credentials that requests puts in error text (they travel in URL query strings here).",
+     "end_line": 60,
+     "kind": "function",
+     "name": "redact_secrets",
+     "start_line": 57
+    },
+    {
+     "end_line": 64,
+     "kind": "function",
+     "name": "sanitize_field",
+     "start_line": 63
+    },
+    {
+     "doc": "Convert any header with dots to underscores to satisfy BigQuery naming.",
+     "end_line": 69,
+     "kind": "function",
+     "name": "sanitize_headers",
+     "start_line": 67
+    },
+    {
+     "end_line": 75,
+     "kind": "function",
+     "name": "serialize",
+     "start_line": 72
+    },
+    {
+     "end_line": 98,
+     "kind": "function",
+     "name": "aggregate_action_values",
+     "start_line": 78
+    },
+    {
+     "end_line": 120,
+     "kind": "function",
+     "name": "fetch_insights",
+     "start_line": 101
+    },
+    {
+     "end_line": 168,
+     "kind": "function",
+     "name": "build_dataframe",
+     "start_line": 123
+    },
+    {
+     "end_line": 179,
+     "kind": "function",
+     "name": "create_dataset_if_not_exists",
+     "start_line": 171
+    },
+    {
+     "end_line": 205,
+     "kind": "function",
+     "name": "load_to_bigquery",
+     "start_line": 182
+    },
+    {
+     "end_line": 234,
+     "kind": "function",
+     "name": "run_export",
+     "start_line": 212
+    },
+    {
+     "end_line": 253,
+     "kind": "function",
+     "name": "main",
+     "start_line": 237
+    },
+    {
+     "end_line": 267,
+     "kind": "function",
+     "name": "run_http",
+     "start_line": 259
     }
    ],
    "variant": "cloud_run",
@@ -1437,6 +1674,130 @@
      "kind": "function",
      "name": "run",
      "start_line": 579
+    }
+   ],
+   "variant": "cloud_run",
+   "write_dispositions": [
+    "WRITE_APPEND"
+   ]
+  },
+  {
+   "destinations": [
+    {
+     "evidence": "code",
+     "line": 307,
+     "table": "raw.raw_orders_returned"
+    },
+    {
+     "evidence": "docs/pipelines.md",
+     "table": "raw.raw_orders_returned"
+    }
+   ],
+   "env_vars": [
+    "BQ_RAW_DATASET",
+    "PANCAKE_API_KEY"
+   ],
+   "path": "src/cloud_run/cloud-run-pancake-orders_returned/cr-pancake-orders_returned.py",
+   "service": "cloud-run-pancake-orders_returned",
+   "source_system": "pancake",
+   "symbols": [
+    {
+     "doc": "Mask credentials that requests puts in error text (they travel in URL query strings here).",
+     "end_line": 50,
+     "kind": "function",
+     "name": "redact_secrets",
+     "start_line": 47
+    },
+    {
+     "doc": "Load data from Pancake API with pagination and minimal per-request overhead.",
+     "end_line": 95,
+     "kind": "function",
+     "name": "load_data",
+     "start_line": 53
+    },
+    {
+     "doc": "Filter entries based on inserted_at.",
+     "end_line": 159,
+     "kind": "function",
+     "name": "filter_data_by_date",
+     "start_line": 97
+    },
+    {
+     "doc": "Flatten order data without exploding items; keep order-level fields only.",
+     "end_line": 199,
+     "kind": "function",
+     "name": "flatten_data",
+     "start_line": 161
+    },
+    {
+     "end_line": 217,
+     "kind": "function",
+     "name": "rename_and_reorder_columns",
+     "start_line": 201
+    },
+    {
+     "end_line": 235,
+     "kind": "function",
+     "name": "convert_booleans_to_binary",
+     "start_line": 220
+    },
+    {
+     "end_line": 252,
+     "kind": "function",
+     "name": "convert_dates_to_timestamp",
+     "start_line": 238
+    },
+    {
+     "end_line": 260,
+     "kind": "function",
+     "name": "list_columns",
+     "start_line": 255
+    },
+    {
+     "end_line": 268,
+     "kind": "function",
+     "name": "clean_empty_json",
+     "start_line": 262
+    },
+    {
+     "doc": "Ensure all columns defined in COLUMN_RENAME_MAP are cast to string.",
+     "end_line": 277,
+     "kind": "function",
+     "name": "cast_columns_to_string",
+     "start_line": 271
+    },
+    {
+     "doc": "Normalize ID-like columns to remove float-ish suffixes (e.g., 123456.0 → 123456).",
+     "end_line": 305,
+     "kind": "function",
+     "name": "normalize_id_strings",
+     "start_line": 280
+    },
+    {
+     "doc": "Insert DataFrame into BigQuery table.",
+     "end_line": 363,
+     "kind": "function",
+     "name": "insert_to_bigquery",
+     "start_line": 307
+    },
+    {
+     "doc": "Run export flow used by both CLI and HTTP handler.",
+     "end_line": 424,
+     "kind": "function",
+     "name": "run_export",
+     "start_line": 366
+    },
+    {
+     "end_line": 446,
+     "kind": "function",
+     "name": "main",
+     "start_line": 426
+    },
+    {
+     "end_line": 458,
+     "kind": "function",
+     "name": "run",
+     "start_line": 450
     }
    ],
    "variant": "cloud_run",
@@ -5095,7 +5456,7 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 314,
+     "line": 315,
      "table": "raw.raw_dianplus_inventory"
     },
     {
@@ -5134,31 +5495,31 @@
     },
     {
      "doc": "Load inventory data from Dianplus API.",
-     "end_line": 287,
+     "end_line": 288,
      "kind": "function",
      "name": "load_data",
      "start_line": 200
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 312,
+     "end_line": 313,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 290
+     "start_line": 291
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 333,
+     "end_line": 334,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 314
+     "start_line": 315
     },
     {
      "doc": "Main function to fetch inventory data and insert to BigQuery.",
-     "end_line": 397,
+     "end_line": 398,
      "kind": "function",
      "name": "main",
-     "start_line": 335
+     "start_line": 336
     }
    ],
    "variant": "local_run",
@@ -5170,7 +5531,7 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 619,
+     "line": 620,
      "table": "raw.raw_dianplus_order"
     },
     {
@@ -5209,66 +5570,66 @@
     },
     {
      "doc": "Load order data from Dianplus API for the given time range.",
-     "end_line": 409,
+     "end_line": 410,
      "kind": "function",
      "name": "load_data",
      "start_line": 322
     },
     {
      "doc": "Flatten order data, expanding items into separate rows while preserving and normalizing all nested fields.",
-     "end_line": 497,
+     "end_line": 498,
      "kind": "function",
      "name": "flatten_data",
-     "start_line": 411
+     "start_line": 412
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 521,
+     "end_line": 522,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 499
+     "start_line": 500
     },
     {
      "doc": "Split a date range into chunks of specified days.",
-     "end_line": 540,
+     "end_line": 541,
      "kind": "function",
      "name": "chunk_date_range",
-     "start_line": 523
+     "start_line": 524
     },
     {
      "doc": "Convert datetime columns from Shanghai timezone to Vietnam timezone,",
-     "end_line": 567,
+     "end_line": 568,
      "kind": "function",
      "name": "convert_datetime_format",
-     "start_line": 543
+     "start_line": 544
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 592,
+     "end_line": 593,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 569
+     "start_line": 570
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 617,
+     "end_line": 618,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 594
+     "start_line": 595
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 643,
+     "end_line": 644,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 619
+     "start_line": 620
     },
     {
      "doc": "Main function to orchestrate data fetching with date range handling.",
-     "end_line": 729,
+     "end_line": 730,
      "kind": "function",
      "name": "main",
-     "start_line": 646
+     "start_line": 647
     }
    ],
    "variant": "local_run",
@@ -5280,7 +5641,7 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 560,
+     "line": 561,
      "table": "raw.raw_dianplus_order_refund"
     },
     {
@@ -5319,59 +5680,59 @@
     },
     {
      "doc": "Load order data from Dianplus API for the given time range.",
-     "end_line": 358,
+     "end_line": 359,
      "kind": "function",
      "name": "load_data",
      "start_line": 271
     },
     {
      "doc": "Flatten order refund data, expanding return items into separate rows while preserving all fields.",
-     "end_line": 463,
+     "end_line": 464,
      "kind": "function",
      "name": "flatten_data",
-     "start_line": 360
+     "start_line": 361
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 487,
+     "end_line": 488,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 465
+     "start_line": 466
     },
     {
      "doc": "Split a date range into chunks of specified days.",
-     "end_line": 506,
+     "end_line": 507,
      "kind": "function",
      "name": "chunk_date_range",
-     "start_line": 489
+     "start_line": 490
     },
     {
      "doc": "Convert datetime columns from Shanghai timezone to Vietnam timezone,",
-     "end_line": 533,
+     "end_line": 534,
      "kind": "function",
      "name": "convert_datetime_format",
-     "start_line": 509
+     "start_line": 510
     },
     {
      "doc": "Clean DataFrame by converting None, NaN, empty strings, and 'None' strings to proper NULL values.",
-     "end_line": 558,
+     "end_line": 559,
      "kind": "function",
      "name": "clean_nulls_for_bigquery",
-     "start_line": 535
+     "start_line": 536
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 584,
+     "end_line": 585,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 560
+     "start_line": 561
     },
     {
      "doc": "Main function to orchestrate data fetching with date range handling.",
-     "end_line": 668,
+     "end_line": 669,
      "kind": "function",
      "name": "main",
-     "start_line": 586
+     "start_line": 587
     }
    ],
    "variant": "local_run",
@@ -5383,7 +5744,7 @@
    "destinations": [
     {
      "evidence": "code",
-     "line": 420,
+     "line": 421,
      "table": "raw.raw_dianplus_product"
     },
     {
@@ -5409,45 +5770,45 @@
     },
     {
      "doc": "Load product data from Dianplus API.",
-     "end_line": 344,
+     "end_line": 345,
      "kind": "function",
      "name": "load_data",
      "start_line": 237
     },
     {
      "doc": "Flatten product data while preserving all fields. Extracts first element from skuPropValList array.",
-     "end_line": 368,
+     "end_line": 369,
      "kind": "function",
      "name": "flatten_data",
-     "start_line": 346
+     "start_line": 347
     },
     {
      "doc": "Rename columns according to COLUMN_RENAME_MAP and filter to only include columns specified in the map.",
-     "end_line": 392,
+     "end_line": 393,
      "kind": "function",
      "name": "rename_and_reorder_columns",
-     "start_line": 370
+     "start_line": 371
     },
     {
      "doc": "Convert boolean columns to binary (0/1) values.",
-     "end_line": 418,
+     "end_line": 419,
      "kind": "function",
      "name": "convert_booleans_to_binary",
-     "start_line": 394
+     "start_line": 395
     },
     {
      "doc": "Insert DataFrame into BigQuery.",
-     "end_line": 439,
+     "end_line": 440,
      "kind": "function",
      "name": "insert_to_bigquery",
-     "start_line": 420
+     "start_line": 421
     },
     {
      "doc": "Main function to fetch product data and save to CSV.",
-     "end_line": 454,
+     "end_line": 455,
      "kind": "function",
      "name": "main",
-     "start_line": 441
+     "start_line": 442
     }
    ],
    "variant": "local_run",

@@ -64,6 +64,10 @@ def fetch_stubs(service, empty=False):
     if short == "jushuitan-order":
         rows = [{"o_id": "1", "created": "2026-11-05 01:00:00", "modified": "2026-11-05 01:00:00"}]
         return {"load_data": _frame([] if empty else rows)}
+    if short == "jushuitan-inventory":
+        rows = [{"i_id": "I1", "sku_id": "A", "qty": 1, "modified": "2026-11-05 01:00:00"}]
+        # _get_outbound_ip logs the egress IP before every run; stub it so no extra HTTP call is made
+        return {"_get_outbound_ip": _list("harness-egress-ip"), "load_data": _frame([] if empty else rows)}
     if short == "magento-order":
         orders = [{"entity_id": 1, "increment_id": "100", "created_at": "2026-11-05 01:00:00",
                    "updated_at": "2026-11-05 01:00:00", "items": [{"sku": "A", "qty_ordered": 1}]}]

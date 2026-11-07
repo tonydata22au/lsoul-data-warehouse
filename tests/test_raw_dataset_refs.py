@@ -6,7 +6,8 @@ Plan: tasks/raw-dataset-plan.md. Two checks:
    (`raw_pancake`, `raw_tiktok`, `raw_meta`, or `<source>.raw_*` in the mixed source datasets).
    Excluded: sql/live/ (generated snapshot), sql/archive/, and the cutover script
    sql/migrations/raw_dataset_consolidation.sql, which must name the old datasets.
-2. That cutover script names exactly the 31 old raw tables, each with its `raw.<table>` copy.
+2. That cutover script names exactly the 32 old raw tables, each with its `raw.<table>` copy, and its
+   copy, verify and reverse sections each cover all 32.
 """
 
 import re
@@ -26,7 +27,8 @@ OLD = re.compile(
 # Bare dataset literals in Python: DATASET_ID = 'dianplus', os.getenv("BQ_DATASET", "surfosm"), ...
 OLD_PY = re.compile(r"[\"'](raw_pancake|raw_tiktok|raw_meta|dianplus|jushuitan|magento|surfosm)[\"']")
 
-# Live raw base tables on 2026-11-05 (tasks/raw-dataset-plan.md, "Live inventory").
+# Live raw base tables: the 31 read on 2026-11-05 (tasks/raw-dataset-plan.md, "Live inventory")
+# plus jushuitan.raw_jushuitan_order, found loading daily on 2026-11-06.
 INVENTORY = {
     "raw_pancake": {
         "raw_customer", "raw_inventory_histories", "raw_order", "raw_orders_returned",
@@ -42,7 +44,7 @@ INVENTORY = {
     "dianplus": {
         "raw_dianplus_inventory", "raw_dianplus_order", "raw_dianplus_order_refund", "raw_dianplus_product",
     },
-    "jushuitan": {"raw_jushuitan_inventory", "raw_jushuitan_taobao_tmall_order_manual"},
+    "jushuitan": {"raw_jushuitan_inventory", "raw_jushuitan_order", "raw_jushuitan_taobao_tmall_order_manual"},
     "magento": {"raw_magento_order"},
     "surfosm": {"raw_surfosm_inventory", "raw_surfosm_order", "raw_surfosm_order_return"},
 }
@@ -139,7 +141,7 @@ class RepositoryUsesRawDataset(unittest.TestCase):
         env_default = re.compile(r'os\.getenv\("(BQ_RAW_DATASET|BQ_DATASET)", "raw"\)')
         dataset_setting = re.compile(r"^\s*(def .*\bdataset_id=|DATASET_ID\s*=|BQ_DATASET\s*=)")
         services = sorted((ROOT / "src" / "cloud_run").glob("*/cr-*.py"))
-        self.assertEqual(len(services), 30)
+        self.assertEqual(len(services), 33)  # 30 + 3 recovered from live on 2026-11-07
         for path in services:
             with self.subTest(service=path.parent.name):
                 lines = [l for l in path.read_text(encoding="utf-8").splitlines() if dataset_setting.match(l)]
@@ -153,6 +155,17 @@ class RepositoryUsesRawDataset(unittest.TestCase):
         for tables in INVENTORY.values():
             for table in tables:
                 self.assertRegex(text, rf"(?<![\w-])raw\.{table}\b", f"no raw.{table} in {MIGRATION}")
+
+    def test_migration_sections_cover_all_tables(self):
+        text = (ROOT / MIGRATION).read_text(encoding="utf-8")
+        total = sum(len(tables) for tables in INVENTORY.values())
+        self.assertEqual(total, 32)
+        forward_copies = re.findall(r"^CREATE OR REPLACE TABLE `[^`]+\.raw\.raw_\w+` COPY", text, re.M)
+        reverse_copies = re.findall(r"^CREATE OR REPLACE TABLE `[^`]+\.(?!raw\.)\w+\.raw_\w+` COPY", text, re.M)
+        fingerprint_blocks = re.findall(r"^SELECT 'raw_\w+' AS table_name", text, re.M)
+        self.assertEqual(len(forward_copies), total)
+        self.assertEqual(len(reverse_copies), total)
+        self.assertEqual(len(fingerprint_blocks), 2 * total)  # section 3 (forward) and 5b (rollback)
 
 
 if __name__ == "__main__":
