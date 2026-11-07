@@ -110,3 +110,6 @@ seeds/**/*.xlsx
 # Reviewed ID policy and provenance records; never credentials or table-row exports.
 !sql/config/warehouse_policy.json
 !sql/source_provenance.json
+
+# graphify knowledge graph (local; rebuild: see AGENTS.md)
+graphify-out/

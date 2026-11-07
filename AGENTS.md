@@ -57,6 +57,7 @@ Safe commands make no network calls and write nothing outside the working tree:
 | Find an SQL object's file / drift from live | `python3 scripts/sql_index.py [<name>] [--drift] [--check]` | None (reads `sql/` only) |
 | Rebuild the pipeline manifest | `python3 scripts/build_pipeline_manifest.py` (`--check` to verify) | Writes `metadata/pipeline_manifest.json` only (static `ast` parse; never imports pipelines) |
 | Syntax-check one file | `python3 -m py_compile <file>` | Writes `__pycache__` only |
+| Query / rebuild the local code graph | `graphify query "<question>"` (reads `graphify-out/graph.json`); rebuild: `git archive HEAD src scripts tests docs sql/staging sql/procedures sql/functions sql/migrations tasks AGENTS.md \| tar -x -C <tmp> && (cd <tmp> && graphify update .)`, then copy `<tmp>/graphify-out` here | Writes `graphify-out/` only (git-ignored). AST only, no LLM; the archive keeps `.env`, `credentials/`, `seeds/`, `data/` out of the graph |
 | Show a pipeline's CLI flags | Read its `argparse` block, or see [docs/pipelines.md](docs/pipelines.md) | None. Avoid `--help`: it imports the module, which loads `.env`, may read the service-account key, and in some scripts (e.g. the Meta CSV exporter) runs the export at import |
 
 These commands **reach external systems**. Run them only when the user explicitly asks,
