@@ -29,13 +29,9 @@ SELECT table_catalog, table_schema, table_name, table_type, creation_time,0 AS t
 UNION ALL
 SELECT table_catalog, table_schema, table_name, table_type, creation_time,0 AS to_monitor_flag FROM `marine-cycle-484213-b4.analytics_529084033.INFORMATION_SCHEMA.TABLES`
 UNION ALL
-SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.core_meta.INFORMATION_SCHEMA.TABLES`
+SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.core.INFORMATION_SCHEMA.TABLES`
 UNION ALL
 SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.core_pancake.INFORMATION_SCHEMA.TABLES`
-UNION ALL
-SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.core_tiktok.INFORMATION_SCHEMA.TABLES`
-UNION ALL
-SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.dataform.INFORMATION_SCHEMA.TABLES`
 -- UNION ALL
 -- SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.dev_core_pancake.INFORMATION_SCHEMA.TABLES`
 -- UNION ALL
@@ -51,15 +47,15 @@ SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS t
 UNION ALL
 SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.magento.INFORMATION_SCHEMA.TABLES`
 UNION ALL
+SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.mart.INFORMATION_SCHEMA.TABLES`
+UNION ALL
 SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.raw.INFORMATION_SCHEMA.TABLES`
 UNION ALL
 SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.reportdb.INFORMATION_SCHEMA.TABLES`
 UNION ALL
-SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.stg_meta.INFORMATION_SCHEMA.TABLES`
+SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.stage.INFORMATION_SCHEMA.TABLES`
 UNION ALL
 SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.stg_pancake.INFORMATION_SCHEMA.TABLES`
-UNION ALL
-SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.stg_tiktok.INFORMATION_SCHEMA.TABLES`
 UNION ALL
 SELECT table_catalog, table_schema, table_name, table_type, creation_time,1 AS to_monitor_flag FROM `marine-cycle-484213-b4.surfosm.INFORMATION_SCHEMA.TABLES`
 UNION ALL
@@ -85,6 +81,11 @@ inventory AS (
       WHEN table_schema = 'raw' AND STARTS_WITH(table_name, 'raw_tiktok_') THEN 'TikTok Ads'
       WHEN table_schema = 'raw' AND STARTS_WITH(table_name, 'raw_ads_reporting_') THEN 'Meta Ads'
       WHEN table_schema = 'raw' THEN 'Pancake POS'  -- Pancake raw tables carry no source prefix
+      -- dbt layer datasets name tables <layer>_<source>__<entity> (core.core_meta__ads_reporting_a)
+      WHEN table_schema IN ('stage', 'core', 'mart') AND REGEXP_CONTAINS(table_name, r'^[a-z]+_pancake__') THEN 'Pancake POS'
+      WHEN table_schema IN ('stage', 'core', 'mart') AND REGEXP_CONTAINS(table_name, r'^[a-z]+_meta__') THEN 'Meta Ads'
+      WHEN table_schema IN ('stage', 'core', 'mart') AND REGEXP_CONTAINS(table_name, r'^[a-z]+_tiktok__') THEN 'TikTok Ads'
+      WHEN table_schema IN ('stage', 'core', 'mart') THEN 'bq pipeline/dbt'
       WHEN table_schema LIKE '%pancake%' THEN 'Pancake POS'
       WHEN table_schema LIKE '%meta%' THEN 'Meta Ads'
       WHEN table_schema LIKE '%tiktok%' THEN 'TikTok Ads'
